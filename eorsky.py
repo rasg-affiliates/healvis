@@ -15,12 +15,28 @@ from numpy import pi
 import h5py, sys
 
 
+def pspec_1D(cube, L, Nkbins=100):
+    """ Estimate the 1D power spectrum for a rectilinear cube """
+    N = cube.shape[0]   #Assume equal side lengths
+    dx = L/float(N)
+    _d = np.fft.fftn(cube)
+    ps3d = np.abs(_d*_d.conj())
+    ps1d = ps3d.ravel()
+    kvals = np.fft.fftfreq(N,d=dx)   #Mpc^-1
+    kx, ky, kz = np.meshgrid(kvals,kvals,kvals)
+    k = np.sqrt(kx**2 + ky**2 + kz**2)
+    means, bins, binnums = scipy.stats.binned_statistic(k.ravel(),ps1d,statistic='mean',bins=Nkbins)
+    pk = means/N**3
+    kbins  = (bins[1:] + bins[:-1])/2.
+    return kbins, pk
+
+
 freq_21 = 1420.
 
 class eorsky(object):
 
-    N = 256   # Npixels per side of rect_cube
-    L = 500   # rect_cube side length in Mpc
+    N = 256   # Npixels per side of rect_cube, default 256
+    L = 500   # rect_cube side length in Mpc, default 500
     hpx_shell = None
     rect_cube = None
     nside = 256
@@ -37,7 +53,9 @@ class eorsky(object):
 
     def __init__(self, **kwargs):
         for key, value in kwargs.iteritems():
+            print key, value
             if hasattr(self, key): setattr(self, key, value)
+        print "Test1:", self.updated
         self.update()
 
     def __setattr__(self,name,value):
@@ -49,6 +67,7 @@ class eorsky(object):
         """ Make Z, freq, healpix params, and rectilinear params consistent.  """
         if 'freqs' in self.updated:
             if 'Z' in self.updated:
+                import IPython; IPython.embed()
                 assert np.all(self.Z == freq_21/self.freqs - 1.)
             else:
                 self.Z = 1420./self.freqs - 1.
@@ -69,7 +88,7 @@ class eorsky(object):
             self.pixsize = hp.nside2pixarea(self.nside) * (4*pi)/(2*pi)**2   # Approximately go from square radians to steradians
         
         self.updated = []
- 
+
     def read_hdf5(self,filename):
         infile = h5py.File(filename)
         self.freqs = infile['spectral_info/freq'][()]/1e6  # Hz -> MHz
@@ -90,11 +109,52 @@ class eorsky(object):
             freq_dset.attrs['units'] = 'Hz'
             spectrum_dset = spec_group.create_dataset('spectrum', data=self.hpx_shell, compression='gzip', compression_opts=9)
 
+    def cube_inds(self,which=0):
+        """ Group healpix indices and radii by which box repetition they're in. """
+        N, L = self.N, np.float(self.L)
+        r_mpc = self.r_mpc
+        Vx, Vy, Vz = hp.pix2vec(self.nside, self.hpx_inds)
+        l = np.floor(np.outer(Vx, r_mpc)/L).astype(int)
+        m = np.floor(np.outer(Vy, r_mpc)/L).astype(int)
+        n = np.floor(np.outer(Vz, r_mpc)/L).astype(int)
+        offset = (-1)*np.min([l,m,n]) + 1
+        l += offset
+        m += offset
+        n += offset
+        box_inds = l + m * offset + n * offset**2
+        _, inv = np.unique(box_inds, return_inverse=True)
+        inv = inv.reshape((self.Npix,self.Nfreq))
+        print "Choosing cube ", which," of ", len(_)
+        return np.where(inv == which)
+
+    def slice(self,**kwargs):
+        """ Take a rect_cube and slice it into a healpix shell """
+        assert self.nside is not None
+        assert self.N is not None
+        assert self.L is not None
+        if self.Npix is None: self.Npix = hp.nside2npix(self.nside)
+        if self.hpx_inds is None: self.hpx_inds = np.arange(self.Npix)
+
+
+        self.hpx_shell = np.zeros((self.Npix,self.Nfreq))
+
+        Vx, Vy, Vz = hp.pix2vec(self.nside, self.hpx_inds)
+        vecs = np.vstack([Vx,Vy,Vz])    #(3,npix)
+        L = float(self.L)
+        dx = L / float(self.N)
+
+        for i in range(self.Nfreq):
+            r = self.r_mpc[i]
+            XYZmod = (vecs * r) % L
+            l,m,n = (XYZmod / dx).astype(int)
+            cube = self.rect_cube
+            self.hpx_shell[:,i] += cube[l,m,n]
+
+
     def unslice(self,**kwargs):
         params = ["N","L","nside","hpx_inds"]
         for key, value in kwargs.iteritems():
             if hasattr(self, key) and key in params: setattr(self, key, value)
-
 
         if 'freq_sel' in kwargs:
             f_min, f_max = kwargs['freq_sel']    #Select a range of frequencies. Passed in as a list [f_min, f_max]
@@ -123,45 +183,45 @@ class eorsky(object):
         cube_sel = -1
         if 'cube_sel' in kwargs:
             cube_sel = int(kwargs['cube_sel'])        #Select a particular cube repetition
-                                                      #Choose the cube_sel'th nonzero cube
-            Ncubes = (2*np.floor(np.max(self.r_mpc)/L))**3   #Right?
-            print "Selecting cube ", cube_sel," of ",Ncubes
-
+            box = self.cube_inds(cube_sel)
+        hpx_shell = self.hpx_shell
+        ones_shell = np.ones_like(hpx_shell)
+        weights = np.zeros_like(cube)
         for i in freq_inds:
             print i
             r = self.r_mpc[i]
             inds = np.floor((r*vecs)%(L)/dx).astype(int)   # (npix, 3)
-            inds = (inds[:,0],inds[:,1],inds[:,2])
-            if cube_sel>0:
-                cube_inds = np.floor(((r*vecs)/L)).astype(int)
-                import IPython;
-                IPython.embed()
-                sys.exit()
-            np.add.at(cube,inds,self.hpx_shell[:,i])
-        self.rect_cube = cube
+            if 'cube_sel' in kwargs:
+                finder = np.where(box[1] == i)
+                hpi = box[0][finder]
+                if len(hpi) == 0 : continue
+                l,m,n = inds[hpi,:].T
+                cart_inds = (l,m,n)
+                np.add.at(cube,cart_inds,hpx_shell[hpi,i])
+                np.add.at(weights,cart_inds,ones_shell[hpi,i])
+            else:
+                cart_inds = (inds[:,0],inds[:,1],inds[:,2])
+                np.add.at(cube,cart_inds,hpx_shell[:,i])
+                np.add.at(weights,cart_inds,ones_shell[:,i])
+        zeros = np.where(weights == 0.0)
+        weights = 1/weights
+        weights[zeros] = 0.0
+        self.rect_cube = cube*weights
 
-    def pspec_1D(self,Nkbins=100):
-        """ Estimate the 1D power spectrum for a rectilinear cube """
-        L, N = self.L, self.N
-        dx = L/float(N)
-        assert self.rect_cube is not None
-        _d = np.fft.fftn(self.rect_cube)
-        ps3d = np.abs(_d*_d.conj())
-        ps1d = ps3d.ravel()
-        kvals = np.fft.fftfreq(N,d=dx)   #Mpc^-1
-        kx, ky, kz = np.meshgrid(kvals,kvals,kvals)
-        k = np.sqrt(kx**2 + ky**2 + kz**2)
-        means, bins, binnums = scipy.stats.binned_statistic(k.ravel(),ps1d,statistic='mean',bins=Nkbins)
-        self.pk = means/N**3
-        self.kbins  = (bins[1:] + bins[:-1])/2.
 
 
 if __name__ == '__main__':
-  #  freqs = np.linspace(100,200,203)
-  #  Nfreq = 203
-  #  e = eorsky(freqs=freqs,Nfreq=Nfreq)
-    e = eorsky()
-    e.read_hdf5('/users/alanman/data/alanman/BubbleCube/TiledHpxCubes/gaussian_cube.hdf5')
-    e.unslice(freq_inds=[10],cube_sel=2)
+    freqs = np.linspace(180,200,20)
+    Nfreq = 20
+    ek = eorsky(freqs=freqs,Nfreq=Nfreq,nside=256)
+#    ek.read_hdf5('/users/alanman/data/alanman/BubbleCube/TiledHpxCubes/gaussian_cube.hdf5')
+    from copy import deepcopy
+#    ek = eorsky()
+    ek.rect_cube = np.ones((256,256,256))
+    old_cube = deepcopy(ek.rect_cube)
+    ek.slice()
+    ek.unslice()
+#    ek.slice()
+#    e.cube_inds()    ## Confirmed ---> The slicing/unslicing works correctly.
 
     import IPython; IPython.embed()
