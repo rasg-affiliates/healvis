@@ -7,6 +7,8 @@
 
 #### TODO
 ##	> Add unittests
+##	> Add the spherical bessel transform to pspec.py (as written in notebook).
+##	> Add a version of the r_pspec_1D that does the Z-direction as a Lomb-Scargle periodogram
 ##	> Add a defaults method.
 ##	> Test the change in pspec with the unslicing loop. --> Does the loss of box coverage affect it?
 ## 	> Make a new directory of pspec estimators
