@@ -8,11 +8,13 @@
 #### TODO
 ##	> Add unittests
 ##	> Add the spherical bessel transform to pspec.py (as written in notebook).
-##	> Add a version of the r_pspec_1D that does the Z-direction as a Lomb-Scargle periodogram
 ##	> Add a defaults method.
 ##	> Test the change in pspec with the unslicing loop. --> Does the loss of box coverage affect it?
-## 	> Make a new directory of pspec estimators
-## 	> Confirm --- what is needed for each method to operate?
+##  > Encode tests in separate files
+##  > Enable different interpolation for the healpix slicing/unslicing
+##  > Is it possible to encode Marcelo's method into here?
+## 	*> Make a new file of pspec estimators
+## 	> Confirm --- what is needed for each method to operate? Pass only that in.
 ## 	> Update the update() method to work by groups -- which groups of parameters are interdependent? How to ensure compatibility when one is updated?
 
 
@@ -24,7 +26,7 @@ from astropy.constants import c
 import healpy as hp
 from numpy import pi
 import h5py, sys
-
+import warnings
 
 freq_21 = 1420.
 
@@ -61,7 +63,6 @@ class eorsky(object):
         """ Make Z, freq, healpix params, and rectilinear params consistent.  """
         if 'freqs' in self.updated:
             if 'Z' in self.updated:
-                import IPython; IPython.embed()
                 assert np.all(self.Z == freq_21/self.freqs - 1.)
             else:
                 self.Z = 1420./self.freqs - 1.
@@ -83,11 +84,17 @@ class eorsky(object):
         
         self.updated = []
 
-    def read_hdf5(self,filename):
+    def read_hdf5(self,filename,chan_range=None):
         infile = h5py.File(filename)
-        self.freqs = infile['spectral_info/freq'][()]/1e6  # Hz -> MHz
-        self.hpx_shell = infile['spectral_info/spectrum'][()]
-        self.Npix, self.Nfreq = infile['spectral_info/spectrum'].shape
+        if not chan_range is None:
+            c0,c1 = chan_range
+            self.freqs = infile['spectral_info/freq'][c0:c1]/1e6  # Hz -> MHz
+            self.hpx_shell = infile['spectral_info/spectrum'][:,c0:c1]
+            self.Npix, self.Nfreq = self.hpx_shell.shape
+        else:
+            self.freqs = infile['spectral_info/freq'][()]/1e6  # Hz -> MHz
+            self.hpx_shell = infile['spectral_info/spectrum'][()]
+            self.Npix, self.Nfreq = infile['spectral_info/spectrum'].shape
         self.hpx_inds = np.arange(self.Npix)
         infile.close()
         self.update()

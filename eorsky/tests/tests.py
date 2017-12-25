@@ -14,5 +14,7 @@ ek.read_hdf5("../data/gaussian_cube.hdf5")
 ## Try a lomb-scargle periodogram in the radial direction
 sh = ek.hpx_shell.shape
 ek.hpx_shell = np.random.normal(0.0,1.0,size=sh)
+ek.select(chan_range=[5,10])
+
 print "nside: ",ek.nside
-r_pspec_sphere(ek.hpx_shell, ek.nside, 10, freqs=ek.freqs,N_sections=1,lomb_scargle=True)
+#r_pspec_sphere(ek.hpx_shell, ek.nside, 20 freqs=ek.freqs,N_sections=1,lomb_scargle=True)
