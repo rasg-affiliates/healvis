@@ -59,6 +59,19 @@ class eorsky(object):
         self.updated.append(name)
         super(eorsky, self).__setattr__(name, value)
 
+    def make_gaussian_shell(self, nside, freqs, mean=0.0, var=1.0):
+        """ Make a gaussian shell with the given structure """
+        Npix = hp.nside2npix(nside)
+        try:
+            Nfreq = freqs.size
+        except:
+            freqs = np.array(freqs); Nfreq = freqs.size
+        self.Nfreq = Nfreq; self.Npix = Npix
+        self.freqs = freqs
+        self.hpx_shell = np.random.normal(mean,var,((Npix,Nfreq)))
+        self.hpx_inds = np.arange(Npix)
+        self.update()
+
     def update(self):
         """ Make Z, freq, healpix params, and rectilinear params consistent.  """
         if 'freqs' in self.updated:
@@ -85,6 +98,7 @@ class eorsky(object):
         self.updated = []
 
     def read_hdf5(self,filename,chan_range=None):
+        print 'Reading: ', filename
         infile = h5py.File(filename)
         if not chan_range is None:
             c0,c1 = chan_range
