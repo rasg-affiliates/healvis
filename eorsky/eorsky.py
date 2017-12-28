@@ -9,13 +9,13 @@
 ##	> Add unittests
 ##	> Add the spherical bessel transform to pspec.py (as written in notebook).
 ##	> Add a defaults method.
+##  > Enable pspec comparison against a text file
+##  > Work on binary file reader
 ##	> Test the change in pspec with the unslicing loop. --> Does the loss of box coverage affect it?
-##  > Encode tests in separate files
 ##  > Enable different interpolation for the healpix slicing/unslicing
 ##  > Is it possible to encode Marcelo's method into here?
-## 	*> Make a new file of pspec estimators
-## 	> Confirm --- what is needed for each method to operate? Pass only that in.
 ## 	> Update the update() method to work by groups -- which groups of parameters are interdependent? How to ensure compatibility when one is updated?
+        ### More work is needed to decide the best way to implement this.
 
 
 import numpy as np
@@ -45,8 +45,8 @@ class eorsky(object):
     updated = []      #Track which attributes are changed
     hpx_inds = None
     r_mpc = None         # Shell radii in Mpc
-    pk = None       ## 1D power spectrum
-    kbins = None
+    ref_pk = None          ## Reference 1D power spectrum
+    ref_ks = None
 
     def __init__(self, **kwargs):
         for key, value in kwargs.iteritems():
@@ -58,6 +58,12 @@ class eorsky(object):
         if self.updated is None: self.updated = []
         self.updated.append(name)
         super(eorsky, self).__setattr__(name, value)
+
+    def make_gaussian_cube(self, N, L, mean=0.0, var=1.0):
+        """ Make a gaussian cube with the given structure """
+        self.N = N
+        self.L = L
+        self.rect_cube = np.random.normal(mean,var,((N,N,N)))
 
     def make_gaussian_shell(self, nside, freqs, mean=0.0, var=1.0):
         """ Make a gaussian shell with the given structure """
@@ -72,30 +78,50 @@ class eorsky(object):
         self.hpx_inds = np.arange(Npix)
         self.update()
 
-    def update(self):
-        """ Make Z, freq, healpix params, and rectilinear params consistent.  """
-        if 'freqs' in self.updated:
-            if 'Z' in self.updated:
-                assert np.all(self.Z == freq_21/self.freqs - 1.)
+    def consistency(self, param):
+        hpx_params = ['nside','Npix','hpx_shell','hpx_inds']
+        if param == 'nside':
+            if self.hpx_inds is None:
+                self.Npix = hp.nside2npix(self.nside)
+                self.hpx_inds = np.arange(self.Npix)
             else:
+                assert self.Npix == self.hpx_inds.size
+        if param == 'Npix':
+            if self.hpx_inds is None: self.hpx_inds = np.arange(self.Npix)
+        if param in hpx_params:
+            if not self.hpx_shell is None: assert self.hpx_shell.shape[0] == self.Npix
+
+    def update(self):
+        """ Make Z, freq, healpix params, and rectilinear params consistent. 
+            Assume that whatever parameter was just changed has priority over others.
+            If two parameters from the same group change at the same time, confirm that they're consistent.
+            ### For now --- Just sets default values if freq or any healpix parameter is changed.
+        """
+
+        hpx_params = ['nside','Npix','hpx_shell','hpx_inds']
+        z_params   = ['Z', 'freqs','Nfreq','r_mpc']
+        r_params   = ['L','N','rect_cube']
+
+        ud = np.unique(self.updated)
+        for p in ud:
+            print p
+            if p == 'freqs':
                 self.Z = 1420./self.freqs - 1.
                 self.r_mpc = cosmo.comoving_distance(self.Z).to("Mpc").value
-            if "Nfreq" in self.updated:
-                assert self.Nfreq == self.freqs.size
-            else:
                 self.Nfreq = self.freqs.size
-        if 'Npix' in self.updated:
-            assert self.hpx_inds.size == self.Npix
-            if 'nside' in self.updated:
-                assert self.nside == hp.npix2nside(self.Npix)
-            else:
-                self.nside = hp.npix2nside(self.Npix)
-        if self.Npix is None: self.Npix = hp.nside2npix(self.nside)
-        
-        if "nside" in self.updated:
-            self.pixsize = hp.nside2pixarea(self.nside) * (4*pi)/(2*pi)**2   # Approximately go from square radians to steradians
-        
+            if p == 'nside':
+                if self.Npix is None: self.Npix = hp.nside2npix(self.nside)
+                if self.hpx_inds is None: self.hpx_inds = np.arange(self.Npix)
+            if p == 'rect_cube':
+                self.N = self.rect_cube.shape[0]
         self.updated = []
+
+    def read_pspec(self,filename):
+        """ Read in a text file of power spectrum values """
+        ref_spectrum = np.genfromtxt(filename)
+        self.ref_ks = ref_spectrum[:,0]
+        self.ref_pk = ref_spectrum[:,1]
+
 
     def read_hdf5(self,filename,chan_range=None):
         print 'Reading: ', filename
@@ -112,6 +138,12 @@ class eorsky(object):
         self.hpx_inds = np.arange(self.Npix)
         infile.close()
         self.update()
+
+    def read_bin(self, filename, L=None, dtype=float):
+        print 'Reading: ', filename
+        self.rect_cube = np.fromfile(filename,dtype=dtype)
+        if L is not None: self.L = L
+        self.N = self.rect_cube.shape[0]
 
     def write_hdf5(self, filename):
         with h5py.File(filename, 'w') as fileobj:
@@ -151,20 +183,20 @@ class eorsky(object):
         if self.hpx_inds is None: self.hpx_inds = np.arange(self.Npix)
 
 
-        self.hpx_shell = np.zeros((self.Npix,self.Nfreq))
+        hpx_shell = np.zeros((self.Npix,self.Nfreq))
 
         Vx, Vy, Vz = hp.pix2vec(self.nside, self.hpx_inds)
         vecs = np.vstack([Vx,Vy,Vz])    #(3,npix)
         L = float(self.L)
         dx = L / float(self.N)
 
+        cube = self.rect_cube
         for i in range(self.Nfreq):
             r = self.r_mpc[i]
             XYZmod = (vecs * r) % L
             l,m,n = (XYZmod / dx).astype(int)
-            cube = self.rect_cube
-            self.hpx_shell[:,i] += cube[l,m,n]
-
+            hpx_shell[:,i] += cube[l,m,n]
+        self.hpx_shell = hpx_shell
 
     def unslice(self,**kwargs):
         params = ["N","L","nside","hpx_inds"]
