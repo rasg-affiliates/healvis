@@ -20,9 +20,9 @@ def bin_1d( pk, kcube, Nkbins=100, sigma=False):
     kbins  = (bins[1:] + bins[:-1])/2.
     if sigma:
         errs, bins, binnums = scipy.stats.binned_statistic(k1d,p1d,statistic=np.var,bins=Nkbins)
-        return means, kbins, np.sqrt(errs)
+        return kbins, means, np.sqrt(errs)
     else:
-        return means, kbins
+        return kbins, means
 
     
 def pyramid_pspec(cube, radius, r_mpc, Zs, kz = None, Nkbins=100,sigma=False):
@@ -37,7 +37,7 @@ def pyramid_pspec(cube, radius, r_mpc, Zs, kz = None, Nkbins=100,sigma=False):
  
     if kz is None:
         dz = np.abs(r_mpc[-1] - r_mpc[0])/float(Nz)   #Mean spacing
-        kz = np.fft.fftfreq(Nz,d=dz)
+        kz = np.fft.fftfreq(Nz,d=dz)*2*np.pi
     else:
         assert kz.size == r_mpc.size
     
@@ -50,8 +50,8 @@ def pyramid_pspec(cube, radius, r_mpc, Zs, kz = None, Nkbins=100,sigma=False):
     
     ##kx and ky
     L = D_mpc * radius   # Transverse lengths in Mpc
-    kx = np.array([np.fft.fftfreq(Nx,d=l/Nx) for l in L])
-    ky = np.array([np.fft.fftfreq(Ny,d=l/Ny) for l in L])
+    kx = np.array([np.fft.fftfreq(Nx,d=l/Nx) for l in L])*2*np.pi
+    ky = np.array([np.fft.fftfreq(Ny,d=l/Ny) for l in L])*2*np.pi
     kx = np.moveaxis(np.tile(kx[:,:,np.newaxis],Ny),[1,2],[0,1])
     ky = np.moveaxis(np.tile(ky[:,:,np.newaxis],Nx),[1,2],[1,0])
     kz = np.tile(kz[np.newaxis,:],Nx*Ny).reshape(Nx,Ny,Nz)
@@ -71,8 +71,8 @@ def ls_pspec_1D(cube, L, r_mpc, Nkbins=100, sigma=False):
     except TypeError:
         Lx = L; Ly = L; Lz = L   # Assume L is a single side length, same for all
     dx, dy, dz = Lx/float(Nx), Ly/float(Ny), Lz/float(Nz)
-    kx = np.fft.fftfreq(Nx,d=dx)   #Mpc^-1
-    ky = np.fft.fftfreq(Ny,d=dy)   #Mpc^-1
+    kx = np.fft.fftfreq(Nx,d=dx)*2*np.pi   #Mpc^-1
+    ky = np.fft.fftfreq(Ny,d=dy)*2*np.pi   #Mpc^-1
     assert len(r_mpc) == Nz
     kz, powtest = LombScargle(r_mpc,cube[0,0,:]).autopower(nyquist_factor=1,normalization="psd")
 
@@ -81,7 +81,7 @@ def ls_pspec_1D(cube, L, r_mpc, Nkbins=100, sigma=False):
         for j in range(cube.shape[1]):
             kz, power = LombScargle(r_mpc,cube[i,j,:]).autopower(nyquist_factor=1,normalization="psd")
             _cube[i,j] = np.sqrt(power)
-
+    kz *= 2*np.pi
     _d = np.fft.fft2(_cube,axes=(0,1))
     kx = kx[kx>0]
     ky = ky[ky>0]
@@ -102,9 +102,9 @@ def r_pspec_1D(cube, L, Nkbins=100,sigma=False):
         Lx = L; Ly = L; Lz = L   # Assume L is a single side length, same for all
     dx, dy, dz = Lx/float(Nx), Ly/float(Ny), Lz/float(Nz)
     _d = np.fft.fftn(cube)
-    kx = np.fft.fftfreq(Nx,d=dx)   #Mpc^-1
-    ky = np.fft.fftfreq(Ny,d=dy)   #Mpc^-1
-    kz = np.fft.fftfreq(Nz,d=dz)   #Mpc^-1
+    kx = np.fft.fftfreq(Nx,d=dx)*2*np.pi   #Mpc^-1
+    ky = np.fft.fftfreq(Ny,d=dy)*2*np.pi   #Mpc^-1
+    kz = np.fft.fftfreq(Nz,d=dz)*2*np.pi   #Mpc^-1
 
     pk3d = np.abs(_d)**2/(Nx*Ny*Nz)
     results = bin_1d(pk3d,(kx,ky,kz),Nkbins=Nkbins,sigma=sigma)
@@ -186,12 +186,12 @@ def r_pspec_sphere(shell, nside, radius, dims=None, hpx_inds = None, N_sections=
             cube[:,:,i] = mwp.projmap(shell[:,i], fun)[imin:imax, jmin:jmax]
  
         if lomb_scargle:
-            pki, kbins,errsi = ls_pspec_1D(cube,dims,r_mpc,Nkbins=Nkbins,sigma=True)
+            kbins, pki, errsi = ls_pspec_1D(cube,dims,r_mpc,Nkbins=Nkbins,sigma=True)
         elif pyramid:
-            pki, kbins,errsi = pyramid_pspec(cube, radius, r_mpc, Zs, Nkbins=Nkbins,sigma=True)
+            kbins,pki, errsi = pyramid_pspec(cube, radius, r_mpc, Zs, Nkbins=Nkbins,sigma=True)
 
         else:
-            pki, kbins,errsi = r_pspec_1D(cube,dims,Nkbins=Nkbins,sigma=True)
+            kbins, pki, errsi = r_pspec_1D(cube,dims,Nkbins=Nkbins,sigma=True)
         pk += pki
         errs += errsi
 
