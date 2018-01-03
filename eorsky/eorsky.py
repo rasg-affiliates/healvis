@@ -190,7 +190,9 @@ class eorsky(object):
         dx = L / float(self.N)
 
         cube = self.rect_cube
+        print "Slicing"
         for i in range(self.Nfreq):
+            print 'channel ',i
             r = self.r_mpc[i]
             XYZmod = (vecs * r) % L
             l,m,n = (XYZmod / dx).astype(int)
