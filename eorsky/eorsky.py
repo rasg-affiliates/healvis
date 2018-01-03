@@ -104,7 +104,6 @@ class eorsky(object):
 
         ud = np.unique(self.updated)
         for p in ud:
-            print p
             if p == 'freqs':
                 self.Z = 1420./self.freqs - 1.
                 self.r_mpc = cosmo.comoving_distance(self.Z).to("Mpc").value

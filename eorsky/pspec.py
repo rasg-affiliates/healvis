@@ -101,12 +101,13 @@ def r_pspec_1D(cube, L, Nkbins=100,sigma=False):
     except TypeError:
         Lx = L; Ly = L; Lz = L   # Assume L is a single side length, same for all
     dx, dy, dz = Lx/float(Nx), Ly/float(Ny), Lz/float(Nz)
-    _d = np.fft.fftn(cube)
+    dV = dx * dy * dz
+    _d = np.fft.fftn(cube)*dV   ## Multiply by the voxel size dV
     kx = np.fft.fftfreq(Nx,d=dx)*2*np.pi   #Mpc^-1
     ky = np.fft.fftfreq(Ny,d=dy)*2*np.pi   #Mpc^-1
     kz = np.fft.fftfreq(Nz,d=dz)*2*np.pi   #Mpc^-1
 
-    pk3d = np.abs(_d)**2/(Nx*Ny*Nz)
+    pk3d = np.abs(_d)**2/(Lx*Ly*Lz)    #(Nx*Ny*Nz)  ### replace --- divide by big volume factor for the correct cosmological normalization
     results = bin_1d(pk3d,(kx,ky,kz),Nkbins=Nkbins,sigma=sigma)
 
     return results
