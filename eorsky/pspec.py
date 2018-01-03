@@ -62,9 +62,8 @@ def pyramid_pspec(cube, radius, r_mpc, Zs, kz = None, Nkbins=100,sigma=False):
     return results
 
 
-def ls_pspec_1D(cube, L, r_mpc, Nkbins=100, sigma=False):
+def ls_pspec_1D(cube, L, r_mpc, Nkbins=100, sigma=False, kz=None):
     """ Estimate the 1D power spectrum for square regions with non-uniform distances using Lomb-Scargle periodogram in the radial direction."""
-    ## TODO Enable a set of kz bins to be passed in
     Nx,Ny,Nz = cube.shape
     try:
         Lx, Ly, Lz = L
@@ -74,12 +73,17 @@ def ls_pspec_1D(cube, L, r_mpc, Nkbins=100, sigma=False):
     kx = np.fft.fftfreq(Nx,d=dx)*2*np.pi   #Mpc^-1
     ky = np.fft.fftfreq(Ny,d=dy)*2*np.pi   #Mpc^-1
     assert len(r_mpc) == Nz
-    kz, powtest = LombScargle(r_mpc,cube[0,0,:]).autopower(nyquist_factor=1,normalization="psd")
+    print kz
+    if kz is None:
+        kz, powtest = LombScargle(r_mpc,cube[0,0,:]).autopower(nyquist_factor=1,normalization="psd")
 
     _cube = np.zeros((Nx,Ny,kz.size))
     for i in range(cube.shape[0]):
         for j in range(cube.shape[1]):
-            kz, power = LombScargle(r_mpc,cube[i,j,:]).autopower(nyquist_factor=1,normalization="psd")
+            if kz is None:
+                kz, power = LombScargle(r_mpc,cube[i,j,:]).autopower(nyquist_factor=1,normalization="psd")
+            else:
+                power = LombScargle(r_mpc, cube[i,j,:]).power(kz,normalization="psd")
             _cube[i,j] = np.sqrt(power)
     kz *= 2*np.pi
     _d = np.fft.fft2(_cube,axes=(0,1))
@@ -93,8 +97,10 @@ def ls_pspec_1D(cube, L, r_mpc, Nkbins=100, sigma=False):
 
     return results
 
-def r_pspec_1D(cube, L, Nkbins=100,sigma=False):
-    """ Estimate the 1D power spectrum for a rectilinear cube """
+def r_pspec_1D(cube, L, Nkbins=100,sigma=False,cosmo=False):
+    """ Estimate the 1D power spectrum for a rectilinear cube
+            cosmo=Use cosmological normalization convention
+    """
     Nx,Ny,Nz = cube.shape
     try:
         Lx, Ly, Lz = L
@@ -102,17 +108,25 @@ def r_pspec_1D(cube, L, Nkbins=100,sigma=False):
         Lx = L; Ly = L; Lz = L   # Assume L is a single side length, same for all
     dx, dy, dz = Lx/float(Nx), Ly/float(Ny), Lz/float(Nz)
     dV = dx * dy * dz
+    if cosmo:
+        kfact=2*np.pi
+        dV = dx*dy*dz
+        pfact = 1/(Lx*Ly*Lz) * (1./float(Nkbins))
+    else:
+       kfact=1
+       dV = 1
+       pfact = 1/float(Nx*Ny*Nz)
     _d = np.fft.fftn(cube)*dV   ## Multiply by the voxel size dV
-    kx = np.fft.fftfreq(Nx,d=dx)*2*np.pi   #Mpc^-1
-    ky = np.fft.fftfreq(Ny,d=dy)*2*np.pi   #Mpc^-1
-    kz = np.fft.fftfreq(Nz,d=dz)*2*np.pi   #Mpc^-1
-
-    pk3d = np.abs(_d)**2/(Lx*Ly*Lz)    #(Nx*Ny*Nz)  ### replace --- divide by big volume factor for the correct cosmological normalization
+    kx = np.fft.fftfreq(Nx,d=dx)*kfact   #Mpc^-1
+    ky = np.fft.fftfreq(Ny,d=dy)*kfact   #Mpc^-1
+    kz = np.fft.fftfreq(Nz,d=dz)*kfact   #Mpc^-1
+    pk3d = np.abs(_d)**2 * pfact
     results = bin_1d(pk3d,(kx,ky,kz),Nkbins=Nkbins,sigma=sigma)
 
     return results
 
-def r_pspec_sphere(shell, nside, radius, dims=None, hpx_inds = None, N_sections=None, freqs = None, dist=None, pyramid=False, lomb_scargle=False, Nkbins=None):
+def r_pspec_sphere(shell, nside, radius, dims=None, hpx_inds = None, N_sections=None,
+                     freqs = None, kz=None, dist=None, pyramid=False, lomb_scargle=False, Nkbins=None):
     """ Estimate the power spectrum of a healpix shell by projecting regions to Cartesian space.
             Shell = (Npix, Nfreq)  Healpix shell, or section of one.
             radius = (analogous to beam width)
@@ -187,7 +201,10 @@ def r_pspec_sphere(shell, nside, radius, dims=None, hpx_inds = None, N_sections=
             cube[:,:,i] = mwp.projmap(shell[:,i], fun)[imin:imax, jmin:jmax]
  
         if lomb_scargle:
-            kbins, pki, errsi = ls_pspec_1D(cube,dims,r_mpc,Nkbins=Nkbins,sigma=True)
+            if kz is not None:
+                kbins, pki, errsi = ls_pspec_1D(cube,dims,r_mpc,Nkbins=Nkbins,sigma=True,kz=kz)
+            else:
+                kbins, pki, errsi = ls_pspec_1D(cube,dims,r_mpc,Nkbins=Nkbins,sigma=True)
         elif pyramid:
             kbins,pki, errsi = pyramid_pspec(cube, radius, r_mpc, Zs, Nkbins=Nkbins,sigma=True)
 
