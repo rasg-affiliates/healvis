@@ -1,7 +1,7 @@
 ## Different power spectrum estimators for sphere or Cartesian cubes.
 
 import scipy.stats, numpy as np, healpy as hp
-from astropy.cosmology import WMAP9 as cosmo
+from astropy.cosmology import WMAP9
 from astropy.stats import LombScargle
 
 
@@ -33,7 +33,7 @@ def pyramid_pspec(cube, radius, r_mpc, Zs, kz = None, Nkbins=100,sigma=False):
             In the radial direction, calculate discrete fourier transform. In tangential directions, do FFT.
     """
     Nx, Ny, Nz = cube.shape
-    D_mpc = cosmo.angular_diameter_distance(Zs).to("Mpc").value
+    D_mpc = WMAP9.angular_diameter_distance(Zs).to("Mpc").value
  
     if kz is None:
         dz = np.abs(r_mpc[-1] - r_mpc[0])/float(Nz)   #Mean spacing
@@ -62,7 +62,7 @@ def pyramid_pspec(cube, radius, r_mpc, Zs, kz = None, Nkbins=100,sigma=False):
     return results
 
 
-def ls_pspec_1D(cube, L, r_mpc, Nkbins=100, sigma=False, kz=None):
+def ls_pspec_1D(cube, L, r_mpc, Nkbins=100, sigma=False, kz=None,cosmo=False):
     """ Estimate the 1D power spectrum for square regions with non-uniform distances using Lomb-Scargle periodogram in the radial direction."""
     Nx,Ny,Nz = cube.shape
     try:
@@ -126,7 +126,7 @@ def r_pspec_1D(cube, L, Nkbins=100,sigma=False,cosmo=False):
     return results
 
 def r_pspec_sphere(shell, nside, radius, dims=None, hpx_inds = None, N_sections=None,
-                     freqs = None, kz=None, dist=None, pyramid=False, lomb_scargle=False, Nkbins=None):
+                     freqs = None, kz=None, dist=None, pyramid=False, lomb_scargle=False, Nkbins=None,cosmo=False):
     """ Estimate the power spectrum of a healpix shell by projecting regions to Cartesian space.
             Shell = (Npix, Nfreq)  Healpix shell, or section of one.
             radius = (analogous to beam width)
@@ -154,9 +154,9 @@ def r_pspec_sphere(shell, nside, radius, dims=None, hpx_inds = None, N_sections=
             Ly = Lx; Lz = Lx
         else:
             Zs = 1420./freqs - 1.
-            r_mpc = cosmo.comoving_distance(Zs).to("Mpc").value
+            r_mpc = WMAP9.comoving_distance(Zs).to("Mpc").value
             Lz = np.max(r_mpc) - np.min(r_mpc)
-            dist = cosmo.angular_diameter_distance(np.mean(Zs)).value
+            dist = WMAP9.angular_diameter_distance(np.mean(Zs)).value
             Lx = 2*radius*dist
             Ly = Lx
         dims = [Lx,Ly,Lz]
@@ -166,7 +166,7 @@ def r_pspec_sphere(shell, nside, radius, dims=None, hpx_inds = None, N_sections=
             Zs
         except:
             Zs = 1420./freqs - 1.
-            r_mpc = cosmo.comoving_distance(Zs).to("Mpc").value
+            r_mpc = WMAP9.comoving_distance(Zs).to("Mpc").value
 
     ## Average power spectrum estimates from different parts of the sky.
 
@@ -202,14 +202,14 @@ def r_pspec_sphere(shell, nside, radius, dims=None, hpx_inds = None, N_sections=
  
         if lomb_scargle:
             if kz is not None:
-                kbins, pki, errsi = ls_pspec_1D(cube,dims,r_mpc,Nkbins=Nkbins,sigma=True,kz=kz)
+                kbins, pki, errsi = ls_pspec_1D(cube,dims,r_mpc,Nkbins=Nkbins,sigma=True,kz=kz,cosmo=cosmo)
             else:
-                kbins, pki, errsi = ls_pspec_1D(cube,dims,r_mpc,Nkbins=Nkbins,sigma=True)
+                kbins, pki, errsi = ls_pspec_1D(cube,dims,r_mpc,Nkbins=Nkbins,sigma=True,cosmo=cosmo)
         elif pyramid:
-            kbins,pki, errsi = pyramid_pspec(cube, radius, r_mpc, Zs, Nkbins=Nkbins,sigma=True)
+            kbins,pki, errsi = pyramid_pspec(cube, radius, r_mpc, Zs, Nkbins=Nkbins,sigma=True,cosmo=cosmo)
 
         else:
-            kbins, pki, errsi = r_pspec_1D(cube,dims,Nkbins=Nkbins,sigma=True)
+            kbins, pki, errsi = r_pspec_1D(cube,dims,Nkbins=Nkbins,sigma=True,cosmo=cosmo)
         pk += pki
         errs += errsi
 
