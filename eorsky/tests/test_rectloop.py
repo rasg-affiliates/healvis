@@ -4,20 +4,19 @@ import numpy as np
 import pylab
 
 ek = eorsky()
-L = 500
+L = 300
 N = 256
-NSIDE=512
+NSIDE=256
 
-#freqs=np.linspace(100,200,1024)
-#freqs = freqs[430:633]
-#freqs=np.linspace(100,200,203)
-#freqs = freqs[85:115]
-freqs = np.linspace(182.95-30.72/2.,182.95+30.72/2., 384)    ## Actual MWA channel structure... I've been doing it wrong.
+ek.set_freqs('mwa')
+
 ek.nside = NSIDE
-ek.freqs = freqs
 
 ek.make_gaussian_cube(N,L,var=1.0)
 ek.update()
+
+print ek.Nfreq, ek.Npix
+
 k0,pk0 = r_pspec_1D(ek.rect_cube,L)   #The pspec of the input gaussian cube
 ek.slice()
 ek.update()
