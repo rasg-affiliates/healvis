@@ -1,23 +1,3 @@
-## Class to handle EoR simulation data
-##	> Read in hdf5 files and binary files for cubes and shells
-##	> Convert between rectilinear cubes and tiled healpix shells.
-##	> Estimate 1D power spectrum from rectilinear cube.
-##	> (eventually) Perform spherical Bessel transform to estimate pspec from healpix shell directly
-
-
-#### TODO
-##	> Add unittests
-##	> Add the spherical bessel transform to pspec.py (as written in notebook).
-##	> Add a defaults method.
-##  > Enable pspec comparison against a text file
-##  > Work on binary file reader
-##	> Test the change in pspec with the unslicing loop. --> Does the loss of box coverage affect it?
-##  > Enable different interpolation for the healpix slicing/unslicing
-##  > Is it possible to encode Marcelo's method into here?
-## 	> Update the update() method to work by groups -- which groups of parameters are interdependent? How to ensure compatibility when one is updated?
-        ### More work is needed to decide the best way to implement this.
-
-
 import numpy as np
 from astropy.cosmology import WMAP9 as cosmo
 import scipy.stats
@@ -78,18 +58,6 @@ class eorsky(object):
         self.hpx_inds = np.arange(Npix)
         self.update()
 
-    def consistency(self, param):
-        hpx_params = ['nside','Npix','hpx_shell','hpx_inds']
-        if param == 'nside':
-            if self.hpx_inds is None:
-                self.Npix = hp.nside2npix(self.nside)
-                self.hpx_inds = np.arange(self.Npix)
-            else:
-                assert self.Npix == self.hpx_inds.size
-        if param == 'Npix':
-            if self.hpx_inds is None: self.hpx_inds = np.arange(self.Npix)
-        if param in hpx_params:
-            if not self.hpx_shell is None: assert self.hpx_shell.shape[0] == self.Npix
 
     def update(self):
         """ Make Z, freq, healpix params, and rectilinear params consistent. 
@@ -113,6 +81,12 @@ class eorsky(object):
                 if self.hpx_inds is None: self.hpx_inds = np.arange(self.Npix)
             if p == 'rect_cube':
                 self.N = self.rect_cube.shape[0]
+            if p == 'nside':
+                if 'hpx_inds' not in ud:
+                    if 'Npix' not in ud: self.Npix = hp.nside2npix(self.nside)
+                    self.hpx_inds = np.arange(self.Npix)
+            if p == 'hpx_inds':
+                self.Npix = self.hpx_inds.size
         self.updated = []
 
     def read_pspec(self,filename):
@@ -173,6 +147,31 @@ class eorsky(object):
         print "Choosing cube ", which," of ", len(_)
         return np.where(inv == which)
 
+    def set_freqs(self, instr):
+        """ Set frequencies to those of a known instrument. """
+        if instr.lower() == 'mwa': freqs = np.linspace(182.95-30.72/2.,182.95+30.72/2., 384)
+        if instr.lower() == 'paper': freqs = np.linspace(100,200,203)
+        if instr.lower() == 'hera': freqs = np.linspace(100,200,1024)
+        self.freqs = freqs
+        self.update()
+
+    def select_range(self, **kwargs):
+        assert self.freqs is not None
+        if 'z' in kwargs:
+            z0,z1 = kwargs['z']
+            imin, imax = np.argmin(np.abs(self.Z - z0)), np.argmin(np.abs(self.Z - z1))
+            self.freqs = self.freqs[imin:imax]
+            self.update()
+        if 'f' in kwargs:
+            f0,f1 = kwargs['f']
+            imin, imax = np.argmin(np.abs(self.freqs - f0)), np.argmin(np.abs(self.freqs - f1))
+            self.freqs = self.freqs[imin:imax]
+            self.update()
+        if 'chan' in kwargs:
+            self.freqs = self.freqs[int(kwargs['chan'][0]):int(kwargs['chan'][1])]
+            self.update()
+            
+
     def slice(self,**kwargs):
         """ Take a rect_cube and slice it into a healpix shell """
         assert self.nside is not None
@@ -180,7 +179,6 @@ class eorsky(object):
         assert self.L is not None
         if self.Npix is None: self.Npix = hp.nside2npix(self.nside)
         if self.hpx_inds is None: self.hpx_inds = np.arange(self.Npix)
-
 
         hpx_shell = np.zeros((self.Npix,self.Nfreq))
 
