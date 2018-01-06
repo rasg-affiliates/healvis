@@ -25,7 +25,7 @@ def bin_1d( pk, kcube, Nkbins=100, sigma=False):
         return kbins, means
 
     
-def pyramid_pspec(cube, radius, r_mpc, Zs, kz = None, Nkbins=100,sigma=False):
+def pyramid_pspec(cube, radius, r_mpc, Zs, kz = None, Nkbins=100,sigma=False,cosmo=False):
     """
         Estimate the power spectrum in a "pyramid" appoximation:
             radius = in radians
@@ -73,7 +73,6 @@ def ls_pspec_1D(cube, L, r_mpc, Nkbins=100, sigma=False, kz=None,cosmo=False):
     kx = np.fft.fftfreq(Nx,d=dx)*2*np.pi   #Mpc^-1
     ky = np.fft.fftfreq(Ny,d=dy)*2*np.pi   #Mpc^-1
     assert len(r_mpc) == Nz
-    print kz
     if kz is None:
         kz, powtest = LombScargle(r_mpc,cube[0,0,:]).autopower(nyquist_factor=1,normalization="psd")
 
@@ -97,7 +96,7 @@ def ls_pspec_1D(cube, L, r_mpc, Nkbins=100, sigma=False, kz=None,cosmo=False):
 
     return results
 
-def r_pspec_1D(cube, L, Nkbins=100,sigma=False,cosmo=False):
+def r_pspec_1D(cube, L, r_mpc=None, Nkbins=100,sigma=False,cosmo=False):
     """ Estimate the 1D power spectrum for a rectilinear cube
             cosmo=Use cosmological normalization convention
     """
@@ -116,16 +115,27 @@ def r_pspec_1D(cube, L, Nkbins=100,sigma=False,cosmo=False):
        kfact=1
        dV = 1
        pfact = 1/float(Nx*Ny*Nz)
-    _d = np.fft.fftn(cube)*dV   ## Multiply by the voxel size dV
     kx = np.fft.fftfreq(Nx,d=dx)*kfact   #Mpc^-1
     ky = np.fft.fftfreq(Ny,d=dy)*kfact   #Mpc^-1
     kz = np.fft.fftfreq(Nz,d=dz)*kfact   #Mpc^-1
+
+    if not r_mpc is None:
+        dz = np.abs(r_mpc[-1] - r_mpc[0])/float(Nz)   #Mean spacing
+        kz = np.fft.fftfreq(Nz,d=dz)*2*np.pi
+    
+        ## DFT in radial direction
+        M = np.exp(np.pi * 2 * (-1j) * np.outer(kz,r_mpc) )
+        _c = np.apply_along_axis(lambda x: np.dot(M,x),2, cube)
+        _d = np.fft.fft2(_c,axes=(0,1))*dV   ## Multiply by the voxel size dV
+    else:
+        _d = np.fft.fftn(cube)*dV
     pk3d = np.abs(_d)**2 * pfact
+
     results = bin_1d(pk3d,(kx,ky,kz),Nkbins=Nkbins,sigma=sigma)
 
     return results
 
-def r_pspec_sphere(shell, nside, radius, dims=None, hpx_inds = None, N_sections=None,
+def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, N_sections=None,
                      freqs = None, kz=None, dist=None, pyramid=False, lomb_scargle=False, Nkbins=None,cosmo=False):
     """ Estimate the power spectrum of a healpix shell by projecting regions to Cartesian space.
             Shell = (Npix, Nfreq)  Healpix shell, or section of one.
@@ -175,12 +185,11 @@ def r_pspec_sphere(shell, nside, radius, dims=None, hpx_inds = None, N_sections=
     errs = np.zeros(Nkbins)
     for s in range(N_sections):
 
-        print "Section ",s
         cent = hp.pix2vec(nside,np.random.choice(hpx_inds))
         inds = hp.query_disc(nside,cent,radius)
         vecs = hp.pixelfunc.pix2vec(nside, inds)
 	
-        print "Pixels in selection: ",inds.shape
+        print "Section, pixels: ",s, inds.shape
     
         dt, dp = hp.rotator.vec2dir(cent,lonlat=True)
     
@@ -209,7 +218,7 @@ def r_pspec_sphere(shell, nside, radius, dims=None, hpx_inds = None, N_sections=
             kbins,pki, errsi = pyramid_pspec(cube, radius, r_mpc, Zs, Nkbins=Nkbins,sigma=True,cosmo=cosmo)
 
         else:
-            kbins, pki, errsi = r_pspec_1D(cube,dims,Nkbins=Nkbins,sigma=True,cosmo=cosmo)
+            kbins, pki, errsi = r_pspec_1D(cube,dims,r_mpc=r_mpc,Nkbins=Nkbins,sigma=True,cosmo=cosmo)
         pk += pki
         errs += errsi
 
