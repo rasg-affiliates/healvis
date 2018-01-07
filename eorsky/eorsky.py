@@ -197,6 +197,7 @@ class eorsky(object):
             l,m,n = (XYZmod / dx).astype(int)
             hpx_shell[:,i] += cube[l,m,n]
         self.hpx_shell = hpx_shell
+        self.update()
 
     def unslice(self,**kwargs):
         params = ["N","L","nside","hpx_inds"]

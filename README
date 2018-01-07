@@ -1,2 +1,2 @@
 
-Miscellaneous classes and scripts related to mapping rectilinear cubes to HEALPix shells (healpix surfaces + distance dimension) and calculating their power spectra.
+Miscellaneous classes and scripts related to mapping 21cmFAST boxes (or similarly-shaped temperature) to HEALPix shells (healpix surfaces + distance dimension) and calculating their power spectra.
