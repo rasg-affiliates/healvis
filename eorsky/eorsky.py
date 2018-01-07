@@ -44,6 +44,7 @@ class eorsky(object):
         self.N = N
         self.L = L
         self.rect_cube = np.random.normal(mean,var,((N,N,N)))
+        self.update()
 
     def make_gaussian_shell(self, nside, freqs, mean=0.0, var=1.0):
         """ Make a gaussian shell with the given structure """

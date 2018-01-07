@@ -96,7 +96,7 @@ def ls_pspec_1D(cube, L, r_mpc, Nkbins=100, sigma=False, kz=None,cosmo=False):
 
     return results
 
-def r_pspec_1D(cube, L, r_mpc=None, Nkbins=100,sigma=False,cosmo=False):
+def r_pspec_1D(cube, L, r_mpc=None, Nkbins=100,sigma=False,cosmo=False,return_3d=False):
     """ Estimate the 1D power spectrum for a rectilinear cube
             cosmo=Use cosmological normalization convention
     """
@@ -104,7 +104,9 @@ def r_pspec_1D(cube, L, r_mpc=None, Nkbins=100,sigma=False,cosmo=False):
     try:
         Lx, Ly, Lz = L
     except TypeError:
-        Lx = L; Ly = L; Lz = L   # Assume L is a single side length, same for all
+        Lx = L; Ly = L
+        if r_mpc is not None: Lz = r_mpc[-1] - r_mpc[0]  
+        else: Lz = L          # Assume L is a single side length, same for all
     dx, dy, dz = Lx/float(Nx), Ly/float(Ny), Lz/float(Nz)
     dV = dx * dy * dz
     if cosmo:
@@ -124,13 +126,13 @@ def r_pspec_1D(cube, L, r_mpc=None, Nkbins=100,sigma=False,cosmo=False):
         kz = np.fft.fftfreq(Nz,d=dz)*2*np.pi
     
         ## DFT in radial direction
-        M = np.exp(np.pi * 2 * (-1j) * np.outer(kz,r_mpc) )
+        M = np.exp(2*np.pi * (-1j) * np.outer(kz,r_mpc) )
         _c = np.apply_along_axis(lambda x: np.dot(M,x),2, cube)
         _d = np.fft.fft2(_c,axes=(0,1))*dV   ## Multiply by the voxel size dV
     else:
         _d = np.fft.fftn(cube)*dV
     pk3d = np.abs(_d)**2 * pfact
-
+    if return_3d: return (kx,ky,kz), pk3d
     results = bin_1d(pk3d,(kx,ky,kz),Nkbins=Nkbins,sigma=sigma)
 
     return results
