@@ -1,8 +1,9 @@
 ## Different power spectrum estimators for sphere or Cartesian cubes.
 
-import scipy.stats, numpy as np, healpy as hp
+import scipy.stats, numpy as np, healpy as hp, time
 from astropy.cosmology import WMAP9
 from astropy.stats import LombScargle
+from scipy.special import spherical_jn as jl   ## Requires scipy version 0.18.0 at least
 
 
 def bin_1d( pk, kcube, Nkbins=100, sigma=False):
@@ -24,13 +25,65 @@ def bin_1d( pk, kcube, Nkbins=100, sigma=False):
     else:
         return kbins, means
 
-    
+def slk_calc(tlmk,wlk,ls,ms):
+    """
+        Given the results of a T(r) -> Tlm(k) transformation, calculate the 2d power spectrum S_l(k)
+        (Sum in bins of ms, then divide by weights)
+    """
+
+def tlmk_transform(shell, nside, r_mpc, kz=None,lmax=None):
+    """
+        Estimate the power spectrum in the (k,l) basis.
+        Return the wlk and Tlmk of the transformed shell for power spectrum estimators.
+    """
+    if lmax is None:  lmax = 3*nside - 1; ret_flag =True
+    nlm  = hp.sphtfunc.Alm.getsize(lmax)
+    ls, ms = hp.sphtfunc.Alm.getlm(lmax)
+
+    map2alm = lambda x: hp.map2alm(x,lmax=lmax)
+    alms = np.apply_along_axis(map2alm,0,shell)
+    Nchan = r_mpc.size
+
+    if kz is None:
+        ret_flag = True
+        dr = np.min(-np.diff(r_mpc))
+        print 'dr: ', dr
+        kz = np.fft.fftfreq(Nchan,d=dr)*2*np.pi   #Default to using the radial momenta from the minimum spacing.
+    kz = kz[np.where(kz>0)]                #Ignore negative k's since these are meaningless as isotropic k.
+                                          #Ignore k=0.
+    Nk = kz.size
+    #def mat_element(li,ki,fi):
+    #   k = kz[ki]
+    #   ri = r_mpc[fi]
+    #   return ri**2 * jl(li,k*ri)
+
+    t0 =time.time()
+    bess_mat = np.zeros((lmax+1,Nk,Nchan),dtype=np.complex128)
+    wlk = np.zeros((lmax+1,Nk))
+    for l in range(lmax+1):
+        for ki in range(Nk):
+            bess_mat[l,ki,:] = r_mpc**2 * jl(l,kz[ki]*r_mpc)
+            #bess_mat[l,ki,:] = np.exp(-2*np.pi* (1j)*kz[ki]*r_mpc)  #Confirm the correct matrix mult
+            #wlk[l,ki] = np.sum(jl(l,kz[ki]*r_mpc))
+    print "Bessel and weight matrix timing: ", time.time() - t0
+    t0 = time.time()
+    Tlmk = np.zeros((nlm, Nk),dtype=np.complex64)
+    for i,l in enumerate(ls):
+       Tlmk[i,:] = np.dot(bess_mat[l],alms[l,:])
+    print "Tlmk timing: ", time.time() - t0
+
+    if ret_flag:
+        return Tlmk, wlk, (kz, ls, ms)
+    else:
+        return Tlmk, wlk
+
 def pyramid_pspec(cube, radius, r_mpc, Zs, kz = None, Nkbins=100,sigma=False,cosmo=False):
     """
         Estimate the power spectrum in a "pyramid" appoximation:
             radius = in radians
             For each r_mpc, calculate the width of the projected region from the angular diameter distance.
             In the radial direction, calculate discrete fourier transform. In tangential directions, do FFT.
+            TODO -- Reconsider the design here... I'm taking the change in L_x/L_y into account, but not the variation of L_z with angle?
     """
     Nx, Ny, Nz = cube.shape
     D_mpc = WMAP9.angular_diameter_distance(Zs).to("Mpc").value
