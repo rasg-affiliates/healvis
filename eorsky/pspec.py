@@ -30,6 +30,16 @@ def slk_calc(tlmk,wlk,ls,ms):
         Given the results of a T(r) -> Tlm(k) transformation, calculate the 2d power spectrum S_l(k)
         (Sum in bins of ms, then divide by weights)
     """
+    Nl,Nk = wlk.shape
+    Slk = np.zeros((Nl,Nk),dtype=np.complex128)
+    lmat = np.unique(ls)
+    lmat = np.repeat(lmat,Nk).reshape((Nl,Nk))
+    for ki in range(Nk):
+        np.add.at(Slk[:,ki],ls,tlmk[:,ki])
+    Slk /= (2*lmat+1)    ## Check --- do I actually get m from -l to l from healpy?
+    check = np.sum(np.abs(np.imag(Slk/wlk)))
+    if check: print 'Slk is not purely real'
+    return np.abs(Slk)
 
 def tlmk_transform(shell, nside, r_mpc, kz=None,lmax=None):
     """
@@ -52,19 +62,16 @@ def tlmk_transform(shell, nside, r_mpc, kz=None,lmax=None):
     kz = kz[np.where(kz>0)]                #Ignore negative k's since these are meaningless as isotropic k.
                                           #Ignore k=0.
     Nk = kz.size
-    #def mat_element(li,ki,fi):
-    #   k = kz[ki]
-    #   ri = r_mpc[fi]
-    #   return ri**2 * jl(li,k*ri)
 
     t0 =time.time()
     bess_mat = np.zeros((lmax+1,Nk,Nchan),dtype=np.complex128)
     wlk = np.zeros((lmax+1,Nk))
     for l in range(lmax+1):
         for ki in range(Nk):
+            if np.any(kz[ki]*r_mpc < l): continue                    # Set to zero for mostly angular modes
             bess_mat[l,ki,:] = r_mpc**2 * jl(l,kz[ki]*r_mpc)
+            wlk[l,ki] = np.sum((jl(l,kz[ki]*r_mpc))**2)
             #bess_mat[l,ki,:] = np.exp(-2*np.pi* (1j)*kz[ki]*r_mpc)  #Confirm the correct matrix mult
-            #wlk[l,ki] = np.sum(jl(l,kz[ki]*r_mpc))
     print "Bessel and weight matrix timing: ", time.time() - t0
     t0 = time.time()
     Tlmk = np.zeros((nlm, Nk),dtype=np.complex64)
