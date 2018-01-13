@@ -25,26 +25,38 @@ def bin_1d( pk, kcube, Nkbins=100, sigma=False):
     else:
         return kbins, means
 
+def pk_sphere(slk,wlk):
+    """
+        Bin a 2d power spectrum (l,k basis) to 1D.
+    """
+    pk = np.sum(wlk**2*slk,axis=0)
+    norm = np.sum(wlk**2,axis=0)
+    print 'Norm: ',norm
+    return pk/norm
+
 def slk_calc(tlmk,wlk,ls,ms):
     """
         Given the results of a T(r) -> Tlm(k) transformation, calculate the 2d power spectrum S_l(k)
         (Sum in bins of ms, then divide by weights)
     """
+    plmk = abs(tlmk)**2
     Nl,Nk = wlk.shape
     Slk = np.zeros((Nl,Nk),dtype=np.complex128)
     lmat = np.unique(ls)
     lmat = np.repeat(lmat,Nk).reshape((Nl,Nk))
+    #Bin in m
     for ki in range(Nk):
-        np.add.at(Slk[:,ki],ls,tlmk[:,ki])
-    Slk /= (2*lmat+1)    ## Check --- do I actually get m from -l to l from healpy?
-    check = np.sum(np.abs(np.imag(Slk/wlk)))
-    if check: print 'Slk is not purely real'
-    return np.abs(Slk)
+        np.add.at(Slk[:,ki],ls,plmk[:,ki])
+    Slk /= (2*lmat+1)              ## Check --- do I actually get m from -l to l from healpy?
+#    check = np.sum(np.abs(np.imag(Slk/wlk)))
+#    if check: print 'Slk is not purely real.
+    Slk /= wlk
+    Slk = np.ma.array(Slk,mask=(wlk==0))
+    return Slk
 
 def tlmk_transform(shell, nside, r_mpc, kz=None,lmax=None):
     """
-        Estimate the power spectrum in the (k,l) basis.
-        Return the wlk and Tlmk of the transformed shell for power spectrum estimators.
+        Return the Tlmk and weights of the transformed shell for power spectrum estimators.
     """
     if lmax is None:  lmax = 3*nside - 1; ret_flag =True
     nlm  = hp.sphtfunc.Alm.getsize(lmax)
@@ -59,8 +71,8 @@ def tlmk_transform(shell, nside, r_mpc, kz=None,lmax=None):
         dr = np.min(-np.diff(r_mpc))
         print 'dr: ', dr
         kz = np.fft.fftfreq(Nchan,d=dr)*2*np.pi   #Default to using the radial momenta from the minimum spacing.
-    kz = kz[np.where(kz>0)]                #Ignore negative k's since these are meaningless as isotropic k.
-                                          #Ignore k=0.
+    kz = kz[np.where(kz>0)]                       #Ignore negative k's since these are meaningless as isotropic k.
+                                                  #Ignore k=0.
     Nk = kz.size
 
     t0 =time.time()
@@ -68,10 +80,9 @@ def tlmk_transform(shell, nside, r_mpc, kz=None,lmax=None):
     wlk = np.zeros((lmax+1,Nk))
     for l in range(lmax+1):
         for ki in range(Nk):
-            if np.any(kz[ki]*r_mpc < l): continue                    # Set to zero for mostly angular modes
+            if np.any(kz[ki]*r_mpc < l): continue # These modes will already be very close to zero in the power spectrum.
             bess_mat[l,ki,:] = r_mpc**2 * jl(l,kz[ki]*r_mpc)
             wlk[l,ki] = np.sum((jl(l,kz[ki]*r_mpc))**2)
-            #bess_mat[l,ki,:] = np.exp(-2*np.pi* (1j)*kz[ki]*r_mpc)  #Confirm the correct matrix mult
     print "Bessel and weight matrix timing: ", time.time() - t0
     t0 = time.time()
     Tlmk = np.zeros((nlm, Nk),dtype=np.complex64)
