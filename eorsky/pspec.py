@@ -34,10 +34,10 @@ def pk_sphere(slk,wlk):
     print 'Norm: ',norm
     return pk/norm
 
-def slk_calc(tlmk,wlk,ls,ms):
+def slk_estimator(tlmk,wlk,ls,ms):
     """
         Given the results of a T(r) -> Tlm(k) transformation, calculate the 2d power spectrum S_l(k)
-        (Sum in bins of ms, then divide by weights)
+        (Bin in m, then divide by weights)
     """
     plmk = abs(tlmk)**2
     Nl,Nk = wlk.shape
@@ -80,7 +80,7 @@ def tlmk_transform(shell, nside, r_mpc, kz=None,lmax=None):
     wlk = np.zeros((lmax+1,Nk))
     for l in range(lmax+1):
         for ki in range(Nk):
-            if np.any(kz[ki]*r_mpc < l): continue # These modes will already be very close to zero in the power spectrum.
+            if np.any(kz[ki]*r_mpc < l): continue # These modes will already be very close to zero.
             bess_mat[l,ki,:] = r_mpc**2 * jl(l,kz[ki]*r_mpc)
             wlk[l,ki] = np.sum((jl(l,kz[ki]*r_mpc))**2)
     print "Bessel and weight matrix timing: ", time.time() - t0
