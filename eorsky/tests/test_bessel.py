@@ -41,7 +41,7 @@ tlmk, wlk, basis  = tlmk_transform(shell,nside,r_mpc)
 kz, ls, ms = basis
 np.savez("saved_tlmk",basis=basis, tlmk = tlmk, wlk=wlk)
 
-Slk_test = slk_calc(tlmk,wlk,ls,ms)
+Slk_test = slk_estimator(tlmk,wlk,ls,ms)
 pk = pk_sphere(Slk_test,wlk)
 
 #test = tlmk[np.where(ls==0)]

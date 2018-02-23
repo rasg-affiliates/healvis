@@ -54,6 +54,7 @@ class eorsky(object):
         except:
             freqs = np.array(freqs); Nfreq = freqs.size
         self.Nfreq = Nfreq; self.Npix = Npix
+        self.nside = nside
         self.freqs = freqs
         self.hpx_shell = np.random.normal(mean,var,((Npix,Nfreq)))
         self.hpx_inds = np.arange(Npix)
@@ -160,7 +161,7 @@ class eorsky(object):
         assert self.freqs is not None
         if 'z' in kwargs:
             z0,z1 = kwargs['z']
-            imin, imax = np.argmin(np.abs(self.Z - z0)), np.argmin(np.abs(self.Z - z1))
+            imin, imax = np.argmin(np.abs(self.Z - z1)), np.argmin(np.abs(self.Z - z0))
             self.freqs = self.freqs[imin:imax]
             self.update()
         if 'f' in kwargs:
@@ -175,6 +176,8 @@ class eorsky(object):
 
     def slice(self,**kwargs):
         """ Take a rect_cube and slice it into a healpix shell """
+        ## TODO  Replace this with a new method that bins coeval cube pixels by z range, rather than simply selecting.
+        ##       Redesign to use a series of coeval cubes, like cosmotile (or just run cosmotile...)
         assert self.nside is not None
         assert self.N is not None
         assert self.L is not None
@@ -195,7 +198,7 @@ class eorsky(object):
             r = self.r_mpc[i]
             XYZmod = (vecs * r) % L
             l,m,n = (XYZmod / dx).astype(int)
-            hpx_shell[:,i] += cube[l,m,n]
+            hpx_shell[:,i] += cube[l,m,n]  #TODO -- replace with add.at()
         self.hpx_shell = hpx_shell
         self.update()
 
@@ -256,20 +259,3 @@ class eorsky(object):
         weights[zeros] = 0.0
         self.rect_cube = cube*weights
 
-
-
-if __name__ == '__main__':
-    freqs = np.linspace(180,200,20)
-    Nfreq = 20
-    ek = eorsky(freqs=freqs,Nfreq=Nfreq,nside=256)
-#    ek.read_hdf5('/users/alanman/data/alanman/BubbleCube/TiledHpxCubes/gaussian_cube.hdf5')
-    from copy import deepcopy
-#    ek = eorsky()
-    ek.rect_cube = np.ones((256,256,256))
-    old_cube = deepcopy(ek.rect_cube)
-    ek.slice()
-    ek.unslice()
-#    ek.slice()
-#    e.cube_inds()    ## Confirmed ---> The slicing/unslicing works correctly.
-
-    import IPython; IPython.embed()
