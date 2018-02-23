@@ -6,7 +6,7 @@ import pylab
 
 ek = eorsky()
 ek.set_freqs("mwa")
-ek.select(z=[7.00,7.50])
+ek.select(z=[6.00,6.50])
 NSIDE=512
 
 ek.make_gaussian_shell(NSIDE,ek.freqs,var=1.0)

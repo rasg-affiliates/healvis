@@ -3,11 +3,12 @@ from astropy.cosmology import WMAP9 as cosmo
 import scipy.stats
 from astropy import units
 from astropy.constants import c
+from scipy.io import readsav
 import healpy as hp
-from numpy import pi
 import h5py, sys
 import warnings
 
+pi =  np.pi
 freq_21 = 1420.
 
 class eorsky(object):
@@ -27,6 +28,9 @@ class eorsky(object):
     r_mpc = None         # Shell radii in Mpc
     ref_pk = None          ## Reference 1D power spectrum
     ref_ks = None
+
+    est_pk = None   # Estimated 1D power spectrum
+    est_ks = None
 
     def __init__(self, **kwargs):
         for key, value in kwargs.iteritems():
@@ -90,11 +94,18 @@ class eorsky(object):
                 self.Npix = self.hpx_inds.size
         self.updated = []
 
-    def read_pspec(self,filename):
+    def read_pspec_text(self,filename):
         """ Read in a text file of power spectrum values """
         ref_spectrum = np.genfromtxt(filename)
         self.ref_ks = ref_spectrum[:,0]
         self.ref_pk = ref_spectrum[:,1]
+
+    def read_pspec_eppsilon(self,filename):
+        """ Read from an eppsilon idlsave file. Ensure it ends in 1dkpower.idsave """
+        assert filename.endswith("1dkpower.idlsave")
+        f = readsav(filename)
+        self.ref_ks = (f['k_edges'][1:] + f['k_edges'][:-1])/2.
+        self.ref_pk = f['power']
 
 
     def read_hdf5(self,filename,chan_range=None):
@@ -110,6 +121,7 @@ class eorsky(object):
             self.hpx_shell = infile['spectral_info/spectrum'][()]
             self.Npix, self.Nfreq = infile['spectral_info/spectrum'].shape
         self.hpx_inds = np.arange(self.Npix)
+        self.nside = hp.npix2nside(self.Npix)
         infile.close()
         self.update()
 
