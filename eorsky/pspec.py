@@ -267,14 +267,16 @@ def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, 
         dt, dp = hp.rotator.vec2dir(cent,lonlat=True)
     
         #Estimate X extent by the number of pixels in the selection. 2*radius/pixsize
-        Xextent = int(2*radius/hp.nside2resol(nside))
-        mwp = hp.projector.CartesianProj(xsize=Xextent, rot=(dt,dp,0))
-    
+#        Xextent = int(2*radius/hp.nside2resol(nside))
+        Xextent = int(2*radius/hp.nside2resol(nside))    ## The projector does the whole map at once. This roughly preserves pixel area.
+        Yextent = int(radius/hp.nside2resol(nside))    ## The projector does the whole map at once. This roughly preserves pixel area.
+
+        mwp = hp.projector.CartesianProj(xsize=Xextent,ysize=Yextent, rot=(dt,dp,0))
         i,j   = mwp.xy2ij(mwp.vec2xy(vecs[0],vecs[1],vecs[2]))
         imin, imax = min(i), max(i)
         jmin, jmax = min(j), max(j)
         fun = lambda x,y,z: hp.pixelfunc.vec2pix(nside,x,y,z,nest=False)
-    
+ 
         ## Construct a projected cube:
     
         cube = np.zeros(((imax-imin),(jmax-jmin),shell.shape[1]))

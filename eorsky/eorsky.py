@@ -182,8 +182,11 @@ class eorsky(object):
             self.freqs = self.freqs[imin:imax]
             self.update()
         if 'chan' in kwargs:
-            self.freqs = self.freqs[int(kwargs['chan'][0]):int(kwargs['chan'][1])]
+            imin,imax = int(kwargs['chan'][0]),int(kwargs['chan'][1])
+            self.freqs = self.freqs[imin:imax]
             self.update()
+        if not self.hpx_shell is None:
+            self.hpx_shell = self.hpx_shell[:,imin:imax]
             
 
     def slice(self,**kwargs):
