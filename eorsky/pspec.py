@@ -193,29 +193,56 @@ def r_pspec_1D(cube, L, r_mpc=None, Nkbins=100,sigma=False,cosmo=False,return_3d
     kz = np.fft.fftfreq(Nz,d=dz)*kfact   #Mpc^-1
 
     if not r_mpc is None:
+        print "Nonuniform z"
         dz = np.abs(r_mpc[-1] - r_mpc[0])/float(Nz)   #Mean spacing
-        kz = np.fft.fftfreq(Nz,d=dz)*2*np.pi
+        kz = np.fft.fftfreq(Nz,d=dz)*kfact
     
         ## DFT in radial direction
-        M = np.exp(2*np.pi * (-1j) * np.outer(kz,r_mpc) )
+        M = np.exp((-1j) * np.outer(kz,r_mpc) )
         _c = np.apply_along_axis(lambda x: np.dot(M,x),2, cube)
         _d = np.fft.fft2(_c,axes=(0,1))*dV   ## Multiply by the voxel size dV
     else:
+        print 'Uniform z'
         _d = np.fft.fftn(cube)*dV
     pk3d = np.abs(_d)**2 * pfact
     if return_3d: return (kx,ky,kz), pk3d
     results = bin_1d(pk3d,(kx,ky,kz),Nkbins=Nkbins,sigma=sigma)
 
+    print 'Vol= {}, Lx={}, Ly={}, Lz={}, pfact= {:.5e},dV= {:.5e}'.format(Lx*Ly*Lz,Lx,Ly,Lz,pfact,dV)
     return results
 
+def shell_pspec(shell, **kwargs):
+    """
+        r_pspec_sphere wrapper 
+    """
+    from eorsky import eorsky
+    if not isinstance(shell, eorsky):
+        raise TypeError("This function is for estimating power spectra of eorsky shells.")
+    nside= shell.nside
+    hpx_shell = shell.hpx_shell
+    r_mpc = shell.r_mpc
+    freqs = shell.freqs
+
+    ## Defining defaults:
+    Nsec = 20 if "N_sections" not in kwargs else kwargs['N_sections']
+    radius = 10 if "radius" not in kwargs else kwargs['radius']
+    Nkbins = 200 if "N_kbins" not in kwargs else kwargs['N_kbins']
+    method = 'fft' if 'method' not in kwargs else kwargs['method']
+    cosmo = True if 'cosmo' not in kwargs else kwargs['cosmo']
+
+    print "Settings: {} sections, {:.2f} radius, {} kbins, {} method, {} cosmo".format(Nsec,radius,Nkbins,method,cosmo)
+
+    return r_pspec_sphere(hpx_shell,nside,radius,freqs=freqs,N_sections=Nsec,r_mpc = r_mpc,method=method,cosmo=cosmo)
+    
+
 def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, N_sections=None,
-                     freqs = None, kz=None, dist=None, pyramid=False, lomb_scargle=False, Nkbins=None,cosmo=False):
+                     freqs = None, kz=None, dist=None, method='fft', Nkbins=None,cosmo=False):
     """ Estimate the power spectrum of a healpix shell by projecting regions to Cartesian space.
             Shell = (Npix, Nfreq)  Healpix shell, or section of one.
             radius = (analogous to beam width)
             N_sections = Compute the power spectrum for this many regions (like snapshots in observing)
             dims (3) = Box dimensions in Mpc. If not available, check for freqs and use cosmology module
-            lomb_scargle = Use the Lomb-Scargle Periodogram to estimate radial FT.
+            method = Choose estimator method (lomb-scargle, dft, pyramid)
      """ 
     ## For now, pick a random point within the (assumed full) spherical shell, and get the pixels within distance radius around it.
     if hpx_inds is None: 
@@ -227,7 +254,7 @@ def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, 
 
     radius *= np.pi/180.   #Deg2Rad
 
-    if freqs is None and lomb_scargle: raise ValueError(" Frequency data must be provided to use the Lomb-Scargle method ")
+    if freqs is None and method=='lomb_scargle': raise ValueError(" Frequency data must be provided to use the Lomb-Scargle method ")
 
     ## Loop over sections, choosing a different center each time.
     if dims is None:
@@ -237,13 +264,13 @@ def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, 
             Ly = Lx; Lz = Lx
         else:
             Zs = 1420./freqs - 1.
-            r_mpc = WMAP9.comoving_distance(Zs).to("Mpc").value
-            Lz = np.max(r_mpc) - np.min(r_mpc)
+            rcomov = WMAP9.comoving_distance(Zs).to("Mpc").value
+            Lz = np.max(rcomov) - np.min(rcomov)
             dist = WMAP9.angular_diameter_distance(np.mean(Zs)).value
             Lx = 2*radius*dist
             Ly = Lx
         dims = [Lx,Ly,Lz]
-    if lomb_scargle or pyramid:
+    if method=='lomb_scargle' or method=='pyramid':
         try:
             r_mpc
             Zs
@@ -284,16 +311,16 @@ def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, 
         for i in range(shell.shape[1]):
             cube[:,:,i] = mwp.projmap(shell[:,i], fun)[imin:imax, jmin:jmax]
  
-        if lomb_scargle:
+        if method=='lomb_scargle':
             if kz is not None:
                 kbins, pki, errsi = ls_pspec_1D(cube,dims,r_mpc,Nkbins=Nkbins,sigma=True,kz=kz,cosmo=cosmo)
             else:
                 kbins, pki, errsi = ls_pspec_1D(cube,dims,r_mpc,Nkbins=Nkbins,sigma=True,cosmo=cosmo)
-        elif pyramid:
+        elif method=='pyramid':
             kbins,pki, errsi = pyramid_pspec(cube, radius, r_mpc, Zs, Nkbins=Nkbins,sigma=True,cosmo=cosmo)
 
         else:
-            kbins, pki, errsi = r_pspec_1D(cube,dims,r_mpc=r_mpc,Nkbins=Nkbins,sigma=True,cosmo=cosmo)
+            kbins, pki, errsi = r_pspec_1D(cube,dims,Nkbins=Nkbins,r_mpc=r_mpc,sigma=True,cosmo=cosmo)
         pk += pki
         errs += errsi
 
