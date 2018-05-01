@@ -104,7 +104,7 @@ def pyramid_pspec(cube, radius, r_mpc, Zs, kz = None, Nkbins=100,sigma=False,cos
             TODO -- Reconsider the design here... I'm taking the change in L_x/L_y into account, but not the variation of L_z with angle?
     """
     Nx, Ny, Nz = cube.shape
-    D_mpc = WMAP9.angular_diameter_distance(Zs).to("Mpc").value
+    D_mpc = WMAP9.comoving_transverse_distance(Zs).to("Mpc").value
  
     if kz is None:
         dz = np.abs(r_mpc[-1] - r_mpc[0])/float(Nz)   #Mean spacing
@@ -171,7 +171,11 @@ def r_pspec_1D(cube, L, r_mpc=None, Nkbins=100,sigma=False,cosmo=False,return_3d
     """ Estimate the 1D power spectrum for a rectilinear cube
             cosmo=Use cosmological normalization convention
     """
+    print 'cube shape: ',cube.shape
     Nx,Ny,Nz = cube.shape
+    if Nkbins == 'auto':
+        #Nkbins=int(float(Nx*Ny*Nz)**(1/3.))
+        Nkbins=min([Nx,Ny,Nz])
     try:
         Lx, Ly, Lz = L
     except TypeError:
@@ -223,20 +227,20 @@ def shell_pspec(shell, **kwargs):
     r_mpc = shell.r_mpc
     freqs = shell.freqs
 
-    ## Defining defaults:
+    ## Defaults:
     Nsec = 20 if "N_sections" not in kwargs else kwargs['N_sections']
     radius = 10 if "radius" not in kwargs else kwargs['radius']
-    Nkbins = 200 if "N_kbins" not in kwargs else kwargs['N_kbins']
+    Nkbins = 'auto' if "N_kbins" not in kwargs else kwargs['N_kbins']
     method = 'fft' if 'method' not in kwargs else kwargs['method']
     cosmo = True if 'cosmo' not in kwargs else kwargs['cosmo']
 
-    print "Settings: {} sections, {:.2f} radius, {} kbins, {} method, {} cosmo".format(Nsec,radius,Nkbins,method,cosmo)
+    print "Settings: N_sections={}, Radius={:.2f} degree, Nkbins = {}, method = {}, cosmo={},Nside={}".format(Nsec,radius,Nkbins,method,cosmo,nside)
 
-    return r_pspec_sphere(hpx_shell,nside,radius,freqs=freqs,N_sections=Nsec,r_mpc = r_mpc,method=method,cosmo=cosmo)
+    return r_pspec_sphere(hpx_shell,nside,radius,freqs=freqs,N_sections=Nsec,Nkbins=Nkbins,r_mpc = r_mpc,method=method,cosmo=cosmo)
     
 
 def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, N_sections=None,
-                     freqs = None, kz=None, dist=None, method='fft', Nkbins=None,cosmo=False):
+                     freqs = None, kz=None, dist=None, method='fft', Nkbins='auto',cosmo=False):
     """ Estimate the power spectrum of a healpix shell by projecting regions to Cartesian space.
             Shell = (Npix, Nfreq)  Healpix shell, or section of one.
             radius = (analogous to beam width)
@@ -256,17 +260,16 @@ def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, 
 
     if freqs is None and method=='lomb_scargle': raise ValueError(" Frequency data must be provided to use the Lomb-Scargle method ")
 
-    ## Loop over sections, choosing a different center each time.
     if dims is None:
         if freqs is None:
-            if dist is None: raise ValueError("Angular diameter distance or frequencies must be defined")
-            Lx = 2*radius*dist  #Dist = angular diameter distance in Mpc
+            if dist is None: raise ValueError("Comoving distance or frequencies must be defined")
+            Lx = 2*radius*dist  #Dist = comoving distance in Mpc
             Ly = Lx; Lz = Lx
         else:
             Zs = 1420./freqs - 1.
             rcomov = WMAP9.comoving_distance(Zs).to("Mpc").value
             Lz = np.max(rcomov) - np.min(rcomov)
-            dist = WMAP9.angular_diameter_distance(np.mean(Zs)).value
+            dist = WMAP9.comoving_transverse_distance(np.mean(Zs)).value    #Identical to comoving if Omega_k = 0
             Lx = 2*radius*dist
             Ly = Lx
         dims = [Lx,Ly,Lz]
@@ -278,11 +281,20 @@ def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, 
             Zs = 1420./freqs - 1.
             r_mpc = WMAP9.comoving_distance(Zs).to("Mpc").value
 
-    ## Average power spectrum estimates from different parts of the sky.
+    print 'Dimensions: ',dims
 
-    if Nkbins is None: Nkbins=100
-    pk = np.zeros(Nkbins)
-    errs = np.zeros(Nkbins)
+#    if Nkbins == 'auto':           ##TODO Examine this. The number of k-bins is way off from the number of pixels this way.
+#        ## Choose an optimal Nkbins from the box dimensions
+#        pixsize = hp.nside2resol(nside)
+#        dist = WMAP9.comoving_transverse_distance(np.mean(Zs)).value
+#        print 'Transverse comoving dist=',dist
+#        Nkbins = int((Lx/dist)*(1/pixsize))
+#        print "Nkbins", Nkbins
+    pk = None
+    errs = None
+
+    ## Loop over sections, choosing a different center each time.
+    ## Average power spectrum estimates from different parts of the sky.
     for s in range(N_sections):
 
         cent = hp.pix2vec(nside,np.random.choice(hpx_inds))
@@ -295,11 +307,11 @@ def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, 
     
         #Estimate X extent by the number of pixels in the selection. 2*radius/pixsize
 #        Xextent = int(2*radius/hp.nside2resol(nside))
-        Xextent = int(2*radius/hp.nside2resol(nside))    ## The projector does the whole map at once. This roughly preserves pixel area.
-        Yextent = int(radius/hp.nside2resol(nside))    ## The projector does the whole map at once. This roughly preserves pixel area.
+        Xextent = int(2*np.pi/hp.nside2resol(nside))    ## The projector does the whole map at once. This roughly preserves pixel area.
+        Yextent = int(np.pi/hp.nside2resol(nside))    ## The projector does the whole map at once. This roughly preserves pixel area.
 
-        mwp = hp.projector.CartesianProj(xsize=Xextent,ysize=Yextent, rot=(dt,dp,0))
-        i,j   = mwp.xy2ij(mwp.vec2xy(vecs[0],vecs[1],vecs[2]))
+        ctp = hp.projector.CartesianProj(xsize=Xextent,ysize=Yextent, rot=(dt,dp,0))
+        i,j   = ctp.xy2ij(ctp.vec2xy(vecs[0],vecs[1],vecs[2]))
         imin, imax = min(i), max(i)
         jmin, jmax = min(j), max(j)
         fun = lambda x,y,z: hp.pixelfunc.vec2pix(nside,x,y,z,nest=False)
@@ -309,7 +321,9 @@ def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, 
         cube = np.zeros(((imax-imin),(jmax-jmin),shell.shape[1]))
     
         for i in range(shell.shape[1]):
-            cube[:,:,i] = mwp.projmap(shell[:,i], fun)[imin:imax, jmin:jmax]
+            cube[:,:,i] = ctp.projmap(shell[:,i], fun)[imin:imax, jmin:jmax]
+        if s==0:
+            np.savez('projected_cube',cube=cube,dims=dims)
  
         if method=='lomb_scargle':
             if kz is not None:
@@ -321,8 +335,12 @@ def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, 
 
         else:
             kbins, pki, errsi = r_pspec_1D(cube,dims,Nkbins=Nkbins,r_mpc=r_mpc,sigma=True,cosmo=cosmo)
-        pk += pki
-        errs += errsi
+        if pk is None:
+            pk = pki
+            errs = errsi
+        else:
+            pk += pki
+            errs += errsi
 
     pk /= N_sections
     errs /= N_sections
