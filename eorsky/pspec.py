@@ -21,7 +21,7 @@ def bin_1d( pk, kcube, Nkbins=100, sigma=False):
     kbins  = (bins[1:] + bins[:-1])/2.
     if sigma:
         errs, bins, binnums = scipy.stats.binned_statistic(k1d,p1d,statistic=np.var,bins=Nkbins)
-        return kbins, means, np.sqrt(errs)
+        return kbins, means, np.sqrt(errs)/2.
     else:
         return kbins, means
 
@@ -176,6 +176,7 @@ def r_pspec_1D(cube, L, r_mpc=None, Nkbins=100,sigma=False,cosmo=False,return_3d
     if Nkbins == 'auto':
         #Nkbins=int(float(Nx*Ny*Nz)**(1/3.))
         Nkbins=min([Nx,Ny,Nz])
+        print 'auto Nkbins=', Nkbins
     try:
         Lx, Ly, Lz = L
     except TypeError:
@@ -283,18 +284,19 @@ def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, 
 
     print 'Dimensions: ',dims
 
-#    if Nkbins == 'auto':           ##TODO Examine this. The number of k-bins is way off from the number of pixels this way.
-#        ## Choose an optimal Nkbins from the box dimensions
-#        pixsize = hp.nside2resol(nside)
-#        dist = WMAP9.comoving_transverse_distance(np.mean(Zs)).value
-#        print 'Transverse comoving dist=',dist
-#        Nkbins = int((Lx/dist)*(1/pixsize))
-#        print "Nkbins", Nkbins
     pk = None
     errs = None
 
     ## Loop over sections, choosing a different center each time.
     ## Average power spectrum estimates from different parts of the sky.
+    Xextent = int(2*np.pi/hp.nside2resol(nside))    ## The projector does the whole map at once. This roughly preserves pixel area.
+    Yextent = int(np.pi/hp.nside2resol(nside))    ## The projector does the whole map at once. This roughly preserves pixel area.
+    ctp = hp.projector.CartesianProj(xsize=Xextent,ysize=Yextent)
+    ctp.set_flip("astro")
+    fullcube = np.zeros((Yextent,Xextent,shell.shape[1]))
+    fun = lambda x,y,z: hp.pixelfunc.vec2pix(nside,x,y,z,nest=False)
+    for i in range(shell.shape[1]):
+        fullcube[:,:,i] = ctp.projmap(shell[:,i],fun)
     for s in range(N_sections):
 
         cent = hp.pix2vec(nside,np.random.choice(hpx_inds))
@@ -303,25 +305,21 @@ def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, 
 	
         print "Section, pixels: ",s, inds.shape
     
-        dt, dp = hp.rotator.vec2dir(cent,lonlat=True)
+    #    dt, dp = hp.rotator.vec2dir(cent,lonlat=True)
     
         #Estimate X extent by the number of pixels in the selection. 2*radius/pixsize
 #        Xextent = int(2*radius/hp.nside2resol(nside))
-        Xextent = int(2*np.pi/hp.nside2resol(nside))    ## The projector does the whole map at once. This roughly preserves pixel area.
-        Yextent = int(np.pi/hp.nside2resol(nside))    ## The projector does the whole map at once. This roughly preserves pixel area.
 
-        ctp = hp.projector.CartesianProj(xsize=Xextent,ysize=Yextent, rot=(dt,dp,0))
         i,j   = ctp.xy2ij(ctp.vec2xy(vecs[0],vecs[1],vecs[2]))
         imin, imax = min(i), max(i)
         jmin, jmax = min(j), max(j)
-        fun = lambda x,y,z: hp.pixelfunc.vec2pix(nside,x,y,z,nest=False)
  
         ## Construct a projected cube:
     
-        cube = np.zeros(((imax-imin),(jmax-jmin),shell.shape[1]))
-    
-        for i in range(shell.shape[1]):
-            cube[:,:,i] = ctp.projmap(shell[:,i], fun)[imin:imax, jmin:jmax]
+        cube = np.zeros((imax-imin,jmax-jmin,shell.shape[1]))
+        for fi in range(shell.shape[1]):
+            cube[:,:,fi] = np.roll(fullcube[:,:,fi],(-imin,-jmin),(0,1))[:imax-imin,:jmax-jmin]
+
         if s==0:
             np.savez('projected_cube',cube=cube,dims=dims)
  
@@ -338,6 +336,7 @@ def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, 
         if pk is None:
             pk = pki
             errs = errsi
+            Nkbins = pk.size
         else:
             pk += pki
             errs += errsi
