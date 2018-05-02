@@ -48,9 +48,11 @@ print 'Radius (deg)={}, trans_dist (Mpc)={}'.format(select_radius,trans_dist)
 k2, pk2,err2 = shell_pspec(ek,radius=select_radius,N_sections=1,cosmo=True)
 
 pk2 *= k2**3/(2*np.pi**2)
+err2 *= k2**3/(2*np.pi**2)
 pk2 *= 1e6    # K^2 -> mK^2
+err2 *= 1e6
 
-plt.plot(k2,pk2,marker='.', label='Data')
+plt.errorbar(k2,pk2,err2,marker='.', label='Data')
 plt.plot(ek.ref_ks,ek.ref_pk,label='Ref')
 plt.legend()
 plt.xscale('log'); plt.yscale('log')
