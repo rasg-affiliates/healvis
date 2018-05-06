@@ -198,6 +198,7 @@ class eorsky(object):
         assert self.L is not None
         if self.Npix is None: self.Npix = hp.nside2npix(self.nside)
         if self.hpx_inds is None: self.hpx_inds = np.arange(self.Npix)
+        if 'cosmo' in kwargs: cosmo=kwargs['cosmo']
 
         hpx_shell = np.zeros((self.Npix,self.Nfreq))
 
@@ -213,7 +214,13 @@ class eorsky(object):
             r = self.r_mpc[i]
             XYZmod = (vecs * r) % L
             l,m,n = (XYZmod / dx).astype(int)
-            hpx_shell[:,i] += cube[l,m,n]  #TODO -- replace with add.at()
+            ## If using cosmological conventions, will need to scale temperatures by pixel areas to conserve flux.
+            if cosmo:
+                pix_area = (np.sqrt(3)*dx/r)**2
+                hpx_omega = 4*np.pi/float(self.Npix)
+                scale=pix_area/hpx_omega
+                print scale
+            hpx_shell[:,i] += cube[l,m,n]*scale
         self.hpx_shell = hpx_shell
         self.update()
 
