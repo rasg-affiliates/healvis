@@ -13,10 +13,16 @@ freq_21 = 1420.
 
 class eorsky(object):
 
-    N = 256   # Npixels per side of rect_cube, default 256
-    L = 500   # rect_cube side length in Mpc, default 500
+    N = 256   # Npixels per side of box, default 256
+    L = 500   # box side length in Mpc, default 500
     hpx_shell = None
-    rect_cube = None
+
+    box = None
+    boxes = None
+    box_file_list = None
+    box_z_list = None
+    
+
     nside = 256
     Npix = None
     pixsize = None    # Pixel size in steradians
@@ -47,7 +53,7 @@ class eorsky(object):
         """ Make a gaussian cube with the given structure """
         self.N = N
         self.L = L
-        self.rect_cube = np.random.normal(mean,var,((N,N,N)))
+        self.box = np.random.normal(mean,var,((N,N,N)))
         self.update()
 
     def make_gaussian_shell(self, nside, freqs, mean=0.0, var=1.0):
@@ -74,10 +80,12 @@ class eorsky(object):
 
         hpx_params = ['nside','Npix','hpx_shell','hpx_inds']
         z_params   = ['Z', 'freqs','Nfreq','r_mpc']
-        r_params   = ['L','N','rect_cube']
+        r_params   = ['L','N','box']
 
         ud = np.unique(self.updated)
         for p in ud:
+            if p == 'boxes':
+                if self.box == None: self.box = self.boxes[0]
             if p == 'freqs':
                 self.Z = 1420./self.freqs - 1.
                 self.r_mpc = cosmo.comoving_distance(self.Z).to("Mpc").value
@@ -85,8 +93,8 @@ class eorsky(object):
             if p == 'nside':
                 if self.Npix is None: self.Npix = hp.nside2npix(self.nside)
                 if self.hpx_inds is None: self.hpx_inds = np.arange(self.Npix)
-            if p == 'rect_cube':
-                self.N = self.rect_cube.shape[0]
+            if p == 'box':
+                self.N = self.box.shape[0]
             if p == 'nside':
                 if 'hpx_inds' not in ud:
                     if 'Npix' not in ud: self.Npix = hp.nside2npix(self.nside)
@@ -100,6 +108,7 @@ class eorsky(object):
         ref_spectrum = np.genfromtxt(filename)
         self.ref_ks = ref_spectrum[:,0]
         self.ref_pk = ref_spectrum[:,1]
+
 
     def read_pspec_eppsilon(self,filename):
         """ Read from an eppsilon idlsave file. Ensure it ends in 1dkpower.idsave """
@@ -128,9 +137,9 @@ class eorsky(object):
 
     def read_bin(self, filename, L=None, dtype=float):
         print 'Reading: ', filename
-        self.rect_cube = np.fromfile(filename,dtype=dtype)
+        self.box = np.fromfile(filename,dtype=dtype)
         if L is not None: self.L = L
-        self.N = self.rect_cube.shape[0]
+        self.N = self.box.shape[0]
 
     def write_hdf5(self, filename):
         with h5py.File(filename, 'w') as fileobj:
@@ -163,10 +172,11 @@ class eorsky(object):
 
     def set_freqs(self, instr):
         """ Set frequencies to those of a known instrument. """
-        if instr.lower() == 'mwa': freqs = np.linspace(182.95-30.72/2.,182.95+30.72/2., 384)
-        if instr.lower() == 'paper': freqs = np.linspace(100,200,203)
-        if instr.lower() == 'hera': freqs = np.linspace(100,200,1024)
-        self.freqs = freqs
+#        if instr.lower() == 'mwa': freqs = np.linspace(182.95-30.72/2.,182.95+30.72/2., 384)
+#        if instr.lower() == 'paper': freqs = np.linspace(100,200,203)
+#        if instr.lower() == 'hera': freqs = np.linspace(100,200,1024)
+#        self.freqs = freqs
+        self.freqs = common_freqs(instr)
         self.update()
 
     def select_range(self, **kwargs):
@@ -190,7 +200,7 @@ class eorsky(object):
             
 
     def slice(self,**kwargs):
-        """ Take a rect_cube and slice it into a healpix shell """
+        """ Take a box and slice it into a healpix shell """
         ## TODO  Replace this with a new method that bins coeval cube pixels by z range, rather than simply selecting.
         ##       Redesign to use a series of coeval cubes, like cosmotile (or just run cosmotile...)
         assert self.nside is not None
@@ -207,7 +217,7 @@ class eorsky(object):
         L = float(self.L)
         dx = L / float(self.N)
 
-        cube = self.rect_cube
+        cube = self.box
         print "Slicing"
         for i in range(self.Nfreq):
             print 'channel ',i
@@ -279,5 +289,28 @@ class eorsky(object):
         zeros = np.where(weights == 0.0)
         weights = 1/weights
         weights[zeros] = 0.0
-        self.rect_cube = cube*weights
+        self.box = cube*weights
+
+
+def common_freqs(instr):
+    """ Set frequencies to those of a known instrument. """
+    if instr.lower() == 'mwa': freqs = np.linspace(182.95-30.72/2.,182.95+30.72/2., 384)
+    if instr.lower() == 'paper': freqs = np.linspace(100,200,203)
+    if instr.lower() == 'hera': freqs = np.linspace(100,200,1024)
+    return freqs
+
+@np.vectorize
+def comoving_voxel_volume(z,dnu,omega):
+    """
+        TODO --- Vectorize this.
+
+        From z, dnu, and pixel size (omega), get voxel volume.
+        dnu = MHz
+        Omega = sr
+    """
+    nu0 = 1420./(z + 1) - dnu/2.
+    nu1 = nu0 + dnu
+    dz = 1420.*(1/nu0 - 1/nu1)
+    vol = cosmo.differential_comoving_volume(z).value*dz*omega
+    return vol
 
