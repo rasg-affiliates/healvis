@@ -299,7 +299,7 @@ def common_freqs(instr):
     if instr.lower() == 'hera': freqs = np.linspace(100,200,1024)
     return freqs
 
-#@np.vectorize
+
 def comoving_voxel_volume(z,dnu,omega):
     """
         From z, dnu, and pixel size (omega), get voxel volume.
@@ -316,9 +316,9 @@ def comoving_voxel_volume(z,dnu,omega):
     nu0 = 1420./(z + 1) - dnu/2.
     nu1 = nu0 + dnu
     dz = 1420.*(1/nu0 - 1/nu1)
-    print nu0,nu1,omega,dz
     vol = cosmo.differential_comoving_volume(z).value*dz*omega
     return vol
+
 
 def comoving_radial_length(z,dnu):
     """
@@ -329,7 +329,6 @@ def comoving_radial_length(z,dnu):
     z0, z1 = 1420./nu0 - 1, 1420./nu1 - 1
     L = abs(np.diff(cosmo.comoving_distance([z0,z1]).value)[0])
     return L
-
 
 
 def comoving_transverse_length(z,Omega):
