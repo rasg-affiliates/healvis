@@ -7,8 +7,8 @@ import os
 ek = eorsky()
 ch0,ch1 = 0,50
 
-ek.read_hdf5("/users/alanman/data/alanman/BubbleCube/TiledHpxCubes/mwa_lin_light_cone_surfaces.hdf5",chan_range=[ch0,ch1])
-#ek.read_hdf5("/users/alanman/data/alanman/BubbleCube/TiledHpxCubes/tiled_gaussian_nside512_light_cone_surfaces.hdf5",chan_range=[ch0,ch1])
+#ek.read_hdf5("/users/alanman/data/alanman/BubbleCube/TiledHpxCubes/mwa_lin_light_cone_surfaces.hdf5",chan_range=[ch0,ch1])
+ek.read_hdf5("../data/tiled_gaussian_nside512_light_cone_surfaces.hdf5",chan_range=[ch0,ch1])
 #ek.read_bin("delta_T_v3_no_halos_z008.40_nf0.595490_useTs0_zetaX-1.0e+00_alphaX-1.0_TvirminX-1.0e+00_aveTb012.19_Pop-1_256_300Mpc")
 
 L = 300
