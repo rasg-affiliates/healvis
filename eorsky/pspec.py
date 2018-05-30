@@ -167,7 +167,7 @@ def ls_pspec_1D(cube, L, r_mpc, Nkbins=100, sigma=False, kz=None,cosmo=False):
 
     return results
 
-def r_pspec_1D(cube, L, r_mpc=None, Nkbins=100,sigma=False,cosmo=False,return_3d=False):
+def r_pspec(cube, L, r_mpc=None, Nkbins=100,sigma=False,cosmo=False,return_3d=False):
     """ Estimate the 1D power spectrum for a rectilinear cube
             cosmo=Use cosmological normalization convention
     """
@@ -231,7 +231,7 @@ def shell_pspec(shell, **kwargs):
     ## Defaults:
     Nsec = 20 if "N_sections" not in kwargs else kwargs['N_sections']
     radius = 10 if "radius" not in kwargs else kwargs['radius']
-    Nkbins = 'auto' if "N_kbins" not in kwargs else kwargs['N_kbins']
+    Nkbins = 'auto' if "Nkbins" not in kwargs else kwargs['Nkbins']
     method = 'fft' if 'method' not in kwargs else kwargs['method']
     cosmo = True if 'cosmo' not in kwargs else kwargs['cosmo']
 
@@ -332,7 +332,7 @@ def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, 
             kbins,pki, errsi = pyramid_pspec(cube, radius, r_mpc, Zs, Nkbins=Nkbins,sigma=True,cosmo=cosmo)
 
         else:
-            kbins, pki, errsi = r_pspec_1D(cube,dims,Nkbins=Nkbins,r_mpc=r_mpc,sigma=True,cosmo=cosmo)
+            kbins, pki, errsi = r_pspec(cube,dims,Nkbins=Nkbins,r_mpc=r_mpc,sigma=True,cosmo=cosmo)
         if pk is None:
             pk = pki
             errs = errsi
