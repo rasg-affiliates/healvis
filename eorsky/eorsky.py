@@ -75,7 +75,6 @@ class eorsky(object):
         """ Make Z, freq, healpix params, and rectilinear params consistent. 
             Assume that whatever parameter was just changed has priority over others.
             If two parameters from the same group change at the same time, confirm that they're consistent.
-            ### For now --- Just sets default values if freq or any healpix parameter is changed.
         """
 
         hpx_params = ['nside','Npix','hpx_shell','hpx_inds']
@@ -199,10 +198,9 @@ class eorsky(object):
             self.hpx_shell = self.hpx_shell[:,imin:imax]
             
 
-    def slice(self,**kwargs):
+    def slice(self, **kwargs):
         """ Take a box and slice it into a healpix shell """
-        ## TODO  Replace this with a new method that bins coeval cube pixels by z range, rather than simply selecting.
-        ##       Redesign to use a series of coeval cubes, like cosmotile (or just run cosmotile...)
+
         assert self.nside is not None
         assert self.N is not None
         assert self.L is not None
@@ -224,11 +222,10 @@ class eorsky(object):
             r = self.r_mpc[i]
             XYZmod = (vecs * r) % L
             l,m,n = (XYZmod / dx).astype(int)
-            ## If using cosmological conventions, will need to scale temperatures by pixel areas to conserve flux.
+            ## If using cosmological conventions, scale by relative voxel volumes.
             if cosmo:
-                pix_area = (np.sqrt(3)*dx/r)**2
                 hpx_omega = 4*np.pi/float(self.Npix)
-                scale=pix_area/hpx_omega
+                scale = comoving_voxel_volume(self.Z[i], dnu, hpx_omega)/ dx**3
                 print scale
             hpx_shell[:,i] += cube[l,m,n]*scale
         self.hpx_shell = hpx_shell
