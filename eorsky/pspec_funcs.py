@@ -6,7 +6,7 @@ from astropy.stats import LombScargle
 from scipy.special import spherical_jn as jl   ## Requires scipy version 0.18.0 at least
 
 
-def bin_1d( pk, kcube, Nkbins=100, sigma=False):
+def bin_1d( pk, kcube, Nkbins=100, error=False):
     """
         kcube= 3-tuple containing the k values (kx, ky, kz)
         pk   = power cube
@@ -19,7 +19,8 @@ def bin_1d( pk, kcube, Nkbins=100, sigma=False):
     p1d = pk.flatten()
     means, bins, binnums = scipy.stats.binned_statistic(k1d,p1d,statistic='mean',bins=Nkbins)
     kbins  = (bins[1:] + bins[:-1])/2.
-    if sigma:
+
+    if error:
         errs, bins, binnums = scipy.stats.binned_statistic(k1d,p1d,statistic=np.var,bins=Nkbins)
         return kbins, means, np.sqrt(errs)/2.
     else:
@@ -95,7 +96,7 @@ def tlmk_transform(shell, nside, r_mpc, kz=None,lmax=None):
     else:
         return Tlmk, wlk
 
-def pyramid_pspec(cube, radius, r_mpc, Zs, kz = None, Nkbins=100,sigma=False,cosmo=False):
+def box_pyramid_pspec(cube, radius, r_mpc, Zs, kz = None, Nkbins=100,error=False,cosmo=False):
     """
         Estimate the power spectrum in a "pyramid" appoximation:
             radius = in radians
@@ -129,11 +130,11 @@ def pyramid_pspec(cube, radius, r_mpc, Zs, kz = None, Nkbins=100,sigma=False,cos
     
     pk3d = np.abs(_c)**2/(Nx*Ny*Nz)
     
-    results = bin_1d(pk3d,(kx,ky,kz),Nkbins=Nkbins,sigma=sigma)
+    results = bin_1d(pk3d,(kx,ky,kz),Nkbins=Nkbins,error=error)
     return results
 
 
-def ls_pspec_1D(cube, L, r_mpc, Nkbins=100, sigma=False, kz=None,cosmo=False):
+def box_ls_pspec(cube, L, r_mpc, Nkbins=100, error=False, kz=None,cosmo=False):
     """ Estimate the 1D power spectrum for square regions with non-uniform distances using Lomb-Scargle periodogram in the radial direction."""
     Nx,Ny,Nz = cube.shape
     try:
@@ -163,20 +164,16 @@ def ls_pspec_1D(cube, L, r_mpc, Nkbins=100, sigma=False, kz=None,cosmo=False):
     Ny = np.sum(ky>0)
     _d = _d[1:Nx+1,1:Ny+1,:]     #Remove the nonpositive k-terms from the 2D FFT
     pk3d = np.abs(_d)**2/(Nx*Ny)
-    results = bin_1d(pk3d,(kx,ky,kz),Nkbins=Nkbins, sigma=sigma)
+    results = bin_1d(pk3d,(kx,ky,kz),Nkbins=Nkbins, error=error)
 
     return results
 
-def r_pspec(cube, L, r_mpc=None, Nkbins=100,sigma=False,cosmo=False,return_3d=False):
+def box_dft_pspec(cube, L, r_mpc=None, Nkbins=100,error=False,cosmo=False,return_3d=False):
     """ Estimate the 1D power spectrum for a rectilinear cube
             cosmo=Use cosmological normalization convention
     """
     print 'cube shape: ',cube.shape
     Nx,Ny,Nz = cube.shape
-    if Nkbins == 'auto':
-        #Nkbins=int(float(Nx*Ny*Nz)**(1/3.))
-        Nkbins=min([Nx,Ny,Nz])
-        print 'auto Nkbins=', Nkbins
     try:
         Lx, Ly, Lz = L
     except TypeError:
@@ -185,10 +182,15 @@ def r_pspec(cube, L, r_mpc=None, Nkbins=100,sigma=False,cosmo=False,return_3d=Fa
         else: Lz = L          # Assume L is a single side length, same for all
     dx, dy, dz = Lx/float(Nx), Ly/float(Ny), Lz/float(Nz)
     dV = dx * dy * dz
+    if isinstance(Lx, int): Lx = float(Lx)
+    if isinstance(Ly, int): Ly = float(Ly)
+    if isinstance(Lz, int): Lz = float(Lz)
     if cosmo:
         kfact=2*np.pi
+        print Lx
         dV = dx*dy*dz
-        pfact = 1/(Lx*Ly*Lz) * (1./float(Nkbins))
+        print 'dV: ', dV
+        pfact = 1/(Lx*Ly*Lz)# * (1./float(Nkbins))
     else:
        kfact=1
        dV = 1
@@ -196,6 +198,14 @@ def r_pspec(cube, L, r_mpc=None, Nkbins=100,sigma=False,cosmo=False,return_3d=Fa
     kx = np.fft.fftfreq(Nx,d=dx)*kfact   #Mpc^-1
     ky = np.fft.fftfreq(Ny,d=dy)*kfact   #Mpc^-1
     kz = np.fft.fftfreq(Nz,d=dz)*kfact   #Mpc^-1
+
+    if Nkbins == 'auto':
+        mkx, mky, mkz = np.meshgrid(kx,ky,kz)
+        ks = np.sqrt(mkx**2 + mky**2 + mkz**2).flatten()
+        print np.around(ks, decimals=2)
+        Nkbins = np.unique(np.around(ks,decimals=2)).size/2.
+        #Nkbins=int(float(Nx*Ny*Nz)**(1/3.))
+        print 'auto Nkbins=', Nkbins
 
     if not r_mpc is None:
         print "Nonuniform z"
@@ -209,11 +219,12 @@ def r_pspec(cube, L, r_mpc=None, Nkbins=100,sigma=False,cosmo=False,return_3d=Fa
     else:
         print 'Uniform z'
         _d = np.fft.fftn(cube)*dV
+
     pk3d = np.abs(_d)**2 * pfact
     if return_3d: return (kx,ky,kz), pk3d
-    results = bin_1d(pk3d,(kx,ky,kz),Nkbins=Nkbins,sigma=sigma)
+    results = bin_1d(pk3d,(kx,ky,kz),Nkbins=Nkbins,error=error)
 
-    print 'Vol= {}, Lx={}, Ly={}, Lz={}, pfact= {:.5e},dV= {:.5e}'.format(Lx*Ly*Lz,Lx,Ly,Lz,pfact,dV)
+#    print 'Vol= {}, Lx={}, Ly={}, Lz={}, pfact= {:.5e},dV= {:.5e}'.format(Lx*Ly*Lz,Lx,Ly,Lz,pfact,dV)
     return results
 
 def shell_pspec(shell, **kwargs):
@@ -237,11 +248,56 @@ def shell_pspec(shell, **kwargs):
 
     print "Settings: N_sections={}, Radius={:.2f} degree, Nkbins = {}, method = {}, cosmo={},Nside={}".format(Nsec,radius,Nkbins,method,cosmo,nside)
 
-    return r_pspec_sphere(hpx_shell,nside,radius,freqs=freqs,N_sections=Nsec,Nkbins=Nkbins,r_mpc = r_mpc,method=method,cosmo=cosmo)
-    
+    return shell_project_pspec(hpx_shell,nside,radius,freqs=freqs,N_sections=Nsec,Nkbins=Nkbins,r_mpc = r_mpc,method=method,cosmo=cosmo)
 
-def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, N_sections=None,
-                     freqs = None, kz=None, dist=None, method='fft', Nkbins='auto',cosmo=False):
+
+def orthoslant_project(shell, center, radius, degrees=False):
+    """
+        Take a conical section of a sphere and bin into a cube for power spectrum estimation.
+    """
+
+    Npix, Nfreq = shell.shape
+    Nside = hp.npix2nside(Npix)
+    if degrees:
+        radius *= np.pi/180.
+
+    # Define xy grid by the pixel area and selection radius.
+
+
+    radpix = hp.nside2resol(Nside)
+    extent = 2*np.floor(radius/radpix).astype(int)
+
+    orthogrid = np.zeros((extent,extent, Nfreq))
+
+    # Get vectors, rotate so center is overhead, project vectors to get xy bins
+
+    hpx_inds = hp.query_disc(Nside, center, 2*np.sqrt(2)*radius)   #TODO This can be replaced with a "query_polygon"
+ 
+    vecs = hp.pix2vec(Nside, hpx_inds)
+
+    dp, dt = hp.rotator.vec2dir(center, lonlat=True)
+    rot = hp.rotator.Rotator(rot=(dp, dt, 0))
+    vx, vy, vz = hp.rotator.rotateVector(rot.mat, vecs)
+
+    ## Project onto the yz plane, having rotated so the x axis is at zenith
+    xinds = np.floor(vy/radpix).astype(int) + extent/2
+    yinds = np.floor(vz/radpix).astype(int) + extent/2    #Center on the grid
+
+    boxinds = np.where((xinds < extent)&(xinds>-1)&(yinds < extent)&(yinds>-1))
+
+    xinds = xinds[boxinds]
+    yinds = yinds[boxinds]   #Radial selection was bigger than the grid
+    hpx_inds = hpx_inds[boxinds]
+
+    for fi in np.arange(Nfreq):
+        np.add.at(orthogrid[:,:,fi],(xinds, yinds), shell[hpx_inds,fi])
+
+    return orthogrid
+
+
+
+def shell_project_pspec(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, N_sections=None,
+                     freqs = None, kz=None, method='fft', Nkbins='auto',cosmo=False, error=False):
     """ Estimate the power spectrum of a healpix shell by projecting regions to Cartesian space.
             Shell = (Npix, Nfreq)  Healpix shell, or section of one.
             radius = (analogous to beam width)
@@ -285,64 +341,51 @@ def r_pspec_sphere(shell, nside, radius, dims=None,r_mpc=None, hpx_inds = None, 
     print 'Dimensions: ',dims
 
     pk = None
+    kbins = None
     errs = None
 
     ## Loop over sections, choosing a different center each time.
     ## Average power spectrum estimates from different parts of the sky.
-    Xextent = int(2*np.pi/hp.nside2resol(nside))    ## The projector does the whole map at once. This roughly preserves pixel area.
-    Yextent = int(np.pi/hp.nside2resol(nside))    ## The projector does the whole map at once. This roughly preserves pixel area.
-    ctp = hp.projector.CartesianProj(xsize=Xextent,ysize=Yextent)
-    ctp.set_flip("astro")
-    fullcube = np.zeros((Yextent,Xextent,shell.shape[1]))
-    fun = lambda x,y,z: hp.pixelfunc.vec2pix(nside,x,y,z,nest=False)
-    for i in range(shell.shape[1]):
-        fullcube[:,:,i] = ctp.projmap(shell[:,i],fun)
+
     for s in range(N_sections):
 
         cent = hp.pix2vec(nside,np.random.choice(hpx_inds))
         inds = hp.query_disc(nside,cent,radius)
-        vecs = hp.pixelfunc.pix2vec(nside, inds)
-	
+
         print "Section, pixels: ",s, inds.shape
     
-    #    dt, dp = hp.rotator.vec2dir(cent,lonlat=True)
-    
-        #Estimate X extent by the number of pixels in the selection. 2*radius/pixsize
-#        Xextent = int(2*radius/hp.nside2resol(nside))
+        cube = orthoslant_project(shell, cent, radius)
 
-        i,j   = ctp.xy2ij(ctp.vec2xy(vecs[0],vecs[1],vecs[2]))
-        imin, imax = min(i), max(i)
-        jmin, jmax = min(j), max(j)
- 
-        ## Construct a projected cube:
-    
-        cube = np.zeros((imax-imin,jmax-jmin,shell.shape[1]))
-        for fi in range(shell.shape[1]):
-            cube[:,:,fi] = np.roll(fullcube[:,:,fi],(-imin,-jmin),(0,1))[:imax-imin,:jmax-jmin]
-
-        if s==0:
-            np.savez('projected_cube',cube=cube,dims=dims)
+        #if s==0:
+        #    np.savez('projected_cube',cube=cube,dims=dims)
  
         if method=='lomb_scargle':
             if kz is not None:
-                kbins, pki, errsi = ls_pspec_1D(cube,dims,r_mpc,Nkbins=Nkbins,sigma=True,kz=kz,cosmo=cosmo)
+                results_i = box_ls_pspec(cube,dims,r_mpc,Nkbins=Nkbins,error=error,kz=kz,cosmo=cosmo)
             else:
-                kbins, pki, errsi = ls_pspec_1D(cube,dims,r_mpc,Nkbins=Nkbins,sigma=True,cosmo=cosmo)
+                results_i = box_ls_pspec(cube,dims,r_mpc,Nkbins=Nkbins,error=error,cosmo=cosmo)
         elif method=='pyramid':
-            kbins,pki, errsi = pyramid_pspec(cube, radius, r_mpc, Zs, Nkbins=Nkbins,sigma=True,cosmo=cosmo)
+            results_i = box_pyramid_pspec(cube, radius, r_mpc, Zs, Nkbins=Nkbins,error=error,cosmo=cosmo)
 
         else:
-            kbins, pki, errsi = r_pspec(cube,dims,Nkbins=Nkbins,r_mpc=r_mpc,sigma=True,cosmo=cosmo)
+            results_i = box_dft_pspec(cube,dims,Nkbins=Nkbins,r_mpc=r_mpc,error=error,cosmo=cosmo)
         if pk is None:
-            pk = pki
-            errs = errsi
+            pk = results_i[1]
+            kbins = results_i[0]
             Nkbins = pk.size
+            if error:
+                errs = results_i[2]
         else:
-            pk += pki
-            errs += errsi
-
+            pk += results_i[1]
+            kbins += results_i[0]
+            if error:
+                errs += results_i[2]
+        print s, np.sum(np.isnan(results_i[1]))
     pk /= N_sections
-    errs /= N_sections
-    return kbins, pk, errs
+    kbins /= N_sections
 
-    
+    if error:
+        errs /= N_sections
+        return kbins, pk, errs
+    else:
+        return kbins, pk
