@@ -15,7 +15,7 @@ class eorsky(object):
 
     N = 256   # Npixels per side of box, default 256
     L = 500   # box side length in Mpc, default 500
-    hpx_shell = None
+    shell = None
 
     box = None
     boxes = None
@@ -23,7 +23,7 @@ class eorsky(object):
     box_z_list = None
     
 
-    nside = 256
+    Nside = 256
     Npix = None
     pixsize = None    # Pixel size in steradians
     Nfreq = None
@@ -56,17 +56,17 @@ class eorsky(object):
         self.box = np.random.normal(mean,var,((N,N,N)))
         self.update()
 
-    def make_gaussian_shell(self, nside, freqs, mean=0.0, var=1.0):
+    def make_gaussian_shell(self, Nside, freqs, mu=0.0, sigma=1.0):
         """ Make a gaussian shell with the given structure """
-        Npix = hp.nside2npix(nside)
+        Npix = hp.nside2npix(Nside)
         try:
             Nfreq = freqs.size
         except:
             freqs = np.array(freqs); Nfreq = freqs.size
         self.Nfreq = Nfreq; self.Npix = Npix
-        self.nside = nside
+        self.Nside = Nside
         self.freqs = freqs
-        self.hpx_shell = np.random.normal(mean,var,((Npix,Nfreq)))
+        self.shell = np.random.normal(mu,sigma,((Npix,Nfreq)))
         self.hpx_inds = np.arange(Npix)
         self.update()
 
@@ -77,7 +77,7 @@ class eorsky(object):
             If two parameters from the same group change at the same time, confirm that they're consistent.
         """
 
-        hpx_params = ['nside','Npix','hpx_shell','hpx_inds']
+        hpx_params = ['Nside','Npix','shell','hpx_inds']
         z_params   = ['Z', 'freqs','Nfreq','r_mpc']
         r_params   = ['L','N','box']
 
@@ -89,14 +89,14 @@ class eorsky(object):
                 self.Z = 1420./self.freqs - 1.
                 self.r_mpc = cosmo.comoving_distance(self.Z).to("Mpc").value
                 self.Nfreq = self.freqs.size
-            if p == 'nside':
-                if self.Npix is None: self.Npix = hp.nside2npix(self.nside)
+            if p == 'Nside':
+                if self.Npix is None: self.Npix = hp.nside2npix(self.Nside)
                 if self.hpx_inds is None: self.hpx_inds = np.arange(self.Npix)
             if p == 'box':
                 self.N = self.box.shape[0]
-            if p == 'nside':
+            if p == 'Nside':
                 if 'hpx_inds' not in ud:
-                    if 'Npix' not in ud: self.Npix = hp.nside2npix(self.nside)
+                    if 'Npix' not in ud: self.Npix = hp.nside2npix(self.Nside)
                     self.hpx_inds = np.arange(self.Npix)
             if p == 'hpx_inds':
                 self.Npix = self.hpx_inds.size
@@ -123,14 +123,14 @@ class eorsky(object):
         if not chan_range is None:
             c0,c1 = chan_range
             self.freqs = infile['spectral_info/freq'][c0:c1]/1e6  # Hz -> MHz
-            self.hpx_shell = infile['spectral_info/spectrum'][:,c0:c1]
-            self.Npix, self.Nfreq = self.hpx_shell.shape
+            self.shell = infile['spectral_info/spectrum'][:,c0:c1]
+            self.Npix, self.Nfreq = self.shell.shape
         else:
             self.freqs = infile['spectral_info/freq'][()]/1e6  # Hz -> MHz
-            self.hpx_shell = infile['spectral_info/spectrum'][()]
+            self.shell = infile['spectral_info/spectrum'][()]
             self.Npix, self.Nfreq = infile['spectral_info/spectrum'].shape
         self.hpx_inds = np.arange(self.Npix)
-        self.nside = hp.npix2nside(self.Npix)
+        self.Nside = hp.npix2Nside(self.Npix)
         infile.close()
         self.update()
 
@@ -149,13 +149,13 @@ class eorsky(object):
             spec_group = fileobj.create_group('spectral_info')
             freq_dset = spec_group.create_dataset('freq', data=freqs_Hz, compression='gzip', compression_opts=9)
             freq_dset.attrs['units'] = 'Hz'
-            spectrum_dset = spec_group.create_dataset('spectrum', data=self.hpx_shell, compression='gzip', compression_opts=9)
+            spectrum_dset = spec_group.create_dataset('spectrum', data=self.shell, compression='gzip', compression_opts=9)
 
     def cube_inds(self,which=0):
         """ Group healpix indices and radii by which box repetition they're in. """
         N, L = self.N, np.float(self.L)
         r_mpc = self.r_mpc
-        Vx, Vy, Vz = hp.pix2vec(self.nside, self.hpx_inds)
+        Vx, Vy, Vz = hp.pix2vec(self.Nside, self.hpx_inds)
         l = np.floor(np.outer(Vx, r_mpc)/L).astype(int)
         m = np.floor(np.outer(Vy, r_mpc)/L).astype(int)
         n = np.floor(np.outer(Vz, r_mpc)/L).astype(int)
@@ -184,33 +184,32 @@ class eorsky(object):
             z0,z1 = kwargs['z']
             imin, imax = np.argmin(np.abs(self.Z - z1)), np.argmin(np.abs(self.Z - z0))
             self.freqs = self.freqs[imin:imax]
-            self.update()
         if 'f' in kwargs:
             f0,f1 = kwargs['f']
             imin, imax = np.argmin(np.abs(self.freqs - f0)), np.argmin(np.abs(self.freqs - f1))
             self.freqs = self.freqs[imin:imax]
-            self.update()
         if 'chan' in kwargs:
             imin,imax = int(kwargs['chan'][0]),int(kwargs['chan'][1])
             self.freqs = self.freqs[imin:imax]
             self.update()
-        if not self.hpx_shell is None:
-            self.hpx_shell = self.hpx_shell[:,imin:imax]
+        if not self.shell is None:
+            self.shell = self.shell[:,imin:imax]
+        self.update()
             
 
     def slice(self, **kwargs):
         """ Take a box and slice it into a healpix shell """
 
-        assert self.nside is not None
+        assert self.Nside is not None
         assert self.N is not None
         assert self.L is not None
-        if self.Npix is None: self.Npix = hp.nside2npix(self.nside)
+        if self.Npix is None: self.Npix = hp.nside2npix(self.Nside)
         if self.hpx_inds is None: self.hpx_inds = np.arange(self.Npix)
         if 'cosmo' in kwargs: cosmo=kwargs['cosmo']
 
-        hpx_shell = np.zeros((self.Npix,self.Nfreq))
+        shell = np.zeros((self.Npix,self.Nfreq))
 
-        Vx, Vy, Vz = hp.pix2vec(self.nside, self.hpx_inds)
+        Vx, Vy, Vz = hp.pix2vec(self.Nside, self.hpx_inds)
         vecs = np.vstack([Vx,Vy,Vz])    #(3,npix)
         L = float(self.L)
         dx = L / float(self.N)
@@ -227,12 +226,12 @@ class eorsky(object):
                 hpx_omega = 4*np.pi/float(self.Npix)
                 scale = comoving_voxel_volume(self.Z[i], dnu, hpx_omega)/ dx**3
                 print scale
-            hpx_shell[:,i] += cube[l,m,n]*scale
-        self.hpx_shell = hpx_shell
+            shell[:,i] += cube[l,m,n]*scale
+        self.shell = shell
         self.update()
 
     def unslice(self,**kwargs):
-        params = ["N","L","nside","hpx_inds"]
+        params = ["N","L","Nside","hpx_inds"]
         for key, value in kwargs.iteritems():
             if hasattr(self, key) and key in params: setattr(self, key, value)
 
@@ -257,15 +256,15 @@ class eorsky(object):
         N,L = self.N, np.float(self.L)
         dx = L/float(N)
         cube = np.zeros((N,N,N))
-        Vx, Vy, Vz = hp.pix2vec(self.nside, self.hpx_inds)
+        Vx, Vy, Vz = hp.pix2vec(self.Nside, self.hpx_inds)
         vecs = np.vstack([Vx,Vy,Vz]).T    #(npix, 3)
 
         cube_sel = -1
         if 'cube_sel' in kwargs:
             cube_sel = int(kwargs['cube_sel'])        #Select a particular cube repetition
             box = self.cube_inds(cube_sel)
-        hpx_shell = self.hpx_shell
-        ones_shell = np.ones_like(hpx_shell)
+        shell = self.shell
+        ones_shell = np.ones_like(shell)
         weights = np.zeros_like(cube)
         for i in freq_inds:
             print i
@@ -277,11 +276,11 @@ class eorsky(object):
                 if len(hpi) == 0 : continue
                 l,m,n = inds[hpi,:].T
                 cart_inds = (l,m,n)
-                np.add.at(cube,cart_inds,hpx_shell[hpi,i])
+                np.add.at(cube,cart_inds,shell[hpi,i])
                 np.add.at(weights,cart_inds,ones_shell[hpi,i])
             else:
                 cart_inds = (inds[:,0],inds[:,1],inds[:,2])
-                np.add.at(cube,cart_inds,hpx_shell[:,i])
+                np.add.at(cube,cart_inds,shell[:,i])
                 np.add.at(weights,cart_inds,ones_shell[:,i])
         zeros = np.where(weights == 0.0)
         weights = 1/weights
