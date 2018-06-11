@@ -208,7 +208,7 @@ def box_dft_pspec(cube, L, r_mpc=None, Nkbins=100,error=False,cosmo=False,return
         print 'auto Nkbins=', Nkbins
 
     if not r_mpc is None:
-        print "Nonuniform z"
+        print "Nonuniform r"
         dz = np.abs(r_mpc[-1] - r_mpc[0])/float(Nz)   #Mean spacing
         kz = np.fft.fftfreq(Nz,d=dz)*kfact
     
@@ -217,7 +217,7 @@ def box_dft_pspec(cube, L, r_mpc=None, Nkbins=100,error=False,cosmo=False,return
         _c = np.apply_along_axis(lambda x: np.dot(M,x),2, cube)
         _d = np.fft.fft2(_c,axes=(0,1))*dV   ## Multiply by the voxel size dV
     else:
-        print 'Uniform z'
+        print 'Uniform r'
         _d = np.fft.fftn(cube)*dV
 
     pk3d = np.abs(_d)**2 * pfact
@@ -288,9 +288,13 @@ def orthoslant_project(shell, center, radius, degrees=False):
     xinds = xinds[boxinds]
     yinds = yinds[boxinds]   #Radial selection was bigger than the grid
     hpx_inds = hpx_inds[boxinds]
-
+    weights = np.ones((orthogrid.shape[0], orthogrid.shape[1]))
+    #np.add.at(weights, (xinds,yinds), 1.0)
+    #nz = np.where(weights > 0)
+    #weights[nz] = 1/weights[nz]
     for fi in np.arange(Nfreq):
         np.add.at(orthogrid[:,:,fi],(xinds, yinds), shell[hpx_inds,fi])
+        orthogrid[:,:,fi] *= weights
 
     return orthogrid
 
