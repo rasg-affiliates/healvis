@@ -299,7 +299,7 @@ class eorsky(object):
 
 def common_freqs(instr):
     """ Set frequencies to those of a known instrument. """
-    if instr.lower() == 'mwa': freqs = np.linspace(182.95-30.72/2.,182.95+30.72/2., 384)
+    if instr.lower() == 'mwa': freqs = np.linspace(167075000.0,197715000.0, 384)
     if instr.lower() == 'paper': freqs = np.linspace(100,200,203)
     if instr.lower() == 'hera': freqs = np.linspace(100,200,1024)
     return freqs
