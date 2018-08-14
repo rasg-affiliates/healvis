@@ -117,20 +117,29 @@ class eorsky(object):
         self.ref_pk = f['power']
 
 
-    def read_hdf5(self,filename,chan_range=None):
+    def read_hdf5(self, filename, chan_range=None):
         print 'Reading: ', filename
         infile = h5py.File(filename)
-        if not chan_range is None:
-            c0,c1 = chan_range
-            self.freqs = infile['spectral_info/freq'][c0:c1]/1e6  # Hz -> MHz
-            self.shell = infile['spectral_info/spectrum'][:,c0:c1]
-            self.Npix, self.Nfreq = self.shell.shape
+        skymodel = 'spectral_info' in infile.keys()
+        transpose = False
+        if skymodel:
+            freqs_key = 'spectral_info/freq'
+            shell_key = 'spectral_info/spectrum'
         else:
-            self.freqs = infile['spectral_info/freq'][()]/1e6  # Hz -> MHz
-            self.shell = infile['spectral_info/spectrum'][()]
-            self.Npix, self.Nfreq = infile['spectral_info/spectrum'].shape
+            freqs_key = 'specinfo/freqs'
+            shell_key = 'skyinfo/surfaces'
+            transpose = True
+        if chan_range is None:
+            chan_range = [0, infile[freqs_key].shape[0]]
+        c0,c1 = chan_range
+        self.freqs = infile[freqs_key][c0:c1]/1e6  # Hz -> MHz
+        if not transpose:
+            self.shell = infile[shell_key][:,c0:c1]
+        else:
+            self.shell = infile[shell_key][c0:c1,:].T
+        self.Npix, self.Nfreq = self.shell.shape
         self.hpx_inds = np.arange(self.Npix)
-        self.Nside = hp.npix2Nside(self.Npix)
+        self.Nside = hp.npix2nside(self.Npix)
         infile.close()
         self.update()
 

@@ -1,5 +1,5 @@
 ### Tests for pspec.py
-
+# -*- coding: utf-8 -*-
 from eorsky import pspec_funcs, comoving_voxel_volume, comoving_radial_length, comoving_transverse_length
 from astropy.cosmology import WMAP9
 import nose.tools as nt
@@ -75,7 +75,7 @@ def test_shell_pspec_dft():
     """
 
     select_radius = 5. #degrees
-    N_sections = 10
+    N_sections = 100
 
     Nside=256
     Npix = 12 * Nside**2
@@ -101,7 +101,87 @@ def test_shell_pspec_dft():
     nt.assert_true(np.isclose(np.mean(pk), sig**2 * dV, atol=tol))
 
 
+def compare_averages_shell_pspec_dft():
+    """
+    Take a gaussian shell and confirm its power spectrum using shell_project_pspec.
+    """
+
+    import pylab as pl
+    select_radius = 5. #degrees
+
+    Nside=256
+    Npix = 12 * Nside**2
+    Omega = 4*np.pi/float(Npix)
+
+    Nfreq = 100
+    freqs = np.linspace(167.0, 177.0, Nfreq)
+    dnu = np.diff(freqs)[0]
+    Z = 1420/freqs - 1.
+
+    sig = 2.0
+    mu = 0.0
+    shell = np.random.normal(mu, sig, (Npix, Nfreq))
+
+    dV = comoving_voxel_volume(Z[Nfreq/2], dnu, Omega)
+    variances = []
+    pks = []
+
+    fig, (ax0, ax1, ax2) = pl.subplots(nrows=1, ncols=3)
+    steps = range(10,110,10)
+    for n in steps:
+        Nkbins = 100
+        kbins, pk = pspec_funcs.shell_project_pspec(shell, Nside, select_radius, freqs=freqs, Nkbins=Nkbins, N_sections=n, cosmo=True, method='dft', error=False)
+        variances.append(np.var(pk[0:Nkbins-5]))
+        pks.append(pk)
+        ax0.plot(kbins, pk, label=str(n))
+
+    ax0.axhline(y=dV*sig**2)
+    ax0.legend()
+    ax1.plot(steps, variances)
+    ax2.imshow(np.log10(np.array(pks)[:,0:Nkbins-5]), aspect='auto')
+    pl.show()
+
+def compare_selection_radii_shell_pspec_dft():
+    import pylab as pl
+    N_sections=20
+
+    Nside=256
+    Npix = 12 * Nside**2
+    Omega = 4*np.pi/float(Npix)
+
+    Nfreq = 100
+    freqs = np.linspace(167.0, 177.0, Nfreq)
+    dnu = np.diff(freqs)[0]
+    Z = 1420/freqs - 1.
+
+    sig = 2.0
+    mu = 0.0
+    shell = np.random.normal(mu, sig, (Npix, Nfreq))
+
+    dV = comoving_voxel_volume(Z[Nfreq/2], dnu, Omega)
+    variances = []
+    pks = []
+    means = []
+
+    fig, (ax0, ax1, ax2) = pl.subplots(nrows=1, ncols=3)
+    steps = np.linspace(2,20,20)
+    for s in steps:
+        Nkbins = 100
+        kbins, pk = pspec_funcs.shell_project_pspec(shell, Nside, s, freqs=freqs, Nkbins=Nkbins, N_sections=N_sections, cosmo=True, method='dft', error=False)
+        variances.append(np.var(pk[0:Nkbins-5]))
+        pks.append(pk)
+        means.append(np.mean(pk[0:Nkbins-5]))
+        ax0.plot(kbins, pk, label=u'{:0.2f}°'.format(s))
+
+    ax0.axhline(y=dV*sig**2)
+    ax0.legend()
+    ax1.plot(steps, means)
+    im = ax2.imshow(np.log10(np.array(pks)[:,0:Nkbins-5]), aspect='auto')
+    fig.colorbar(im, ax=ax2)
+    pl.show()
+
+
 
 if __name__ == '__main__':
-    test_shell_pspec_dft()
-
+    #compare_averages_shell_pspec_dft()
+    compare_selection_radii_shell_pspec_dft()

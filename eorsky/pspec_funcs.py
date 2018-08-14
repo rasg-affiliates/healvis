@@ -234,14 +234,14 @@ def shell_pspec(shell, **kwargs):
     from eorsky import eorsky
     if not isinstance(shell, eorsky):
         raise TypeError("This function is for estimating power spectra of eorsky shells.")
-    nside= shell.nside
-    hpx_shell = shell.hpx_shell
+    nside= shell.Nside
+    hpx_shell = shell.shell
     r_mpc = shell.r_mpc
     freqs = shell.freqs
 
     ## Defaults:
     Nsec = 20 if "N_sections" not in kwargs else kwargs['N_sections']
-    radius = 10 if "radius" not in kwargs else kwargs['radius']
+    radius = 5 if "radius" not in kwargs else kwargs['radius']
     Nkbins = 'auto' if "Nkbins" not in kwargs else kwargs['Nkbins']
     method = 'fft' if 'method' not in kwargs else kwargs['method']
     cosmo = True if 'cosmo' not in kwargs else kwargs['cosmo']
