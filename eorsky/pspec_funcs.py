@@ -261,12 +261,18 @@ def orthoslant_project(shell, center, radius, degrees=False):
     if degrees:
         radius *= np.pi/180.
 
-    # Define xy grid by the pixel area and selection radius.
+    if len(center) == 2:
+        # This is an (az, alt) coordinate.
+        if degrees:
+            center = hp.ang2vec(center[0], center[1], lonlat=True)
+        else:
+            center = hp.ang2vec(np.pi - center[1], center[0])
 
+    # Define xy grid by the pixel area and selection radius.
 
     radpix = hp.nside2resol(Nside)
     extent = 2*np.floor(radius/radpix).astype(int)
-
+    print center
     orthogrid = np.zeros((extent,extent, Nfreq))
 
     # Get vectors, rotate so center is overhead, project vectors to get xy bins
