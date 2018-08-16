@@ -25,6 +25,12 @@ class analyticbeam(object):
                 raise KeyError("Sigma required for gaussian beam")
             self.sigma = sigma * np.pi/180.  # deg -> radians
 
+    def plot_beam(self, az, za):
+        import pylab as pl
+        fig = pl.figure()
+        pl.imshow(self.beam_val(az, za))
+        pl.show()
+
     def beam_val(self, az, za, freq_Hz=None):
         """
         az, za = radians
@@ -138,7 +144,7 @@ class observatory:
         assert Nfreqs == self.Nfreqs
 
         if self.az_arr is None:
-            calc_azza(4*np.pi/float(Npix))
+            self.calc_azza(np.sqrt(4*np.pi/float(Npix)))
         extent = self.az_arr.shape[0]
 
 	bl = self.array[0]

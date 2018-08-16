@@ -272,7 +272,6 @@ def orthoslant_project(shell, center, radius, degrees=False):
 
     radpix = hp.nside2resol(Nside)
     extent = 2*np.floor(radius/radpix).astype(int)
-    print center
     orthogrid = np.zeros((extent,extent, Nfreq))
 
     # Get vectors, rotate so center is overhead, project vectors to get xy bins
