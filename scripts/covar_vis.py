@@ -27,13 +27,13 @@ def bin_covariance(cov, time_arr, Nbins=300):
 # Observatory
 latitude  = -30.7215277777
 longitude =  21.4283055554
-fov = 20  #Deg
+fov = 10  #Deg
 ant1_enu = np.array([0, 0, 0])
 ant2_enu = np.array([0.0, 14.6, 0])
 bl = visibility.baseline(ant1_enu, ant2_enu)
 
 # Time
-Ntimes = 1000
+Ntimes = 500
 t0 = 2451545.0      #Start at J2000 epoch
 dt_min_short = 30.0/60.
 dt_min_long = 10.0
@@ -55,32 +55,35 @@ sig = 3.0
 shell0 = np.random.normal(0.0, sig, (Npix, Nfreqs))
 
 #Make observatories
+sigmas = [0.5, 1.0, 2.0]
 obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
 obs.set_fov(fov)
-obs.set_beam('gaussian', sigma=2.0)
-
+obs.set_beam('gaussian', sigma=sigmas[0])
 obs.set_pointings(time_arr)
 visibs0 = obs.make_visibilities(shell0)
-obs.set_beam('gaussian', sigma=1.0)
+obs.set_beam('gaussian', sigma=sigmas[1])
 visibs1 = obs.make_visibilities(shell0)
-obs.set_beam('gaussian', sigma=0.5)
+obs.set_beam('gaussian', sigma=sigmas[2])
 visibs2 = obs.make_visibilities(shell0)
 #import IPython; IPython.embed()
-
+Nbins = 50
 covar = np.corrcoef(visibs0)
-cov0, lags = bin_covariance(covar, time_arr * 60*24, Nbins=50)
+cov0, lags = bin_covariance(covar, time_arr * 60*24, Nbins=Nbins)
 covar = np.corrcoef(visibs1)
-cov1, lags = bin_covariance(covar, time_arr * 60*24, Nbins=50)
+cov1, lags = bin_covariance(covar, time_arr * 60*24, Nbins=Nbins)
 covar = np.corrcoef(visibs2)
-cov2, lags = bin_covariance(covar, time_arr * 60*24, Nbins=50)
+cov2, lags = bin_covariance(covar, time_arr * 60*24, Nbins=Nbins)
+covar = np.corrcoef(np.random.normal(0.0, 2.0, visibs2.shape))
+cov3, lags = bin_covariance(covar, time_arr * 60*24, Nbins=Nbins)
 
 #covar = np.cov(visibs)
 #print np.diff(time_arr)[0]*60*24
 
 #cov, lags = bin_covariance(covar, time_arr * 60*24, Nbins=50)
-pl.plot(lags, cov0,label= '2deg')
-pl.plot(lags, cov1,label= '1deg')
-pl.plot(lags, cov2,label= '0.5deg')
+pl.plot(lags, cov0, label= str(sigmas[0])+'deg')
+pl.plot(lags, cov1, label= str(sigmas[1])+'deg')
+pl.plot(lags, cov2, label= str(sigmas[2])+'deg')
+pl.plot(lags, cov3, label= 'Random vis')
 pl.legend()
 pl.show()
 #pl.imshow(np.real(covar))

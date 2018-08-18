@@ -60,9 +60,14 @@ def test_vis_calc():
 
     nt.assert_true(np.real(visibs) == 1.0)   #Unit point source at zenith
      
+#!!! More tests:
+#        Conirm the fringe against an analytic value
+#        Check visibility for off-zenith point source
 
 
-# Others:
+# scripts:
 #   Script to calculate visibilities from a gaussian sky given gaussian beams of different widths. --- Confirm the relationship between beam width and covariance matrices
 #   Get overlap between fields of view and primary beams for different centers --- how does that relate with correlation?
 #   Look at effect of resolution and time cadence, with varying beam width
+#   Covariance binning of random visibilities
+
