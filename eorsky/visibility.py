@@ -11,6 +11,7 @@ from pspec_funcs import orthoslant_project
 from astropy.constants import c
 from astropy.time import Time
 from astropy.coordinates import Angle, AltAz, EarthLocation, ICRS
+import healpy as hp
 
 c_ms = c.to('m/s').value
 
@@ -102,6 +103,7 @@ class observatory:
         """
 
 	telescope_location = EarthLocation.from_geodetic(self.lon, self.lat)
+        self.times_jd = time_arr
 	centers = []
 	for t in Time(time_arr, scale='utc', format='jd'):
 	        zen = AltAz(alt=Angle('90d'), az=Angle('0d'), obstime=t, location=telescope_location)
@@ -132,6 +134,30 @@ class observatory:
 
     def set_beam(self, beam_type = 'uniform', **kwargs):
         self.beam = analyticbeam(beam_type, **kwargs)
+
+    def get_observed_region(self, Nside):
+        """
+        Just as a check, get the pixels sampled by each snapshot.
+        Returns a list of arrays of pixel numbers
+
+        """
+        try:
+            assert self.pointing_centers is not None
+            assert self.fov is not None
+        except AssertionError:
+            raise AssertionError("Pointing centers and FoV must be set.")
+
+#        Npix, Nfreqs = shell.shape
+#        Nside = np.sqrt(Npix/12)
+
+        pixels = []
+        for cent in self.pointing_centers:
+            cent = hp.ang2vec(cent[0], cent[1], lonlat=True)
+            hpx_inds = hp.query_disc(Nside, cent, 2*np.sqrt(2)*np.radians(self.fov))
+            pixels.append(hpx_inds)
+
+        return pixels
+
 
     def make_visibilities(self, shell):
         """
