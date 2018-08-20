@@ -53,6 +53,9 @@ class baseline(object):
         self.enu = ant1_enu - ant2_enu
         assert(self.enu.size == 3)
 
+    def get_uvw(self, freq_Hz):
+        return self.enu / ( c_ms/ float(freq_Hz))
+
     def get_fringe(self, az, za, freq_Hz, degrees=False):
 #        if degrees:
 #            az *= np.pi/180.
@@ -69,6 +72,7 @@ class baseline(object):
         pos_n = np.cos(za)
         self.lmn = np.array([pos_l, pos_m, pos_n])
         uvw = self.enu / (c_ms / float(freq_Hz))
+        print 'uvw: ', uvw
         return np.exp(2j * np.pi * (pos_l * uvw[0] + pos_m * uvw[1] + pos_n * uvw[2]))
 
 
@@ -122,9 +126,10 @@ class observatory:
         radius = self.fov * np.pi/180.  #deg to rad
         extent = 2*np.floor(radius/resol).astype(int)   #Exactly the same as in pspec_funcs
         pixind = np.arange(-extent/2, extent/2)
-        x_arr, y_arr = np.meshgrid(pixind, pixind)
-        self.za_arr = np.sqrt(x_arr**2 + y_arr**2) * resol
-        self.az_arr = np.arctan2(y_arr, x_arr)
+#        import IPython; IPython.embed()
+        x_arr, y_arr = np.meshgrid(pixind*resol, pixind*resol)
+        self.za_arr = np.sqrt(x_arr**2 + y_arr**2)
+        self.az_arr = (np.arctan2(y_arr, x_arr) - np.pi/2.)%(2*np.pi)
 
     def set_fov(self, fov):
         """
@@ -186,5 +191,6 @@ class observatory:
         visibilities = []
         for c in self.pointing_centers:
             ogrid = orthoslant_project(shell, c, self.fov, degrees=True)
+#            import IPython; IPython.embed()
             visibilities.append(np.sum( ogrid * beam_cube * fringe_cube, axis=(0,1)))
         return np.array(visibilities)
