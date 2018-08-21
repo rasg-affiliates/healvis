@@ -60,8 +60,8 @@ class baseline(object):
 #        if degrees:
 #            az *= np.pi/180.
 #            za *= np.pi/180.
-#        pos_l = np.sin(az * np.sin(za))
-#        pos_m = np.cos(az * np.sin(za))
+#        pos_l = np.sin(az) * np.sin(za)
+#        pos_m = np.cos(az) * np.sin(za)
 #        pos_n = np.cos(za)
 #        lmn = np.array([pos_l, pos_m, pos_n])
 #        uvw = np.outer(self.enu, 1/(c_ms / freq_Hz.astype(float)))  # In wavelengths
@@ -72,7 +72,6 @@ class baseline(object):
         pos_n = np.cos(za)
         self.lmn = np.array([pos_l, pos_m, pos_n])
         uvw = self.enu / (c_ms / float(freq_Hz))
-        print 'uvw: ', uvw
         return np.exp(2j * np.pi * (pos_l * uvw[0] + pos_m * uvw[1] + pos_n * uvw[2]))
 
 
@@ -115,21 +114,32 @@ class observatory:
 		centers.append([zen_radec.ra.deg, zen_radec.dec.deg])
 	self.pointing_centers = centers
 
-    def calc_azza(self, resol):
-        """
-        From the field of view, resolution, calculate the az and za matrices
+#    def calc_azza(self, resol):
+#        """
+#        From the field of view, resolution, calculate the az and za matrices
+#
+#        resol = pixel size in radians
+#        """
+#        if self.fov is None:
+#            raise AttributeError("Need to set a field of view (degrees)")
+#        radius = self.fov * np.pi/180.  #deg to rad
+#        extent = 2*np.floor(radius/resol).astype(int)   #Exactly the same as in pspec_funcs
+#        pixind = np.arange(-extent/2, extent/2)
+##        import IPython; IPython.embed()
+#        x_arr, y_arr = np.meshgrid(pixind*resol, pixind*resol)
+#        self.za_arr = np.sqrt(x_arr**2 + y_arr**2)
+#        self.az_arr = (np.arctan2(y_arr, x_arr) - np.pi/2.)%(2*np.pi)
 
-        resol = pixel size in radians
+    def calc_azza(self, Nside):
+        """
+        Set the az/za arrays.
         """
         if self.fov is None:
-            raise AttributeError("Need to set a field of view (degrees)")
-        radius = self.fov * np.pi/180.  #deg to rad
-        extent = 2*np.floor(radius/resol).astype(int)   #Exactly the same as in pspec_funcs
-        pixind = np.arange(-extent/2, extent/2)
-#        import IPython; IPython.embed()
-        x_arr, y_arr = np.meshgrid(pixind*resol, pixind*resol)
-        self.za_arr = np.sqrt(x_arr**2 + y_arr**2)
-        self.az_arr = (np.arctan2(y_arr, x_arr) - np.pi/2.)%(2*np.pi)
+            raise AttributeError("Need to set a field of view in degrees")
+        radius = self.fov * np.pi/180. * 1/2.
+        cent = hp.ang2vec(0,0)
+        pix = hp.query_disc(Nside, cent, radius)
+        self.az_arr, self.za_arr = hp.pix2ang(Nside, pix)
 
     def set_fov(self, fov):
         """
@@ -173,24 +183,51 @@ class observatory:
         """
 	Npix, Nfreqs = shell.shape
         assert Nfreqs == self.Nfreqs
+        Nside = hp.npix2nside(Npix)
 
-        if self.az_arr is None:
-            self.calc_azza(np.sqrt(4*np.pi/float(Npix)))
-        extent = self.az_arr.shape[0]
+#        if self.az_arr is None:
+#        #    self.calc_azza(np.sqrt(4*np.pi/float(Npix)))
+#            self.calc_azza(Nside)
+#        extent = self.az_arr.shape[0]
 
 	bl = self.array[0]
-        beam_cube = np.ones((extent, extent, self.Nfreqs))
-        fringe_cube = np.ones_like(beam_cube, dtype=np.complex128)
-        az_arr = self.az_arr
-        za_arr = self.za_arr
-        freqs = self.freqs
-        for fi in range(self.Nfreqs):
-            beam_cube[:,:,fi] = self.beam.beam_val(az_arr, za_arr, freqs[fi])
-            fringe_cube[:,:,fi] = bl.get_fringe(az_arr, za_arr, freqs[fi])
+#        az_arr = self.az_arr
+#        za_arr = self.za_arr
+#        freqs = self.freqs
+#        for fi in range(self.Nfreqs):
+#            beam_cube[...,fi] = self.beam.beam_val(az_arr, za_arr, freqs[fi])
+#            fringe_cube[...,fi] = bl.get_fringe(az_arr, za_arr, freqs[fi])
 
+        freqs = self.freqs
         visibilities = []
         for c in self.pointing_centers:
-            ogrid = orthoslant_project(shell, c, self.fov, degrees=True)
-#            import IPython; IPython.embed()
+            #ogrid = orthoslant_project(shell, c, self.fov, degrees=True)
+            # c[0] = az, c[1] = alt, both in degrees
+            cent = hp.ang2vec(c[0], c[1], lonlat=True)
+            inds = hp.query_disc(Nside, cent, np.radians(self.fov)/2.)
+#            za_arr, az_arr = hp.pix2ang(Nside, inds)
+
+            # Get the az/za of the selected pixels relative to the center
+            # Cent = pointing center. za is relative to that.
+            vecs = hp.pix2vec(Nside, inds)
+            rot = hp.rotator.Rotator(rot=(c[0], c[1], 0))
+            vx, vy, vz = hp.rotator.rotateVector(rot.mat, vecs)
+            vecs = np.array([vx, vy, vz]).T
+            za_arr, az_arr = hp.vec2ang(vecs)
+#            za_arr = (np.pi/2. - za_arr)%(2*np.pi)   # TODO -- This fixes unit tests. Check vec2ang convention.
+#            az_arr = (az_arr - np.pi)%(2*np.pi)
+#            import pylab as pl
+#            map0 = np.zeros(Npix)
+#            map0[inds] = za_arr * 180/np.pi
+#            hp.mollview(map0, rot=[0,0,0])
+#            pl.show()
+
+            beam_cube = np.ones(az_arr.shape + (self.Nfreqs,))
+            fringe_cube = np.ones_like(beam_cube, dtype=np.complex128)
+            for fi in range(self.Nfreqs):
+                beam_cube[...,fi] = self.beam.beam_val(az_arr, za_arr, freqs[fi])
+                fringe_cube[...,fi] = bl.get_fringe(az_arr, za_arr, freqs[fi])
+            print 'Calc lmn: ', bl.lmn[:,1245]
+            ogrid = shell[inds, :]
             visibilities.append(np.sum( ogrid * beam_cube * fringe_cube, axis=(0,1)))
         return np.array(visibilities)

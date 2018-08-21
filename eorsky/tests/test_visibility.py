@@ -40,19 +40,23 @@ def test_vis_calc():
     nfreqs = 1
 
     fov=20  #Deg
-    centers = [[0,0]]
 
-    nside=64
+    ## Longitude/Latitude in degrees.
+
+    nside=128
+    ind = 10
+    center = list(hp.pix2ang(nside, ind, lonlat=True))
+    centers = [center]
     npix = nside**2 * 12
     shell = np.zeros((npix, nfreqs))
-    ind = hp.ang2pix(nside, centers[0][1], centers[0][0], lonlat=True)
+#    ind = hp.ang2pix(nside, centers[0][0], centers[0][1], lonlat=True)
     shell[ind] = 1
+#    import IPython; IPython.embed()
 
     obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
     obs.pointing_centers = centers
     obs.set_fov(fov)
-    resol = np.sqrt(4*np.pi/float(npix))
-    obs.calc_azza(resol)
+#    resol = np.sqrt(4*np.pi/float(npix))
     obs.set_beam('uniform')
 
     visibs = obs.make_visibilities(shell)
@@ -64,66 +68,79 @@ def test_offzenith_vis():
     # Construct a shell with a single point source a known position off from zenith.
     #   Similar to test_vis_calc, but set the pointing center 5deg off from the zenith and adjust analytic calculation
 
-    Nside = 128
+    Nside = 64 
     freqs = [1.0e8]
     Nfreqs = 1
-    fov = 20
-
+    fov = 60
+    ##    hp.ang2pix(nside, azimuth, latitude, lonlat=True)
+    ## OR hp.ang2pix(nside, colatitude, azimuth)
+    ##    theta = latitude in degrees
+    ##    phi   = azimuth in degrees
     ant1_enu = np.array([0, 0, 0])
     ant2_enu = np.array([0.0, 140.6, 0])
     
     bl = visibility.baseline(ant1_enu, ant2_enu)
 
+    # Theta = angle above equator (latitude), phi = azimuth wrt vernal equinox at J2000 epoch
+    # Pointing center = (azimuth, latitude) =  (phi, theta)
+
+    ## Rewrite --- Choose pointing center. Place point source relative to it. Get lmn from that directly.
+    ##  
+    Nside=128
+    ind = 9081
+    center = list(hp.pix2ang(Nside, ind, lonlat=True))
+    centers = [center]
     Npix = Nside**2 * 12
     shell = np.zeros((Npix, Nfreqs))
-    theta, phi = 9.0, 2.0
-    ind = hp.ang2pix(Nside, theta, phi, lonlat=True)
 
-    # What's important is that the angular position on the healpix map is accurate
-    # to what's in the projected grid. With a low-res healpix map I can't put something
-    # at exactly the right position, but how far off is it? How does this affect the visibility?
-
-    theta, phi = hp.pix2ang(Nside, ind, lonlat=True)
+    # Choose an index 5 degrees off from the pointing center
+    phi, theta = hp.pix2ang(Nside, ind, lonlat=True)
+    ind = hp.ang2pix(Nside, phi, theta-5, lonlat=True)
     shell[ind] = 1
+
+    import IPython; IPython.embed()
     obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
-    obs.pointing_centers = [[0,0]]
+    obs.pointing_centers = [[phi, theta]]
     obs.set_fov(fov)
     resol = np.sqrt(4*np.pi/float(Npix))
-    obs.calc_azza(resol)
     obs.set_beam('uniform')
 
     vis_calc = obs.make_visibilities(shell)
 
-    src_az, src_za = np.radians(phi), np.radians(theta)
+    src_az, src_za = np.radians(phi), np.radians(90-theta)
+#    c = obs.pointing_centers[0]
+#    src_za -= np.radians(c[1])
     src_l = np.sin(src_az) * np.sin(src_za)
     src_m = np.cos(src_az) * np.sin(src_za)
     src_n = np.cos(src_za)
-    
+    print 'Analytic lmn: ', src_l, src_m, src_n 
+#    import IPython; IPython.embed()
     u, v, w = bl.get_uvw(freqs[0])
 
     vis_analytic = (1) * np.exp(2j * np.pi * (u*src_l + v*src_m + w*src_n))
     
     ## Verify that az/za of the projected pixels are within resol of phi/theta
-    ogrid = pspec_funcs.orthoslant_project(shell, obs.pointing_centers[0], fov, degrees=True)
-    xind,yind, _ = np.where(ogrid > 0)
-    xi,yi = xind[0], yind[0]
-    print("Src az_za, deg, gridded: ", obs.az_arr[xi,yi]*180/np.pi, obs.za_arr[xi,yi]*180/np.pi)
-    print("Src az_za, deg, healpix: ", phi, theta)
+#    ogrid = pspec_funcs.orthoslant_project(shell, obs.pointing_centers[0], fov, degrees=True)
+#    xind,yind, _ = np.where(ogrid > 0)
+#    xi,yi = xind[0], yind[0]
+#    print("Src az_za, deg, gridded: ", obs.az_arr[xi,yi]*180/np.pi, obs.za_arr[xi,yi]*180/np.pi)
+#    print("Src az_za, deg, healpix: ", phi, theta)
 #    import IPython; IPython.embed()
 
     print(vis_analytic)
     print(vis_calc)
 
+    nt.assert_true(np.isclose(vis_analytic, vis_calc, atol=1e-5))
+
 
 if __name__ == '__main__':
     test_offzenith_vis()
+    #test_vis_calc()
 
 #!!! More tests:
 #        Confirm the az_za calculation makes sense
 #        Confirm that the angular distance between two point sources is conserved by the orthoslant_project
 #        Look at how projection affects a diffuse gradient.
-#        !Consider: Healpix wasn't really designed for point sources. Is my single point source test worthwhile?
-#        !Consider: Could I do a direct 1-1 projection (set az/za by the closest healpix indices?) --- probably not
 
 
 # scripts:
