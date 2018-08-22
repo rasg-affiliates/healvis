@@ -184,4 +184,5 @@ def compare_selection_radii_shell_pspec_dft():
 
 if __name__ == '__main__':
     #compare_averages_shell_pspec_dft()
-    compare_selection_radii_shell_pspec_dft()
+    #compare_selection_radii_shell_pspec_dft()
+    test_shell_pspec_dft()

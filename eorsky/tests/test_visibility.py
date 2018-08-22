@@ -28,6 +28,27 @@ def test_pointings():
     nt.assert_true(np.allclose(dts, dt_min, atol=1e-1))   #Within 6 seconds. Not great...
     nt.assert_true(np.allclose(decs, latitude, atol=1e-1))   # Close enough for my purposes, for now.
 
+def test_az_za():
+    """
+    Check the calculated azimuth and zenith angle of a point exactly 5 deg east on the sphere (az = 90d, za = 5d)
+    """
+    Nside=128
+    obs = visibility.observatory(latitude, longitude)
+    center = [0, 0]
+    lon, lat = [5,0]
+    ind0 = hp.ang2pix(Nside, lon, lat, lonlat=True)
+    lon, lat = hp.pix2ang(Nside, ind0, lonlat=True)
+    cvec = hp.ang2vec(center[0],center[1], lonlat=True)
+    radius = np.radians(10.)
+    obs.set_fov(20)
+    pix = hp.query_disc(Nside, cvec, radius)
+    za, az = obs.calc_azza(Nside, center)
+    ind = np.where(pix == ind0)
+    print(np.degrees(za[ind]), np.degrees(az[ind]))
+    print(lon, lat)
+    nt.assert_true(np.isclose(np.degrees(za[ind]), lon))
+    nt.assert_true(np.isclose(np.degrees(az[ind]), lat + 90))
+
 def test_vis_calc():
     # Construct a shell with a single point source at the zenith and confirm against analytic calculation.
 
@@ -134,8 +155,9 @@ def test_offzenith_vis():
 
 
 if __name__ == '__main__':
-    test_offzenith_vis()
-    #test_vis_calc()
+    #test_offzenith_vis()
+    test_vis_calc()
+    #test_az_za()
 
 #!!! More tests:
 #        Confirm the az_za calculation makes sense
