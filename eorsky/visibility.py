@@ -135,7 +135,7 @@ class observatory:
         sdotz = np.array([ np.dot(s, cvec) for s in vecs])
         sdoty = np.array([ np.dot(s, yvec) for s in vecs])
         za_arr = np.arccos(sdotz)
-        az_arr = (np.arctan2(sdotx, sdoty))%(2*np.pi)  # xy plane is tangent. Increasing azimuthal angle eastward, zero at North (y axis)
+        az_arr = (np.arctan2(sdotx, sdoty) + np.pi)%(2*np.pi)  # xy plane is tangent. Increasing azimuthal angle eastward, zero at North (y axis)
         return za_arr, az_arr
 
 
@@ -193,7 +193,6 @@ class observatory:
             for fi in range(self.Nfreqs):
                 beam_cube[...,fi] = self.beam.beam_val(az_arr, za_arr, freqs[fi])
                 fringe_cube[...,fi] = bl.get_fringe(az_arr, za_arr, freqs[fi])
-            print 'Calc lmn: ', bl.lmn[:,1245]
             radius = self.fov * np.pi/180. * 1/2.
             cvec = hp.ang2vec(c[0],c[1], lonlat=True)
             pix = hp.query_disc(Nside, cvec, radius)
