@@ -55,7 +55,7 @@ sig = 3.0
 shell0 = np.random.normal(0.0, sig, (Npix, Nfreqs))
 
 #Make observatories
-sigmas = [0.5, 1.0, 2.0]
+sigmas = [1.0, 2.0, 4.0]
 obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
 obs.set_fov(fov)
 obs.set_beam('gaussian', sigma=sigmas[0])
@@ -65,7 +65,6 @@ obs.set_beam('gaussian', sigma=sigmas[1])
 visibs1 = obs.make_visibilities(shell0)
 obs.set_beam('gaussian', sigma=sigmas[2])
 visibs2 = obs.make_visibilities(shell0)
-#import IPython; IPython.embed()
 Nbins = 50
 covar = np.corrcoef(visibs0)
 cov0, lags = bin_covariance(covar, time_arr * 60*24, Nbins=Nbins)
@@ -84,6 +83,8 @@ pl.plot(lags, cov0, label= str(sigmas[0])+'deg')
 pl.plot(lags, cov1, label= str(sigmas[1])+'deg')
 pl.plot(lags, cov2, label= str(sigmas[2])+'deg')
 pl.plot(lags, cov3, label= 'Random vis')
+pl.xlabel("Lag (minutes)")
+pl.ylabel("Binned Correlation Coefficient")
 pl.legend()
 pl.show()
 #pl.imshow(np.real(covar))

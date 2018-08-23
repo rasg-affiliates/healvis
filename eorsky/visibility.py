@@ -197,5 +197,5 @@ class observatory:
             cvec = hp.ang2vec(c[0],c[1], lonlat=True)
             pix = hp.query_disc(Nside, cvec, radius)
             ogrid = shell[pix, :]
-            visibilities.append(np.sum( ogrid * beam_cube * fringe_cube, axis=(0,1)))
+            visibilities.append(np.sum( ogrid * beam_cube * fringe_cube, axis=0))
         return np.array(visibilities)
