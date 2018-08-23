@@ -229,7 +229,7 @@ def box_dft_pspec(cube, L, r_mpc=None, Nkbins=100,error=False,cosmo=False,return
 
 def shell_pspec(shell, **kwargs):
     """
-        r_pspec_sphere wrapper 
+    shell_project_pspec wrapper 
     """
     from eorsky import eorsky
     if not isinstance(shell, eorsky):
