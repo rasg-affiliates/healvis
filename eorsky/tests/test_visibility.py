@@ -28,6 +28,27 @@ def test_pointings():
     nt.assert_true(np.allclose(dts, dt_min, atol=1e-1))   #Within 6 seconds. Not great...
     nt.assert_true(np.allclose(decs, latitude, atol=1e-1))   # Close enough for my purposes, for now.
 
+def test_az_za():
+    """
+    Check the calculated azimuth and zenith angle of a point exactly 5 deg east on the sphere (az = 90d, za = 5d)
+    """
+    Nside=128
+    obs = visibility.observatory(latitude, longitude)
+    center = [0, 0]
+    lon, lat = [5,0]
+    ind0 = hp.ang2pix(Nside, lon, lat, lonlat=True)
+    lon, lat = hp.pix2ang(Nside, ind0, lonlat=True)
+    cvec = hp.ang2vec(center[0],center[1], lonlat=True)
+    radius = np.radians(10.)
+    obs.set_fov(20)
+    pix = hp.query_disc(Nside, cvec, radius)
+    za, az = obs.calc_azza(Nside, center)
+    ind = np.where(pix == ind0)
+    print(np.degrees(za[ind]), np.degrees(az[ind]))
+    print(lon, lat)
+    nt.assert_true(np.isclose(np.degrees(za[ind]), lon))
+    nt.assert_true(np.isclose(np.degrees(az[ind]), (lat-90)%360))
+
 def test_vis_calc():
     # Construct a shell with a single point source at the zenith and confirm against analytic calculation.
 
@@ -40,33 +61,87 @@ def test_vis_calc():
     nfreqs = 1
 
     fov=20  #Deg
-    centers = [[0,0]]
 
-    nside=64
+    ## Longitude/Latitude in degrees.
+
+    nside=128
+    ind = 10
+    center = list(hp.pix2ang(nside, ind, lonlat=True))
+    centers = [center]
     npix = nside**2 * 12
     shell = np.zeros((npix, nfreqs))
-    ind = hp.ang2pix(nside, centers[0][1], centers[0][0], lonlat=True)
+#    ind = hp.ang2pix(nside, centers[0][0], centers[0][1], lonlat=True)
     shell[ind] = 1
+#    import IPython; IPython.embed()
 
     obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
     obs.pointing_centers = centers
     obs.set_fov(fov)
-    resol = np.sqrt(4*np.pi/float(npix))
-    obs.calc_azza(resol)
+#    resol = np.sqrt(4*np.pi/float(npix))
     obs.set_beam('uniform')
 
     visibs = obs.make_visibilities(shell)
     print visibs
 
     nt.assert_true(np.real(visibs) == 1.0)   #Unit point source at zenith
-     
-#!!! More tests:
-#        Conirm the fringe against an analytic value
-#        Check visibility for off-zenith point source
+
+def test_offzenith_vis():
+    # Construct a shell with a single point source a known position off from zenith.
+    #   Similar to test_vis_calc, but set the pointing center 5deg off from the zenith and adjust analytic calculation
+
+    freqs = [1.0e8]
+    Nfreqs = 1
+    fov = 60
+    ant1_enu = np.array([0, 0, 0])
+    ant2_enu = np.array([0.0, 140.6, 0])
+    
+    bl = visibility.baseline(ant1_enu, ant2_enu)
+
+    Nside=128
+    ind = 9081
+    center = list(hp.pix2ang(Nside, ind, lonlat=True))
+    centers = [center]
+    Npix = Nside**2 * 12
+    shell = np.zeros((Npix, Nfreqs))
+
+    # Choose an index 5 degrees off from the pointing center
+    phi, theta = hp.pix2ang(Nside, ind, lonlat=True)
+    ind = hp.ang2pix(Nside, phi, theta-5, lonlat=True)
+    shell[ind] = 1
+
+    obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
+    obs.pointing_centers = [[phi, theta]]
+    obs.set_fov(fov)
+    resol = np.sqrt(4*np.pi/float(Npix))
+    obs.set_beam('uniform')
+
+    vis_calc = obs.make_visibilities(shell)
+
+    phi_new, theta_new = hp.pix2ang(Nside, ind, lonlat=True)
+    src_az, src_za = np.radians(phi - phi_new), np.radians(theta-theta_new)
+    src_l = np.sin(src_az) * np.sin(src_za)
+    src_m = np.cos(src_az) * np.sin(src_za)
+    src_n = np.cos(src_za)
+    u, v, w = bl.get_uvw(freqs[0])
+
+    vis_analytic = (1) * np.exp(2j * np.pi * (u*src_l + v*src_m + w*src_n))
+
+    print(vis_analytic)
+    print(vis_calc)
+
+    nt.assert_true(np.isclose(vis_analytic, vis_calc, atol=1e-3))
+
+
+if __name__ == '__main__':
+    test_offzenith_vis()
+    #test_vis_calc()
+    #test_az_za()
+
 
 
 # scripts:
 #   Script to calculate visibilities from a gaussian sky given gaussian beams of different widths. --- Confirm the relationship between beam width and covariance matrices
+#   !Covariance per freq wrt an ensemble of gaussian skies with 24 hours -- (more demanding; may need mpi)
 #   Get overlap between fields of view and primary beams for different centers --- how does that relate with correlation?
 #   Look at effect of resolution and time cadence, with varying beam width
 #   Covariance binning of random visibilities

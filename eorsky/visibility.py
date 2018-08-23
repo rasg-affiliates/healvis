@@ -53,12 +53,15 @@ class baseline(object):
         self.enu = ant1_enu - ant2_enu
         assert(self.enu.size == 3)
 
+    def get_uvw(self, freq_Hz):
+        return self.enu / ( c_ms/ float(freq_Hz))
+
     def get_fringe(self, az, za, freq_Hz, degrees=False):
 #        if degrees:
 #            az *= np.pi/180.
 #            za *= np.pi/180.
-#        pos_l = np.sin(az * np.sin(za))
-#        pos_m = np.cos(az * np.sin(za))
+#        pos_l = np.sin(az) * np.sin(za)
+#        pos_m = np.cos(az) * np.sin(za)
 #        pos_n = np.cos(za)
 #        lmn = np.array([pos_l, pos_m, pos_n])
 #        uvw = np.outer(self.enu, 1/(c_ms / freq_Hz.astype(float)))  # In wavelengths
@@ -111,20 +114,30 @@ class observatory:
 		centers.append([zen_radec.ra.deg, zen_radec.dec.deg])
 	self.pointing_centers = centers
 
-    def calc_azza(self, resol):
+    def calc_azza(self, Nside, center):
         """
-        From the field of view, resolution, calculate the az and za matrices
-
-        resol = pixel size in radians
+        Set the az/za arrays.
+            Center = lon/lat in degrees
+            radius = selection radius in degrees
         """
         if self.fov is None:
-            raise AttributeError("Need to set a field of view (degrees)")
-        radius = self.fov * np.pi/180.  #deg to rad
-        extent = 2*np.floor(radius/resol).astype(int)   #Exactly the same as in pspec_funcs
-        pixind = np.arange(-extent/2, extent/2)
-        x_arr, y_arr = np.meshgrid(pixind, pixind)
-        self.za_arr = np.sqrt(x_arr**2 + y_arr**2) * resol
-        self.az_arr = np.arctan2(y_arr, x_arr)
+            raise AttributeError("Need to set a field of view in degrees")
+        radius = self.fov * np.pi/180. * 1/2.
+        cvec = hp.ang2vec(center[0],center[1], lonlat=True)
+        pix = hp.query_disc(Nside, cvec, radius)
+        vecs = hp.pix2vec(Nside, pix)
+        vecs = np.array(vecs).T  # Shape (Npix_use, 3)
+
+        colat = np.radians(90. - center[1])    #Colatitude, radians.
+        xvec = [-cvec[1], cvec[0], 0] * 1/np.sin(colat)  # From cross product
+        yvec = np.cross(cvec, xvec)
+        sdotx = np.array([ np.dot(s, xvec) for s in vecs])
+        sdotz = np.array([ np.dot(s, cvec) for s in vecs])
+        sdoty = np.array([ np.dot(s, yvec) for s in vecs])
+        za_arr = np.arccos(sdotz)
+        az_arr = (np.arctan2(sdotx, sdoty) + np.pi)%(2*np.pi)  # xy plane is tangent. Increasing azimuthal angle eastward, zero at North (y axis)
+        return za_arr, az_arr
+
 
     def set_fov(self, fov):
         """
@@ -168,23 +181,21 @@ class observatory:
         """
 	Npix, Nfreqs = shell.shape
         assert Nfreqs == self.Nfreqs
-
-        if self.az_arr is None:
-            self.calc_azza(np.sqrt(4*np.pi/float(Npix)))
-        extent = self.az_arr.shape[0]
+        Nside = hp.npix2nside(Npix)
 
 	bl = self.array[0]
-        beam_cube = np.ones((extent, extent, self.Nfreqs))
-        fringe_cube = np.ones_like(beam_cube, dtype=np.complex128)
-        az_arr = self.az_arr
-        za_arr = self.za_arr
         freqs = self.freqs
-        for fi in range(self.Nfreqs):
-            beam_cube[:,:,fi] = self.beam.beam_val(az_arr, za_arr, freqs[fi])
-            fringe_cube[:,:,fi] = bl.get_fringe(az_arr, za_arr, freqs[fi])
-
         visibilities = []
         for c in self.pointing_centers:
-            ogrid = orthoslant_project(shell, c, self.fov, degrees=True)
+            za_arr, az_arr = self.calc_azza(Nside, c)
+            beam_cube = np.ones(az_arr.shape + (self.Nfreqs,))
+            fringe_cube = np.ones_like(beam_cube, dtype=np.complex128)
+            for fi in range(self.Nfreqs):
+                beam_cube[...,fi] = self.beam.beam_val(az_arr, za_arr, freqs[fi])
+                fringe_cube[...,fi] = bl.get_fringe(az_arr, za_arr, freqs[fi])
+            radius = self.fov * np.pi/180. * 1/2.
+            cvec = hp.ang2vec(c[0],c[1], lonlat=True)
+            pix = hp.query_disc(Nside, cvec, radius)
+            ogrid = shell[pix, :]
             visibilities.append(np.sum( ogrid * beam_cube * fringe_cube, axis=(0,1)))
         return np.array(visibilities)
