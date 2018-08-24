@@ -55,6 +55,39 @@ sig = 3.0
 shell0 = np.random.normal(0.0, sig, (Npix, Nfreqs))
 
 #Make observatories
+visibs = []
+#fwhms = [5.0, 20.0, 40.0]
+fwhms = [0.5, 5.0, 10.0]
+sigmas = [ f/2.355 for f in fwhms]
+obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
+obs.set_fov(fov)
+obs.set_pointings(time_arr)
+
+
+Nbins = 300
+covs = []
+for i, vis in enumerate(vis_all):
+    if Npus > 0: vis = np.concatenate(vis)
+    covar = np.corrcoef(vis)
+    cov, lags = bin_covariance(covar, time_arr * 60 * 24, Nbins=Nbins)
+    covs.append(cov)
+    pl.plot(lags, cov, label= str(fwhms[i])+"deg")
+covr, lags = bin_covariance(covar, time_arr * 60*24, Nbins=Nbins)
+
+#covar = np.cov(visibs)
+#print np.diff(time_arr)[0]*60*24
+
+pl.plot(lags, covr, label= 'Random vis')
+pl.xlabel("Lag (minutes)")
+pl.ylabel("Binned Correlation Coefficient")
+pl.legend()
+# with pdf.PdfPages("covariance_comparison.pdf") as pdffile:
+#     pdffile.savefig()
+#pl.imshow(np.real(covar))
+pl.show()
+
+
+
 sigmas = [1.0, 2.0, 4.0]
 obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
 obs.set_fov(fov)
