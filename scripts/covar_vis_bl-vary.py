@@ -32,6 +32,12 @@ ant1_enu = np.array([0, 0, 0])
 ant2_enu = np.array([0.0, 14.6, 0])
 bl = visibility.baseline(ant1_enu, ant2_enu)
 
+lengths = [14.6, 50.0, 100.0]
+bls = []
+for l in lengths:
+    ant2_enu = np.array([0.0, l, 0.0])
+    bls.append(visibility.baseline(ant1_enu, ant2_enu))
+
 # Time
 Ntimes = 500
 t0 = 2451545.0      #Start at J2000 epoch
@@ -56,26 +62,25 @@ shell0 = np.random.normal(0.0, sig, (Npix, Nfreqs))
 
 #Make observatories
 visibs = []
-#fwhms = [5.0, 20.0, 40.0]
-fwhms = [0.5, 5.0, 20.0]
-sigmas = [ f/2.355 for f in fwhms]
+fwhms = [5.0]
 obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
 obs.set_fov(fov)
 obs.set_pointings(time_arr)
+obs.set_beam('gaussian', sigma=fwhms[0]/2.355)
 
-for s in sigmas:
-    print s
-    obs.set_beam('gaussian', sigma=s)
-    visibs.append(obs.make_visibilities(shell0))
+for li in range(len(lengths)):
+    print li
+    obs.array = [bls[li]]
+    visibs.append(obs.make_visibilities(shell0)) 
 
 Nbins = 300
 covs = []
 for i, vis in enumerate(visibs):
-    covar = np.corrcoef(np.abs(vis)**2)
+    covar = np.corrcoef(vis)
     cov, lags = bin_covariance(covar, time_arr * 60 * 24, Nbins=Nbins)
     covs.append(cov)
-    pl.plot(lags, cov, label= str(fwhms[i])+"deg")
-covar = np.corrcoef(np.abs(np.random.normal(0.0, np.var(vis), vis.shape))**2)
+    pl.plot(lags, cov, label= str(lengths[i])+"m")
+covar = np.corrcoef(np.random.normal(0.0, np.var(vis), vis.shape))
 covr, lags = bin_covariance(covar, time_arr * 60*24, Nbins=Nbins)
 pl.plot(lags, covr, label= 'Random vis')
 
@@ -89,7 +94,6 @@ pl.legend()
 #     pdffile.savefig()
 #pl.imshow(np.real(covar))
 pl.show()
-
 
 
 import IPython; IPython.embed()

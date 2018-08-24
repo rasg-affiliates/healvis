@@ -74,8 +74,8 @@ def test_shell_pspec_dft():
     Take a gaussian shell and confirm its power spectrum using shell_project_pspec.
     """
 
-    select_radius = 5. #degrees
-    N_sections = 100
+    select_radius = 10. #degrees
+    N_sections = 10
 
     Nside=256
     Npix = 12 * Nside**2
@@ -89,16 +89,18 @@ def test_shell_pspec_dft():
     sig = 2.0
     mu = 0.0
     shell = np.random.normal(mu, sig, (Npix, Nfreq))
-
-    dV = comoving_voxel_volume(Z[Nfreq/2], dnu, Omega)
+    dV0 = comoving_voxel_volume(Z[Nfreq/2], dnu, Omega)
+    for fi in range(Nfreq):
+        dV = comoving_voxel_volume(Z[fi], dnu, Omega)
+        shell[:, fi] = np.random.normal(mu, sig * np.sqrt(dV0/dV), Npix)
 
     kbins, pk, errs = pspec_funcs.shell_project_pspec(shell, Nside, select_radius, freqs=freqs, Nkbins=100, N_sections=N_sections, cosmo=True, method='dft', error=True)
 
     tol = np.sqrt(np.var(pk))
     print 'Tolerance: ', tol
-#    import IPython; IPython.embed()
+    print 'Error: ', np.mean(pk/(sig**2*dV0))
 
-    nt.assert_true(np.isclose(np.mean(pk), sig**2 * dV, atol=tol))
+    nt.assert_true(np.isclose(np.mean(pk), sig**2 * dV0, atol=tol))
 
 
 def compare_averages_shell_pspec_dft():
