@@ -96,41 +96,56 @@ def tlmk_transform(shell, nside, r_mpc, kz=None,lmax=None):
     else:
         return Tlmk, wlk
 
-def box_pyramid_pspec(cube, radius, r_mpc, Zs, kz = None, Nkbins=100,error=False,cosmo=False):
+def box_pyramid_pspec(cube, angular_extent, r_mpc, Zs, kz = None, Nkbins=100, error=False, cosmo=False, return_dV=False):
     """
         Estimate the power spectrum in a "pyramid" appoximation:
-            radius = in radians
+            angular_extent = in radians, the width of the box
             For each r_mpc, calculate the width of the projected region from the angular diameter distance.
             In the radial direction, calculate discrete fourier transform. In tangential directions, do FFT.
-            TODO -- Reconsider the design here... I'm taking the change in L_x/L_y into account, but not the variation of L_z with angle?
     """
+    Zs.sort()
+    r_mpc.sort()
     Nx, Ny, Nz = cube.shape
     D_mpc = WMAP9.comoving_transverse_distance(Zs).to("Mpc").value
+    L = D_mpc * angular_extent   # Transverse lengths in Mpc
+    if cosmo:
+        kfact=2*np.pi
+        # dV = (Nz) = (L/Nx) * (L/Ny) * np.diff(
+        pixel_size = angular_extent**2/(Nx * Ny)
+        dz_redshift = np.diff(Zs)[0]  # Assume uniform redshift interval
+        dV = WMAP9.differential_comoving_volume(Zs).to("Mpc3/sr").value * dz_redshift * pixel_size
+        Lz = r_mpc[-1] - r_mpc[0]
+        pfact = 1/(L**2 * Lz)
+    else:
+       kfact=1
+       dV = 1
+       pfact = 1/float(Nx*Ny*Nz)
  
     if kz is None:
         dz = np.abs(r_mpc[-1] - r_mpc[0])/float(Nz)   #Mean spacing
-        kz = np.fft.fftfreq(Nz,d=dz)*2*np.pi
+        kz = np.fft.fftfreq(Nz,d=dz) * kfact
     else:
         assert kz.size == r_mpc.size
-    
     ## DFT in radial direction
     M = np.exp(np.pi * 2 * (-1j) * np.outer(kz,r_mpc) )
     _c = np.apply_along_axis(lambda x: np.dot(M,x),2, cube)
-    
+
     ## 2D FFT in the transverse directions
     _c = np.fft.fft2(_c,axes=(0,1))
-    
-    ##kx and ky
-    L = D_mpc * radius   # Transverse lengths in Mpc
-    kx = np.array([np.fft.fftfreq(Nx,d=l/Nx) for l in L])*2*np.pi
-    ky = np.array([np.fft.fftfreq(Ny,d=l/Ny) for l in L])*2*np.pi
+   
+    _c = _c * dV
+
+    ## kx and ky
+    kx = np.array([np.fft.fftfreq(Nx,d=l/Nx) for l in L])*kfact
+    ky = np.array([np.fft.fftfreq(Ny,d=l/Ny) for l in L])*kfact
     kx = np.moveaxis(np.tile(kx[:,:,np.newaxis],Ny),[1,2],[0,1])
     ky = np.moveaxis(np.tile(ky[:,:,np.newaxis],Nx),[1,2],[1,0])
     kz = np.tile(kz[np.newaxis,:],Nx*Ny).reshape(Nx,Ny,Nz)
-    
-    pk3d = np.abs(_c)**2/(Nx*Ny*Nz)
-    
+
+    pk3d = np.abs(_c)**2 * pfact
     results = bin_1d(pk3d,(kx,ky,kz),Nkbins=Nkbins,error=error)
+    if return_dV:
+        return results, dV
     return results
 
 

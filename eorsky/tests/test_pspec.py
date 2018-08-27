@@ -1,9 +1,11 @@
 ### Tests for pspec.py
 # -*- coding: utf-8 -*-
 from eorsky import pspec_funcs, comoving_voxel_volume, comoving_radial_length, comoving_transverse_length
-from astropy.cosmology import WMAP9
+from astropy.cosmology import WMAP9, z_at_value
 import nose.tools as nt
 import numpy as np
+
+## TODO -- Add experiment comparing different box pspec estimator methdos (LS, pyramid, DFT, FFT)
 
 def test_gaussian_box_fft():
     """
@@ -24,9 +26,33 @@ def test_gaussian_box_fft():
 
     nt.assert_true(np.allclose(np.mean(pk), sig**2 * dV, atol=tol))
 
+def test_gaussian_box_pyramid():
+    """
+    Gaussian box estimated using pyramid method.
+    """
+    N = 256   #Vox per side
+    L = 300.   #Mpc
+    sig=2.0
+    mu =0.0
+    box = np.random.normal(mu, sig, (N,N,N))
+
+    ## Unconventional approach, but start with equal distances and go to redshifts
+    r0 = WMAP9.comoving_distance(6.0).to("Mpc").value
+    r_mpc = np.linspace(r0, r0 + L, N)
+    def comov_dist(z):
+        return WMAP9.comoving_distance(z).to("Mpc").value
+    Z = np.array([z_at_value(comov_dist, r, zmin=5.0) for r in r_mpc])
+
+    angular_extent = 300/np.mean(r_mpc)  # 300 Mpc box at this distance
+
+    (kbins, pk), dV = pspec_funcs.box_pyramid_pspec(box, angular_extent, r_mpc, Z, cosmo=True, return_dV = True)
+    import pylab as pl
+    pl.plot(kbins, pk)
+    print np.sqrt(np.var(dV))
+    pl.axhline(y=sig**2 * np.mean(dV))
+    pl.show()
+
 ## TODO Download a 21cmFAST box and its calculated pspec an write a unittest to compare calculated vs. actual
-## TODO Write a test using the DFT and Lomb-Scargle transforms.
-## TODO Write a rotator test
 
 def test_orthoslant_project():
     Nside=256
@@ -187,4 +213,5 @@ def compare_selection_radii_shell_pspec_dft():
 if __name__ == '__main__':
     #compare_averages_shell_pspec_dft()
     #compare_selection_radii_shell_pspec_dft()
-    test_shell_pspec_dft()
+    #test_shell_pspec_dft()
+    test_gaussian_box_pyramid()
