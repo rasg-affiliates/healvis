@@ -13,8 +13,8 @@ pkfile = sys.argv[1]
 ## Columns of file are k, P(k)
 ## Interpolate these to the 3D grid
 
-L = 300 #Mpc
-N = 256
+L = 500 #Mpc
+N = 512
 
 M = N/2 # k-space dimension
 
@@ -28,8 +28,8 @@ k0, pk0 = dat[:,0], dat[:,1]
 
 pk1d = np.interp(kbins, k0, pk0)
 
-#box = np.random.normal(0.0, 1.0, (N,N,N))
-#_box = np.fft.fftn(box)
+box = np.random.normal(0.0, 1.0, (N,N,N))
+_box = np.fft.ifftn(box)
 #_box *= 2.0
 
 kx, ky, kz = np.meshgrid(kbins, kbins, kbins)
@@ -58,21 +58,21 @@ pk_3d[nz] /= counts[nz]
 
 #pk_3d = np.ones((M,M,M)) * 3.0
 
-_box = (np.random.normal(0.0, 1.0, (N,N,N))
-        + (1j)*np.random.normal(0.0, 1.0, (N,N,N))) / np.sqrt(2.)
+#_box = (np.random.normal(0.0, 1.0, (N,N,N))
+#        + (1j)*np.random.normal(0.0, 1.0, (N,N,N))) / np.sqrt(2.)
 
 print np.var(_box)
 
 dV = (L/float(N))**3
-amp = np.sqrt(pk_3d*float(L**3))
+amp = np.sqrt(pk_3d)#*float(L**3))
 _box[:M,:M,:M] *= amp
 _box[M:,M:,M:] = (-1)*((_box[M-1::-1,M-1::-1,M-1::-1])).conj()  #Reversal is done before slicing.
-#_box[0,0,0] = 0   #DC mode = 0
+_box[0,0,0] = 0   #DC mode = 0
 
 ## Box is now real-valued
-box = np.fft.ifftn(_box)
+box = np.fft.fftn(_box)
 
-knew, pknew = box_dft_pspec(box, L, cosmo=True)
+knew, pknew = box_dft_pspec(box, L, cosmo=False)
 
 import pylab as pl
 fig = pl.figure()
