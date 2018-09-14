@@ -72,6 +72,8 @@ def test_vis_calc():
     shell = np.zeros((npix, nfreqs))
 #    ind = hp.ang2pix(nside, centers[0][0], centers[0][1], lonlat=True)
     shell[ind] = 1
+    pix_area = 4*np.pi/float(npix)
+    shell[ind] /= pix_area  # K
 #    import IPython; IPython.embed()
 
     obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
@@ -102,17 +104,19 @@ def test_offzenith_vis():
     center = list(hp.pix2ang(Nside, ind, lonlat=True))
     centers = [center]
     Npix = Nside**2 * 12
+    pix_area = 4*np.pi/float(Npix)
     shell = np.zeros((Npix, Nfreqs))
 
     # Choose an index 5 degrees off from the pointing center
     phi, theta = hp.pix2ang(Nside, ind, lonlat=True)
     ind = hp.ang2pix(Nside, phi, theta-5, lonlat=True)
-    shell[ind] = 1
+    shell[ind] = 1  # K * sr
+    shell[ind] /= pix_area  # K
 
     obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
     obs.pointing_centers = [[phi, theta]]
     obs.set_fov(fov)
-    resol = np.sqrt(4*np.pi/float(Npix))
+    resol = np.sqrt(pix_area)
     obs.set_beam('uniform')
 
     vis_calc = obs.make_visibilities(shell)

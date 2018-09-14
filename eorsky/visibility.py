@@ -1,10 +1,6 @@
 
 """
     Generate visibilities for a single baseline.
-
-    Choose a random point at a given latitude as a start. For each time, rotate by 15deg/hour.
-        orthoslant_project returns a box (Nx, Ny, Nz) where each xy pixel is equal area to the Healpix pixels and each df is the channel width.
-        Need: A fringe, a beam (altaz), resolution (obtain from the healpix shell)
 """
 import numpy as np
 from pspec_funcs import orthoslant_project
@@ -39,11 +35,9 @@ class analyticbeam(object):
 
         """
         if self.beam_type == 'uniform':
+            if isinstance(az, np.ndarray):
+                return np.ones_like(az)
             return 1
-#            try:
-#                return np.ones((az.shape[0], az.shape[1], freq_Hz.shape[0]))
-#            except AttributeError:
-#                return 1.
         if self.beam_type == 'gaussian':
             return np.exp(-(za**2) / (2 * self.sigma**2))  # Peak normalized
 
@@ -58,22 +52,46 @@ class baseline(object):
         return self.enu / (c_ms / float(freq_Hz))
 
     def get_fringe(self, az, za, freq_Hz, degrees=False):
-        #        if degrees:
-        #            az *= np.pi/180.
-        #            za *= np.pi/180.
-        #        pos_l = np.sin(az) * np.sin(za)
-        #        pos_m = np.cos(az) * np.sin(za)
-        #        pos_n = np.cos(za)
-        #        lmn = np.array([pos_l, pos_m, pos_n])
-        #        uvw = np.outer(self.enu, 1/(c_ms / freq_Hz.astype(float)))  # In wavelengths
-        #        udotl = np.einsum("ijk,il->jkl", lmn, uvw)
-        #        return np.exp(2j * np.pi * udotl)
+        if degrees:
+            az *= np.pi/180.
+            za *= np.pi/180.
         pos_l = np.sin(az) * np.sin(za)
         pos_m = np.cos(az) * np.sin(za)
         pos_n = np.cos(za)
-        self.lmn = np.array([pos_l, pos_m, pos_n])
-        uvw = self.enu / (c_ms / float(freq_Hz))
-        return np.exp(2j * np.pi * (pos_l * uvw[0] + pos_m * uvw[1] + pos_n * uvw[2]))
+        lmn = np.array([pos_l, pos_m, pos_n])
+        uvw = np.outer(self.enu, 1/(c_ms / freq_Hz.astype(float)))  # In wavelengths
+        #udotl = np.einsum("ijk,il->jkl", lmn, uvw)
+        udotl = np.einsum("jk,jl->kl", lmn, uvw)
+        return np.exp(2j * np.pi * udotl)
+        #pos_l = np.sin(az) * np.sin(za)
+        #pos_m = np.cos(az) * np.sin(za)
+        #pos_n = np.cos(za)
+        #self.lmn = np.array([pos_l, pos_m, pos_n])
+        #uvw = self.enu / (c_ms / float(freq_Hz))
+        #return np.exp(2j * np.pi * (pos_l * uvw[0] + pos_m * uvw[1] + pos_n * uvw[2]))
+
+    def plot_fringe(self, az, za, freq=None, degrees=False, pix=None, Nside=None):
+        import pylab as pl
+        if len(az.shape) == 1:
+            # Healpix mode
+            if pix is None or Nside is None:
+                raise ValueError("Need to provide healpix indices and Nside")
+            map0 = np.zeros(12*Nside**2)
+            if isinstance(freq, np.ndarray):
+                freq = np.array(freq[0])
+            if isinstance(freq, float):
+                freq = np.array(freq)
+
+            vecs = hp.pixelfunc.pix2vec(Nside, pix)
+            mean_vec = (np.mean(vecs[0]), np.mean(vecs[1]), np.mean(vecs[2]))    
+            dt, dp = hp.rotator.vec2dir(mean_vec,lonlat=True)
+            map0[pix] = self.get_fringe(az,za, freq, degrees=degrees)[:,0]
+            hp.mollview(map0, rot=(dt, dp, 0))
+            pl.show()
+        else:
+            fig = pl.figure()
+            pl.imshow(self.get_fringe(az, za, freq=freq, degrees=degrees))
+            pl.show()
 
 
 class observatory:
@@ -92,8 +110,6 @@ class observatory:
         self.lat = latitude
         self.lon = longitude
         self.array = array
-        self.az_arr = None
-        self.za_arr = None
         self.pointings = None
         self.fov = None
         self.freqs = freqs
@@ -178,10 +194,14 @@ class observatory:
         Make beam cube and fringe cube, multiply and sum.
         shell (Npix, Nfreq) = healpix shell
         """
-        Npix, Nfreqs = shell.shape
+        if len(shell.shape) == 3:
+            Nskies, Npix, Nfreqs = shell.shape
+        else:
+            Npix, Nfreqs = shell.shape
+
         assert Nfreqs == self.Nfreqs
         Nside = hp.npix2nside(Npix)
-
+        pixel_area_sr = 4*np.pi/float(Npix)
         bl = self.array[0]
         freqs = self.freqs
         visibilities = []
@@ -189,12 +209,16 @@ class observatory:
             za_arr, az_arr = self.calc_azza(Nside, c)
             beam_cube = np.ones(az_arr.shape + (self.Nfreqs,))
             fringe_cube = np.ones_like(beam_cube, dtype=np.complex128)
-            for fi in range(self.Nfreqs):
-                beam_cube[..., fi] = self.beam.beam_val(az_arr, za_arr, freqs[fi])
-                fringe_cube[..., fi] = bl.get_fringe(az_arr, za_arr, freqs[fi])
+            beam_one = self.beam.beam_val(az_arr, za_arr)
+            beam_cube = np.repeat(beam_one[...,np.newaxis], Nfreqs, axis=1)
+            fringe_cube = bl.get_fringe(az_arr, za_arr, np.array(freqs))
+#            for fi in range(self.Nfreqs):
+#                fringe_cube[..., fi] = bl.get_fringe(az_arr, za_arr, freqs[fi])
             radius = self.fov * np.pi / 180. * 1 / 2.
             cvec = hp.ang2vec(c[0], c[1], lonlat=True)
             pix = hp.query_disc(Nside, cvec, radius)
-            ogrid = shell[pix, :]
-            visibilities.append(np.sum(ogrid * beam_cube * fringe_cube, axis=0))
+            ogrid = shell[..., pix, :] * pixel_area_sr
+            ## The last two axes are(pixels, freqs).
+            # Optionally --- First axis = ensemble
+            visibilities.append(np.sum(ogrid * beam_cube * fringe_cube, axis=-2))
         return np.array(visibilities)
