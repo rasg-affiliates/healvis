@@ -48,8 +48,8 @@ t0 = 2451545.0      #Start at J2000 epoch
 #time_arr_long = np.arange(Ntimes) * dt_days_long + t0
 
 #Ntimes = 7854  # 24 hours in 11 sec chunks
-#Ntimes = 1000  # 24 hours in 11 sec chunks
-#Ntimes = 500  # 24 hours in 11 sec chunks
+#Ntimes = 1000
+#Ntimes = 500
 #time_arr = np.linspace(t0, t0 + Ntimes/float(3600. * 24 / 11.), Ntimes)
 
 Ntimes=1000
