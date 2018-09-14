@@ -17,6 +17,8 @@ from pyuvsim.simsetup import check_file_exists_and_increment
 from pyuvdata import UVData
 from pyuvdata import utils as uvutils
 
+ofilename = 'eorsky_gauss_sim.uv'
+
 try:
     task_id = int(os.environ['SLURM_ARRAY_TASK_ID'])
 except KeyError:
@@ -36,7 +38,7 @@ bl = visibility.baseline(ant1_enu, ant2_enu)
 t0 = 2451545.0      #Start at J2000 epoch
 #Ntimes = 7854  # 24 hours in 11 sec chunks
 Nfreqs = 100
-Ntimes = 200
+Ntimes = 2000
 #Ntimes = 500
 time_arr = np.linspace(t0, t0 + Ntimes/float(3600. * 24 / 11.), Ntimes)
 
@@ -72,13 +74,34 @@ for i,s in enumerate(sigmas):
     obs.set_beam('gaussian', sigma=s)
     visibs.append(obs.make_visibilities(shell0))
 
+import IPython; IPython.embed()
+import sys; sys.exit()
+
 uv = UVData()
 data_arr = visibs[0][:,0,:]  # (Nblts, Nskies, Nfreqs)
 data_arr = data_arr[:,np.newaxis,:,np.newaxis]  # (Nblts, Nspws, Nfreqs, Npol)
 
-#Convert from K str to Jy:
+# Convert from K str to Jy:
 
+def jy2Tstr(f):#, bm):
+    '''Return [mK sr] / [Jy] vs. frequency (in Hz)
+        f = frequencies (Hz!)
+    '''
+    c_cmps = 2.99792458e10   # cm/s
+    k_boltz = 1.380658e-16   # erg/K
+    lam = c_cmps / f   #cm
+    bm = 1.0 # steradian
+    return 1e-23 * lam**2 / (2 * k_boltz * bm) * 1e3
 
+conv_factor = jy2Tstr(freqs)
+
+data_arr[:,0,:,0] /= conv_factor
+
+# Get beam_sq_int
+
+za, az = obs.calc_azza(Nside, obs.pointing_centers[0])
+beam_sq_int = np.sum(obs.beam.beam_val(az, za)**2)
+beam_sq_int = np.ones(Nfreqs) * beam_sq_int
 
 uv.Nbls = 1
 uv.Ntimes = Ntimes
@@ -99,7 +122,7 @@ uv.antenna_positions = uvutils.ECEF_from_ENU(np.stack([ant1_enu, ant2_enu]), lat
 uv.flag_array = np.zeros_like(uv.data_array).astype(bool)
 uv.nsample_array = np.ones_like(uv.data_array).astype(float)
 uv.Nspws = 1
-uv.antenna_numbers = [0,1]
+uv.antenna_numbers = np.array([0,1])
 uv.antenna_names = ['ant0', 'ant1']
 #uv.channel_width = np.ones(uv.Nblts) * np.diff(freqs)[0]
 uv.channel_width = np.diff(freqs)[0]
@@ -113,5 +136,9 @@ uv.object_name = 'zenith'
 uv.vis_units = 'k str'
 uv.telescope_location_lat_lon_alt_degrees = (latitude, longitude, altitude)
 uv.set_lsts_from_time_array()
+uv.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sig, 'bm_fwhm' : fwhms[0], 'nside': Nside}
+
 
 uv.check()
+
+uv.write_miriad(ofilename, clobber=True)
