@@ -8,9 +8,54 @@ from astropy.constants import c
 from astropy.time import Time
 from astropy.coordinates import Angle, AltAz, EarthLocation, ICRS
 import healpy as hp
+from numba import jit
+
+from pyuvdata import UVBeam
 
 c_ms = c.to('m/s').value
 
+def jy2Tstr(f, bm = 1.0):
+    '''Return [K sr] / [Jy] vs. frequency (in Hz)
+        Arguments:
+            f = frequencies (Hz)
+            bm = Reference area (defaults to 1 steradian)
+    '''
+    c_cmps = c_ms * 100.   # cm/s
+    k_boltz = 1.380658e-16   # erg/K
+    lam = c_cmps / f   #cm
+    return 1e-23 * lam**2 / (2 * k_boltz * bm)
+
+class powerbeam(UVBeam):
+    """
+    Interface for using beamfits files here.
+    """
+
+    ### TODO Develop and test!
+    def __init__(self, beamfits_path=None):
+        super(powerbeam, self).__init__()
+        if beamfits_path is not None:
+            self.read_beamfits(beamfits_path)
+
+    def read_beamfits(self, beamfits_path):
+        super(powerbeam, self).read_beamfits(beamfits_path)
+        if not self.beam_type == 'power':
+            self.efield_to_power()
+        self.interpolation_function = 'az_za_simple'
+
+    def beam_val(self, az, za, freq_Hz=None):
+        """
+        az, za = radians
+        """
+        az = np.array(az)
+        za = np.array(za)
+        if isinstance(az, float):
+            az = np.array([az])
+        if isinstance(za, float):
+            za = np.array([za])
+        if freq_Hz is None:
+            freq_Hz = self.freq_array[0,0]
+        interp_beam, interp_basis = self.interp(az_array = az, za_array = za, freq_array = np.array([freq_Hz]), reuse_spline=True)
+        return np.squeeze(np.sum(interp_beam, axis=2))  #  Sum over feeds (XX + XY + YX + YY)
 
 class analyticbeam(object):
 
@@ -41,6 +86,19 @@ class analyticbeam(object):
         if self.beam_type == 'gaussian':
             return np.exp(-(za**2) / (2 * self.sigma**2))  # Peak normalized
 
+@jit
+def make_fringe(az, za, freq, enu):
+    """
+    az, za = Azimuth, zenith angle, radians
+    freq = frequeny in Hz
+    """
+    pos_l = np.sin(az) * np.sin(za)
+    pos_m = np.cos(az) * np.sin(za)
+    pos_n = np.cos(za)
+    lmn = np.array([pos_l, pos_m, pos_n])
+    uvw = np.outer(enu, 1/(c_ms / freq))  # In wavelengths
+    udotl = np.einsum("jk,jl->kl", lmn, uvw)
+    return np.exp(2j * np.pi * udotl)
 
 class baseline(object):
 
@@ -55,20 +113,8 @@ class baseline(object):
         if degrees:
             az *= np.pi/180.
             za *= np.pi/180.
-        pos_l = np.sin(az) * np.sin(za)
-        pos_m = np.cos(az) * np.sin(za)
-        pos_n = np.cos(za)
-        lmn = np.array([pos_l, pos_m, pos_n])
-        uvw = np.outer(self.enu, 1/(c_ms / freq_Hz.astype(float)))  # In wavelengths
-        #udotl = np.einsum("ijk,il->jkl", lmn, uvw)
-        udotl = np.einsum("jk,jl->kl", lmn, uvw)
-        return np.exp(2j * np.pi * udotl)
-        #pos_l = np.sin(az) * np.sin(za)
-        #pos_m = np.cos(az) * np.sin(za)
-        #pos_n = np.cos(za)
-        #self.lmn = np.array([pos_l, pos_m, pos_n])
-        #uvw = self.enu / (c_ms / float(freq_Hz))
-        #return np.exp(2j * np.pi * (pos_l * uvw[0] + pos_m * uvw[1] + pos_n * uvw[2]))
+        freq_Hz = freq_Hz.astype(float)
+        return make_fringe(az, za, freq_Hz, self.enu)
 
     def plot_fringe(self, az, za, freq=None, degrees=False, pix=None, Nside=None):
         import pylab as pl
@@ -132,11 +178,12 @@ class observatory:
             centers.append([zen_radec.ra.deg, zen_radec.dec.deg])
         self.pointing_centers = centers
 
-    def calc_azza(self, Nside, center):
+    def calc_azza(self, Nside, center, return_inds=False):
         """
         Set the az/za arrays.
             Center = lon/lat in degrees
             radius = selection radius in degrees
+            return_inds = Return the healpix indices too
         """
         if self.fov is None:
             raise AttributeError("Need to set a field of view in degrees")
@@ -154,6 +201,8 @@ class observatory:
         sdoty = np.array([np.dot(s, yvec) for s in vecs])
         za_arr = np.arccos(sdotz)
         az_arr = (np.arctan2(sdotx, sdoty) + np.pi) % (2 * np.pi)  # xy plane is tangent. Increasing azimuthal angle eastward, zero at North (y axis)
+        if return_inds:
+            return za_arr, az_arr, pix
         return za_arr, az_arr
 
     def set_fov(self, fov):
@@ -193,6 +242,9 @@ class observatory:
         Orthoslant project sections of the shell (fov=radius, looping over centers)
         Make beam cube and fringe cube, multiply and sum.
         shell (Npix, Nfreq) = healpix shell
+
+        Takes a shell in Kelvin
+        Returns visibility in Jy
         """
         if len(shell.shape) == 3:
             Nskies, Npix, Nfreqs = shell.shape
@@ -201,9 +253,11 @@ class observatory:
 
         assert Nfreqs == self.Nfreqs
         Nside = hp.npix2nside(Npix)
-        pixel_area_sr = 4*np.pi/float(Npix)
         bl = self.array[0]
+        pix_area_sr = 4*np.pi/float(Npix)
         freqs = self.freqs
+        conv_fact = jy2Tstr(np.array(freqs), bm = pix_area_sr)
+        print('conv_factor: ', conv_fact)
         visibilities = []
         for c in self.pointing_centers:
             za_arr, az_arr = self.calc_azza(Nside, c)
@@ -217,8 +271,8 @@ class observatory:
             radius = self.fov * np.pi / 180. * 1 / 2.
             cvec = hp.ang2vec(c[0], c[1], lonlat=True)
             pix = hp.query_disc(Nside, cvec, radius)
-            ogrid = shell[..., pix, :] * pixel_area_sr
+            ogrid = shell[..., pix, :]
             ## The last two axes are(pixels, freqs).
             # Optionally --- First axis = ensemble
             visibilities.append(np.sum(ogrid * beam_cube * fringe_cube, axis=-2))
-        return np.array(visibilities)
+        return np.array(visibilities, dtype=np.complex128)/conv_fact

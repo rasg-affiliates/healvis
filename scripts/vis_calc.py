@@ -1,3 +1,10 @@
+#!/bin/env python
+
+#SBATCH -J eorsky
+#SBATCH -t 8:00:00
+#SBATCH -n 16
+#SBATCH --mem=20G
+
 
 """
 Calculate visibilities for:
@@ -12,10 +19,11 @@ import numpy as np
 from eorsky import visibility
 import pylab as pl
 from scipy.stats import binned_statistic
-import os, sys
+import os, sys, yaml
 from pyuvsim.simsetup import check_file_exists_and_increment
 from pyuvdata import UVData
 from pyuvdata import utils as uvutils
+from eorsky import comoving_voxel_volume
 
 ofilename = 'eorsky_gauss_sim.uv'
 
@@ -28,7 +36,7 @@ except KeyError:
 latitude  = -30.7215277777
 longitude =  21.4283055554
 altitude = 1073.
-fov = 10  #Deg
+fov = 100  #Deg
 ant1_enu = np.array([0, 0, 0])
 ant2_enu = np.array([0.0, 14.6, 0])
 bl = visibility.baseline(ant1_enu, ant2_enu)
@@ -37,21 +45,30 @@ bl = visibility.baseline(ant1_enu, ant2_enu)
 
 t0 = 2451545.0      #Start at J2000 epoch
 #Ntimes = 7854  # 24 hours in 11 sec chunks
-Nfreqs = 100
-Ntimes = 2000
+Nfreqs = 384
+Ntimes = 5000
 #Ntimes = 500
 time_arr = np.linspace(t0, t0 + Ntimes/float(3600. * 24 / 11.), Ntimes)
 
 # Frequency
-freqs  = np.linspace(1e8, 1.5e8, Nfreqs)  #Hz
+freqs  = np.linspace(1e8, 1.3e8, Nfreqs)  #30 MHz
 Nfreqs = freqs.size
 
 # Shells
-Nside = 64
+Nside = 128
 Npix = 12*Nside**2
 sig = 3.0
 Nskies = 1
-shell0 = np.random.normal(0.0, sig, (Nskies, Npix, Nfreqs))
+shell0 = np.zeros((Nskies,Npix,Nfreqs), dtype=float)
+#shell0 = np.random.normal(0.0, sig, (Nskies, Npix, Nfreqs))
+dnu = np.diff(freqs)[0]/1e6
+om = 4*np.pi/float(Npix)
+Zs = 1420e6/freqs - 1
+dV0 = comoving_voxel_volume(Zs[Nfreqs/2], dnu, om)
+for fi in range(Nfreqs):
+    dV = comoving_voxel_volume(Zs[fi], dnu, om) 
+    s = sig  * np.sqrt(dV0/dV)
+    shell0[:,:,fi] = np.random.normal(0.0, s, (Nskies, Npix))
 
 #Make observatories
 visibs = []
@@ -69,39 +86,19 @@ for i,s in enumerate(sigmas):
     if task_id is not None:
         if not i == task_id:
             continue
-    print s
     sigs_used.append(s)
     obs.set_beam('gaussian', sigma=s)
     visibs.append(obs.make_visibilities(shell0))
-
-import IPython; IPython.embed()
-import sys; sys.exit()
+# Visibilities are in Jy
 
 uv = UVData()
 data_arr = visibs[0][:,0,:]  # (Nblts, Nskies, Nfreqs)
 data_arr = data_arr[:,np.newaxis,:,np.newaxis]  # (Nblts, Nspws, Nfreqs, Npol)
 
-# Convert from K str to Jy:
-
-def jy2Tstr(f):#, bm):
-    '''Return [mK sr] / [Jy] vs. frequency (in Hz)
-        f = frequencies (Hz!)
-    '''
-    c_cmps = 2.99792458e10   # cm/s
-    k_boltz = 1.380658e-16   # erg/K
-    lam = c_cmps / f   #cm
-    bm = 1.0 # steradian
-    return 1e-23 * lam**2 / (2 * k_boltz * bm) * 1e3
-
-conv_factor = jy2Tstr(freqs)
-
-data_arr[:,0,:,0] /= conv_factor
-
 # Get beam_sq_int
-
 za, az = obs.calc_azza(Nside, obs.pointing_centers[0])
 beam_sq_int = np.sum(obs.beam.beam_val(az, za)**2)
-beam_sq_int = np.ones(Nfreqs) * beam_sq_int
+beam_sq_int = np.ones(Nfreqs) * beam_sq_int * om 
 
 uv.Nbls = 1
 uv.Ntimes = Ntimes
@@ -115,12 +112,12 @@ uv.ant_2_array = np.ones(uv.Nblts, dtype=int)
 uv.baseline_array = uv.antnums_to_baseline(uv.ant_1_array, uv.ant_2_array)
 uv.time_array = time_arr
 uv.Npols = 1
-uv.polarization_array=np.array([-5])
+uv.polarization_array=np.array([1])
 uv.Nants_telescope = 2
 uv.Nants_data = 2
 uv.antenna_positions = uvutils.ECEF_from_ENU(np.stack([ant1_enu, ant2_enu]), latitude, longitude, altitude)
-uv.flag_array = np.zeros_like(uv.data_array).astype(bool)
-uv.nsample_array = np.ones_like(uv.data_array).astype(float)
+uv.flag_array = np.zeros(uv.data_array.shape).astype(bool)
+uv.nsample_array = np.ones(uv.data_array.shape).astype(float)
 uv.Nspws = 1
 uv.antenna_numbers = np.array([0,1])
 uv.antenna_names = ['ant0', 'ant1']

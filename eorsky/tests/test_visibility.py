@@ -70,11 +70,9 @@ def test_vis_calc():
     centers = [center]
     npix = nside**2 * 12
     shell = np.zeros((npix, nfreqs))
-#    ind = hp.ang2pix(nside, centers[0][0], centers[0][1], lonlat=True)
-    shell[ind] = 1
-    pix_area = 4*np.pi/float(npix)
-    shell[ind] /= pix_area  # K
-#    import IPython; IPython.embed()
+    pix_area = 4* np.pi / float(npix)
+    shell[ind] = 1  # Jy/pix
+    shell[ind] /= visibility.jy2Tstr(freqs[0], pix_area)  # K
 
     obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
     obs.pointing_centers = centers
@@ -110,8 +108,8 @@ def test_offzenith_vis():
     # Choose an index 5 degrees off from the pointing center
     phi, theta = hp.pix2ang(Nside, ind, lonlat=True)
     ind = hp.ang2pix(Nside, phi, theta-5, lonlat=True)
-    shell[ind] = 1  # K * sr
-    shell[ind] /= pix_area  # K
+    shell[ind] = 1  # Jy/pix
+    shell[ind] /= visibility.jy2Tstr(freqs[0], pix_area)  # K
 
     obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
     obs.pointing_centers = [[phi, theta]]
@@ -140,13 +138,3 @@ if __name__ == '__main__':
     test_offzenith_vis()
     #test_vis_calc()
     #test_az_za()
-
-
-
-# scripts:
-#   Script to calculate visibilities from a gaussian sky given gaussian beams of different widths. --- Confirm the relationship between beam width and covariance matrices
-#   !Covariance per freq wrt an ensemble of gaussian skies with 24 hours -- (more demanding; may need mpi)
-#   Get overlap between fields of view and primary beams for different centers --- how does that relate with correlation?
-#   Look at effect of resolution and time cadence, with varying beam width
-#   Covariance binning of random visibilities
-
