@@ -72,7 +72,7 @@ def test_vis_calc():
     shell = np.zeros((npix, nfreqs))
     pix_area = 4* np.pi / float(npix)
     shell[ind] = 1  # Jy/pix
-    shell[ind] /= visibility.jy2Tstr(freqs[0], pix_area)  # K
+    shell[ind] *= visibility.jy2Tstr(freqs[0], bm=pix_area)  # K
 
     obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
     obs.pointing_centers = centers
@@ -109,7 +109,7 @@ def test_offzenith_vis():
     phi, theta = hp.pix2ang(Nside, ind, lonlat=True)
     ind = hp.ang2pix(Nside, phi, theta-5, lonlat=True)
     shell[ind] = 1  # Jy/pix
-    shell[ind] /= visibility.jy2Tstr(freqs[0], pix_area)  # K
+    shell[ind] *= visibility.jy2Tstr(freqs[0], pix_area)  # K
 
     obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
     obs.pointing_centers = [[phi, theta]]
@@ -134,7 +134,29 @@ def test_offzenith_vis():
     nt.assert_true(np.isclose(vis_analytic, vis_calc, atol=1e-3))
 
 
+def test_hera_beam():
+    beam_path = '/users/alanman/data/alanman/NickFagnoniBeams/HERA_NicCST_fullfreq.uvbeam'
+    beam = visibility.powerbeam(beam_path)
+
+    Nside=64
+    center = [0,0]
+    obs = visibility.observatory(latitude, longitude)
+    obs.set_fov(40)
+    za, az, inds= obs.calc_azza(Nside, center, return_inds=True)
+    bv = beam.beam_val(az, za)
+    beam.to_healpix(Nside)
+    pix2 = hp.query_disc(Nside, [0,0,0], np.radians(20))
+    map1 = np.zeros(12*Nside**2)
+    map1[pix2] = beam.data_array[0,0,0,0][pix2]
+
+    nt.assert_equal(np.around(np.sum(map1)), np.around(np.sum(map0)))   # Close to nearest integer
+
+    ## Question --- Which beam component is the right one? (Can I construct pseudo-stokes I?)
+#    import IPython; IPython.embed()
+
+
 if __name__ == '__main__':
-    test_offzenith_vis()
+    #est_offzenith_vis()
+    test_hera_beam()
     #test_vis_calc()
     #test_az_za()

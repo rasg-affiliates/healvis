@@ -39,7 +39,7 @@ class powerbeam(UVBeam):
     def read_beamfits(self, beamfits_path):
         super(powerbeam, self).read_beamfits(beamfits_path)
         if not self.beam_type == 'power':
-            self.efield_to_power()
+            self.efield_to_power(calc_cross_pols=False)
         self.interpolation_function = 'az_za_simple'
 
     def beam_val(self, az, za, freq_Hz=None):
@@ -54,8 +54,10 @@ class powerbeam(UVBeam):
             za = np.array([za])
         if freq_Hz is None:
             freq_Hz = self.freq_array[0,0]
-        interp_beam, interp_basis = self.interp(az_array = az, za_array = za, freq_array = np.array([freq_Hz]), reuse_spline=True)
-        return np.squeeze(np.sum(interp_beam, axis=2))  #  Sum over feeds (XX + XY + YX + YY)
+        if isinstance(freq_Hz, float):
+            freq_Hz = np.array([freq_Hz])
+        interp_beam, interp_basis = self.interp(az_array = az, za_array = za, freq_array = freq_Hz, reuse_spline=True)
+        return interp_beam[0,0,0,:]  #  pol XX
 
 class analyticbeam(object):
 
@@ -253,7 +255,7 @@ class observatory:
 
         assert Nfreqs == self.Nfreqs
         Nside = hp.npix2nside(Npix)
-        bl = self.array[0]
+        bl = self.array[0]  # Make into a set of baselines and loop over them
         pix_area_sr = 4*np.pi/float(Npix)
         freqs = self.freqs
         conv_fact = jy2Tstr(np.array(freqs), bm = pix_area_sr)
