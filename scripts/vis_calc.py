@@ -25,6 +25,7 @@ from pyuvdata import UVData
 from pyuvdata import utils as uvutils
 from eorsky import comoving_voxel_volume
 
+
 ofilename = 'eorsky_gauss_sim.uv'
 
 try:
@@ -46,7 +47,7 @@ bl = visibility.baseline(ant1_enu, ant2_enu)
 t0 = 2451545.0      #Start at J2000 epoch
 #Ntimes = 7854  # 24 hours in 11 sec chunks
 Nfreqs = 384
-Ntimes = 5000
+Ntimes = 500
 #Ntimes = 500
 time_arr = np.linspace(t0, t0 + Ntimes/float(3600. * 24 / 11.), Ntimes)
 
@@ -74,21 +75,13 @@ for fi in range(Nfreqs):
 visibs = []
 #fwhms = [2.5, 5.0, 10.0, 20.0, 25.0, 30.0]
 #fwhms = [35, 40, 45.0, 50.0, 55.0, 60.0]
-fwhms = [35.0]
-sigmas = [ f/2.355 for f in fwhms]
+fwhm = 35.0
+sigma = fwhm/2.355
 obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
 obs.set_fov(fov)
 obs.set_pointings(time_arr)
-sigs_used = []
-if task_id >= len(sigmas):
-    sys.exit()
-for i,s in enumerate(sigmas):
-    if task_id is not None:
-        if not i == task_id:
-            continue
-    sigs_used.append(s)
-    obs.set_beam('gaussian', sigma=s)
-    visibs.append(obs.make_visibilities(shell0))
+obs.set_beam('gaussian', sigma=sigma)
+visibs.append(obs.make_visibilities(shell0))
 # Visibilities are in Jy
 
 uv = UVData()
