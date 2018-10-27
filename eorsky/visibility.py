@@ -12,6 +12,17 @@ from numba import jit
 
 from pyuvdata import UVBeam
 
+from line_profiler import LineProfiler
+import atexit
+import __builtin__ as builtins
+
+# Line profiling
+prof = LineProfiler()
+builtins.__dict__['profile'] = prof
+ofile = open('time_profiling.out', 'w')
+atexit.register(ofile.close)
+atexit.register(prof.print_stats, stream=ofile)
+
 c_ms = c.to('m/s').value
 
 def jy2Tstr(f, bm = 1.0):
@@ -87,7 +98,6 @@ class analyticbeam(object):
             return 1
         if self.beam_type == 'gaussian':
             return np.exp(-(za**2) / (2 * self.sigma**2))  # Peak normalized
-
 @jit
 def make_fringe(az, za, freq, enu):
     """
@@ -100,7 +110,8 @@ def make_fringe(az, za, freq, enu):
     lmn = np.array([pos_l, pos_m, pos_n])
     uvw = np.outer(enu, 1/(c_ms / freq))  # In wavelengths
     udotl = np.einsum("jk,jl->kl", lmn, uvw)
-    return np.exp(2j * np.pi * udotl)
+    fringe = np.cos(2 * np.pi * udotl) + (1j) * np.sin( 2 * np.pi * udotl)  # This is weirdly faster than np.exp
+    return fringe
 
 class baseline(object):
 
@@ -110,7 +121,7 @@ class baseline(object):
 
     def get_uvw(self, freq_Hz):
         return self.enu / (c_ms / float(freq_Hz))
-
+    @profile
     def get_fringe(self, az, za, freq_Hz, degrees=False):
         if degrees:
             az *= np.pi/180.
@@ -180,6 +191,7 @@ class observatory:
             centers.append([zen_radec.ra.deg, zen_radec.dec.deg])
         self.pointing_centers = centers
 
+    @profile
     def calc_azza(self, Nside, center, return_inds=False):
         """
         Set the az/za arrays.
@@ -239,6 +251,7 @@ class observatory:
 
         return pixels
 
+    @profile
     def make_visibilities(self, shell):
         """
         Orthoslant project sections of the shell (fov=radius, looping over centers)
@@ -259,7 +272,6 @@ class observatory:
         pix_area_sr = 4*np.pi/float(Npix)
         freqs = self.freqs
         conv_fact = jy2Tstr(np.array(freqs), bm = pix_area_sr)
-        print('conv_factor: ', conv_fact)
         visibilities = []
         for c in self.pointing_centers:
             za_arr, az_arr = self.calc_azza(Nside, c)
