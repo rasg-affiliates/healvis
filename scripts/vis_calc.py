@@ -1,9 +1,9 @@
 #!/bin/env python
 
 #SBATCH -J eorsky
-#SBATCH -t 8:00:00
-#SBATCH -n 16
-#SBATCH --mem=20G
+#SBATCH -t 12:00:00
+#SBATCH -n 50
+#SBATCH --mem=30G
 
 
 """
@@ -24,22 +24,28 @@ from pyuvsim.simsetup import check_file_exists_and_increment
 from pyuvdata import UVData
 from pyuvdata import utils as uvutils
 from eorsky import comoving_voxel_volume
+import argparse
 
+parser = argparse.ArgumentParser()
 
-ofilename = 'eorsky_gauss_sim.uv'
+parser.add_argument('-w', '--beam_width', dest='fwhm', help='Primary gaussian beam fwhm, in degrees', default=50, type=float)
+parser.add_argument('--fov', dest='fov', help='Field of view, in degrees', default=100, type=float)
+parser.add_argument('-s' , '--sigma', dest='sigma', help='Sky sigma', default=2.0, type=float)
+parser.add_argument('--Nside', dest='Nside', help='Sky resolution Nside', default=128, type=int)
+parser.add_argument('-t', '--Ntimes', dest='Ntimes', help='Number of 11sec integration times, default is 24 hours\' worth', default=7854, type=int)
+parser.add_argument('-b', '--baseline_length', dest='bllen', help='Baseline length in meters', default=14.6, type=float)
 
-try:
-    task_id = int(os.environ['SLURM_ARRAY_TASK_ID'])
-except KeyError:
-    task_id = None
+args = parser.parse_args()
+ofilename = 'eorsky_gauss{}d_{:.2f}hours_{}m_{}nside_{}fov_uv'.format(args.fwhm, args.Ntimes/(3600./11.0), args.bllen, args.Nside, args.fov)
+print("ofilename: ", ofilename)
 
 # Observatory
 latitude  = -30.7215277777
 longitude =  21.4283055554
 altitude = 1073.
-fov = 100  #Deg
+fov = args.fov  #Deg
 ant1_enu = np.array([0, 0, 0])
-ant2_enu = np.array([0.0, 14.6, 0])
+ant2_enu = np.array([0.0, args.bllen , 0])
 bl = visibility.baseline(ant1_enu, ant2_enu)
 
 # Time
@@ -47,7 +53,7 @@ bl = visibility.baseline(ant1_enu, ant2_enu)
 t0 = 2451545.0      #Start at J2000 epoch
 #Ntimes = 7854  # 24 hours in 11 sec chunks
 Nfreqs = 384
-Ntimes = 500
+Ntimes = args.Ntimes
 #Ntimes = 500
 time_arr = np.linspace(t0, t0 + Ntimes/float(3600. * 24 / 11.), Ntimes)
 
@@ -56,9 +62,9 @@ freqs  = np.linspace(1e8, 1.3e8, Nfreqs)  #30 MHz
 Nfreqs = freqs.size
 
 # Shells
-Nside = 128
+Nside = args.Nside
 Npix = 12*Nside**2
-sig = 3.0
+sig = args.sigma
 Nskies = 1
 shell0 = np.zeros((Nskies,Npix,Nfreqs), dtype=float)
 #shell0 = np.random.normal(0.0, sig, (Nskies, Npix, Nfreqs))
@@ -75,7 +81,7 @@ for fi in range(Nfreqs):
 visibs = []
 #fwhms = [2.5, 5.0, 10.0, 20.0, 25.0, 30.0]
 #fwhms = [35, 40, 45.0, 50.0, 55.0, 60.0]
-fwhm = 35.0
+fwhm = args.fwhm
 sigma = fwhm/2.355
 obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
 obs.set_fov(fov)
@@ -126,7 +132,7 @@ uv.object_name = 'zenith'
 uv.vis_units = 'k str'
 uv.telescope_location_lat_lon_alt_degrees = (latitude, longitude, altitude)
 uv.set_lsts_from_time_array()
-uv.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sig, 'bm_fwhm' : fwhms[0], 'nside': Nside}
+uv.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sig, 'bm_fwhm' : fwhm, 'nside': Nside}
 
 
 uv.check()
