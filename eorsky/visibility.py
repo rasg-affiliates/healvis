@@ -210,9 +210,9 @@ class observatory:
         colat = np.radians(90. - center[1])  # Colatitude, radians.
         xvec = [-cvec[1], cvec[0], 0] * 1 / np.sin(colat)  # From cross product
         yvec = np.cross(cvec, xvec)
-        sdotx = np.array([np.dot(s, xvec) for s in vecs])
-        sdotz = np.array([np.dot(s, cvec) for s in vecs])
-        sdoty = np.array([np.dot(s, yvec) for s in vecs])
+        sdotx = np.tensordot(vecs, xvec, 1)
+        sdotz = np.tensordot(vecs, cvec, 1)
+        sdoty = np.tensordot(vecs, yvec, 1)
         za_arr = np.arccos(sdotz)
         az_arr = (np.arctan2(sdotx, sdoty) + np.pi) % (2 * np.pi)  # xy plane is tangent. Increasing azimuthal angle eastward, zero at North (y axis)
         if return_inds:
