@@ -2,7 +2,7 @@
 
 #SBATCH -J eorsky
 #SBATCH -t 12:00:00
-#SBATCH -n 50
+#SBATCH -n 5
 #SBATCH --mem=30G
 
 
@@ -10,7 +10,7 @@
 Calculate visibilities for:
     > Gaussian beam
     > Single baseline
-    > Sky from file or generated on the fly
+    > Sky from file
 
 and save to MIRIAD file
 """
@@ -25,18 +25,16 @@ import os, sys, yaml
 from pyuvsim.simsetup import check_file_exists_and_increment
 from pyuvdata import UVData
 from pyuvdata import utils as uvutils
-from eorsky import comoving_voxel_volume
+from eorsky import comoving_voxel_volume, eorsky
 import argparse
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument('-w', '--beam_width', dest='fwhm', help='Primary gaussian beam fwhm, in degrees', default=50, type=float)
 parser.add_argument('--fov', dest='fov', help='Field of view, in degrees', default=100, type=float)
-parser.add_argument('-s' , '--sigma', dest='sigma', help='Sky sigma', default=2.0, type=float)
-parser.add_argument('--Nside', dest='Nside', help='Sky resolution Nside', default=128, type=int)
 parser.add_argument('-t', '--Ntimes', dest='Ntimes', help='Number of 11sec integration times, default is 24 hours\' worth', default=7854, type=int)
 parser.add_argument('-b', '--baseline_length', dest='bllen', help='Baseline length in meters', default=14.6, type=float)
-parser.add_argument('--Nskies', dest='Nskies', help='Number of sky realizations to generate.', default=1, type=int)
+parser.add_argument('shell', help='Path to hdf5 shell file', default='pk_z7.5_euler-calsky_2Gpc_512.hdf5')
 
 args = parser.parse_args()
 
@@ -53,35 +51,28 @@ bl = visibility.baseline(ant1_enu, ant2_enu)
 
 t0 = 2451545.0      #Start at J2000 epoch
 #Ntimes = 7854  # 24 hours in 11 sec chunks
-Nfreqs = 384
+#Nfreqs = 384
 Ntimes = args.Ntimes
 #Ntimes = 500
 time_arr = np.linspace(t0, t0 + Ntimes/float(3600. * 24 / 11.), Ntimes)
 
 # Frequency
-freqs  = np.linspace(1e8, 1.3e8, Nfreqs)  #30 MHz
-Nfreqs = freqs.size
+#freqs  = np.linspace(1e8, 1.3e8, Nfreqs)  #30 MHz
+#Nfreqs = freqs.size
 
 # Shells
-Nside = args.Nside
+
+ek = eorsky()
+ek.read_hdf5(args.shell)
+shell0 = ek.shell[np.newaxis, ...]
+Nside = ek.Nside
+freqs = ek.freqs
+Nfreqs = ek.Nfreq
+Nskies = 1
 Npix = 12*Nside**2
-sig = args.sigma
-Nskies = args.Nskies
-shell0 = np.zeros((Nskies,Npix,Nfreqs), dtype=float)
-#shell0 = np.random.normal(0.0, sig, (Nskies, Npix, Nfreqs))
-dnu = np.diff(freqs)[0]/1e6
-om = 4*np.pi/float(Npix)
-Zs = 1420e6/freqs - 1
-dV0 = comoving_voxel_volume(Zs[Nfreqs/2], dnu, om)
-for fi in range(Nfreqs):
-    dV = comoving_voxel_volume(Zs[fi], dnu, om) 
-    s = sig  * np.sqrt(dV0/dV)
-    shell0[:,:,fi] = np.random.normal(0.0, s, (Nskies, Npix))
 
 #Make observatories
 visibs = []
-#fwhms = [2.5, 5.0, 10.0, 20.0, 25.0, 30.0]
-#fwhms = [35, 40, 45.0, 50.0, 55.0, 60.0]
 fwhm = args.fwhm
 sigma = fwhm/2.355
 obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
@@ -93,7 +84,10 @@ visibs.append(obs.make_visibilities(shell0))
 
 # Get beam_sq_int
 za, az = obs.calc_azza(Nside, obs.pointing_centers[0])
-beam_sq_int = np.sum(obs.beam.beam_val(az, za)**2)
+beam_sq_int = np.sum(obs.beam.beam_val(az, za)**1)
+dnu = np.diff(freqs)[0]/1e6
+om = 4*np.pi/float(Npix)
+Zs = 1420e6/freqs - 1
 beam_sq_int = np.ones(Nfreqs) * beam_sq_int * om 
 
 
@@ -128,13 +122,13 @@ uv.object_name = 'zenith'
 uv.vis_units = 'k str'
 uv.telescope_location_lat_lon_alt_degrees = (latitude, longitude, altitude)
 uv.set_lsts_from_time_array()
-uv.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sig, 'bm_fwhm' : fwhm, 'nside': Nside}
+uv.extra_keywords = {'bsq_int': beam_sq_int[0], 'filename': os.path.basename(args.shell) , 'bm_fwhm' : fwhm, 'nside': Nside}
 
 for sky_i in range(Nskies):
     if Nskies > 1:
-        ofilename = 'eorsky_gauss{}d_{:.2f}hours_{}m_{}nside_{}fov_{}sky_uv'.format(args.fwhm, args.Ntimes/(3600./11.0), args.bllen, args.Nside, args.fov, sky_i)
+        ofilename = 'eorsky_gauss{}d_{:.2f}hours_{}m_{}nside_{}fov_{}sky_uv'.format(args.fwhm, args.Ntimes/(3600./11.0), args.bllen, Nside, args.fov, sky_i)
     else:
-        ofilename = 'eorsky_gauss{}d_{:.2f}hours_{}m_{}nside_{}fov_uv'.format(args.fwhm, args.Ntimes/(3600./11.0), args.bllen, args.Nside, args.fov, sky_i)
+        ofilename = 'eorsky_gauss{}d_{:.2f}hours_{}m_{}nside_{}fov_uv'.format(args.fwhm, args.Ntimes/(3600./11.0), args.bllen, Nside, args.fov, sky_i)
     print("ofilename: ", ofilename)
     data_arr = visibs[0][:,sky_i,:]  # (Nblts, Nskies, Nfreqs)
     data_arr = data_arr[:,np.newaxis,:,np.newaxis]  # (Nblts, Nspws, Nfreqs, Npol)

@@ -11,6 +11,7 @@ import healpy as hp
 from numba import jit
 
 from pyuvdata import UVBeam
+from pyuvsim.utils import progsteps
 
 from line_profiler import LineProfiler
 import atexit
@@ -273,15 +274,14 @@ class observatory:
         freqs = self.freqs
         conv_fact = jy2Tstr(np.array(freqs), bm = pix_area_sr)
         visibilities = []
-        for c in self.pointing_centers:
+        prog = progsteps(maxval=len(self.pointing_centers))
+        for count,c in enumerate(self.pointing_centers):
             za_arr, az_arr = self.calc_azza(Nside, c)
             beam_cube = np.ones(az_arr.shape + (self.Nfreqs,))
             fringe_cube = np.ones_like(beam_cube, dtype=np.complex128)
             beam_one = self.beam.beam_val(az_arr, za_arr)
             beam_cube = np.repeat(beam_one[...,np.newaxis], Nfreqs, axis=1)
             fringe_cube = bl.get_fringe(az_arr, za_arr, np.array(freqs))
-#            for fi in range(self.Nfreqs):
-#                fringe_cube[..., fi] = bl.get_fringe(az_arr, za_arr, freqs[fi])
             radius = self.fov * np.pi / 180. * 1 / 2.
             cvec = hp.ang2vec(c[0], c[1], lonlat=True)
             pix = hp.query_disc(Nside, cvec, radius)
@@ -289,4 +289,6 @@ class observatory:
             ## The last two axes are(pixels, freqs).
             # Optionally --- First axis = ensemble
             visibilities.append(np.sum(ogrid * beam_cube * fringe_cube, axis=-2))
+            prog.update(count)
+        prog.finish()
         return np.array(visibilities, dtype=np.complex128)/conv_fact
