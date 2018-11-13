@@ -260,14 +260,16 @@ class observatory:
         return pixels
 
     def vis_calc(self, pcents, ogrids, vis_array):
+        bl = self.array[0] # Make into a set of baselines and loop over them
+        if len(pcents) == 0:
+            return
         for count, c in enumerate(pcents):
-            za_arr, az_arr = self.calc_azza(Nside, c)
+            za_arr, az_arr = self.calc_azza(self.Nside, c)
             beam_cube = np.ones(az_arr.shape + (self.Nfreqs,))
             beam_one = self.beam.beam_val(az_arr, za_arr)
-            beam_cube = np.repeat(beam_one[...,np.newaxis], Nfreqs, axis=1)
-            fringe_cube = bl.get_fringe(az_arr, za_arr, np.array(freqs))
-            print('Running in parallel!')
-            vis = np.sum(ogrids[count], beam_cube * fringe_cube, axis=-2)
+            beam_cube = np.repeat(beam_one[...,np.newaxis], self.Nfreqs, axis=1)
+            fringe_cube = bl.get_fringe(az_arr, za_arr, np.array(self.freqs))
+            vis = np.sum(ogrids[count] * beam_cube * fringe_cube, axis=-2)
             vis_array.put(vis) 
 
     @profile
@@ -287,11 +289,9 @@ class observatory:
 
         assert Nfreqs == self.Nfreqs
         Nside = hp.npix2nside(Npix)
-        bl = self.array[0]  # Make into a set of baselines and loop over them
+        self.Nside = Nside
         pix_area_sr = 4*np.pi/float(Npix)
-        freqs = self.freqs
-        conv_fact = jy2Tstr(np.array(freqs), bm = pix_area_sr)
-        visibilities = []
+        conv_fact = jy2Tstr(np.array(self.freqs), bm = pix_area_sr)
         prog = progsteps(maxval=len(self.pointing_centers))
         self.pointing_centers = np.array_split(self.pointing_centers, Nprocs)
         procs = []
@@ -307,7 +307,7 @@ class observatory:
             procs.append(p)
         for count, p in enumerate(procs):
             p.join()
-            visibilities += vis_array.get()
             prog.update(count)
+        visibilities = [vis_array.get() for p in procs if not vis_array.empty()]
         prog.finish()
         return np.array(visibilities, dtype=np.complex128)/conv_fact

@@ -88,7 +88,7 @@ obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
 obs.set_fov(fov)
 obs.set_pointings(time_arr)
 obs.set_beam('gaussian', sigma=sigma)
-visibs.append(obs.make_visibilities(shell0))
+visibs.append(obs.make_visibilities(shell0,Nprocs=5))
 # Visibilities are in Jy
 
 # Get beam_sq_int
