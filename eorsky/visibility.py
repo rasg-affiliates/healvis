@@ -9,6 +9,8 @@ from astropy.time import Time
 from astropy.coordinates import Angle, AltAz, EarthLocation, ICRS
 import healpy as hp
 from numba import jit
+import multiprocessing as mp
+import os
 
 from pyuvdata import UVBeam
 from pyuvsim.utils import progsteps
@@ -25,6 +27,11 @@ atexit.register(ofile.close)
 atexit.register(prof.print_stats, stream=ofile)
 
 c_ms = c.to('m/s').value
+
+# Multiprocessing:
+## Setup --- The flattened shell is saved in a SharedArray object.
+##           Accessing it requires finding unraveled indices for the correct shape.
+##           Parallelize across time chunks.
 
 def jy2Tstr(f, bm = 1.0):
     '''Return [K sr] / [Jy] vs. frequency (in Hz)
@@ -252,8 +259,19 @@ class observatory:
 
         return pixels
 
+    def vis_calc(self, pcents, ogrids, vis_array):
+        for count, c in enumerate(pcents):
+            za_arr, az_arr = self.calc_azza(Nside, c)
+            beam_cube = np.ones(az_arr.shape + (self.Nfreqs,))
+            beam_one = self.beam.beam_val(az_arr, za_arr)
+            beam_cube = np.repeat(beam_one[...,np.newaxis], Nfreqs, axis=1)
+            fringe_cube = bl.get_fringe(az_arr, za_arr, np.array(freqs))
+            print('Running in parallel!')
+            vis = np.sum(ogrids[count], beam_cube * fringe_cube, axis=-2)
+            vis_array.put(vis) 
+
     @profile
-    def make_visibilities(self, shell):
+    def make_visibilities(self, shell, Nprocs = 1):
         """
         Orthoslant project sections of the shell (fov=radius, looping over centers)
         Make beam cube and fringe cube, multiply and sum.
@@ -275,20 +293,21 @@ class observatory:
         conv_fact = jy2Tstr(np.array(freqs), bm = pix_area_sr)
         visibilities = []
         prog = progsteps(maxval=len(self.pointing_centers))
-        for count,c in enumerate(self.pointing_centers):
-            za_arr, az_arr = self.calc_azza(Nside, c)
-            beam_cube = np.ones(az_arr.shape + (self.Nfreqs,))
-            fringe_cube = np.ones_like(beam_cube, dtype=np.complex128)
-            beam_one = self.beam.beam_val(az_arr, za_arr)
-            beam_cube = np.repeat(beam_one[...,np.newaxis], Nfreqs, axis=1)
-            fringe_cube = bl.get_fringe(az_arr, za_arr, np.array(freqs))
-            radius = self.fov * np.pi / 180. * 1 / 2.
-            cvec = hp.ang2vec(c[0], c[1], lonlat=True)
-            pix = hp.query_disc(Nside, cvec, radius)
-            ogrid = shell[..., pix, :]
-            ## The last two axes are(pixels, freqs).
-            # Optionally --- First axis = ensemble
-            visibilities.append(np.sum(ogrid * beam_cube * fringe_cube, axis=-2))
+        self.pointing_centers = np.array_split(self.pointing_centers, Nprocs)
+        procs = []
+        vis_array = mp.Queue()
+        radius = self.fov * np.pi / 180. * 1 / 2.
+        for pi in range(Nprocs):
+            ogrids = []
+            for c in self.pointing_centers[pi]:
+                cvec = hp.ang2vec(c[0], c[1], lonlat=True)
+                ogrids.append(shell[..., hp.query_disc(Nside, cvec, radius),:])
+            p =  mp.Process(target=self.vis_calc, args=(self.pointing_centers[pi], ogrids, vis_array))
+            p.start()
+            procs.append(p)
+        for count, p in enumerate(procs):
+            p.join()
+            visibilities += vis_array.get()
             prog.update(count)
         prog.finish()
         return np.array(visibilities, dtype=np.complex128)/conv_fact
