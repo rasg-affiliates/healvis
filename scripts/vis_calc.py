@@ -2,7 +2,8 @@
 
 #SBATCH -J eorsky
 #SBATCH -t 12:00:00
-#SBATCH -n 50
+#SBATCH -n 1
+#SBATCH --cpus-per-task=10
 #SBATCH --mem=30G
 
 
@@ -15,10 +16,8 @@ Calculate visibilities for:
 and save to MIRIAD file
 """
 
-## TODO --- Write an MPI-parallelized wrapper
-
 import numpy as np
-from eorsky import visibility
+from eorsky import visibility, utils
 import pylab as pl
 from scipy.stats import binned_statistic
 import os, sys, yaml
@@ -37,8 +36,14 @@ parser.add_argument('--Nside', dest='Nside', help='Sky resolution Nside', defaul
 parser.add_argument('-t', '--Ntimes', dest='Ntimes', help='Number of 11sec integration times, default is 24 hours\' worth', default=7854, type=int)
 parser.add_argument('-b', '--baseline_length', dest='bllen', help='Baseline length in meters', default=14.6, type=float)
 parser.add_argument('--Nskies', dest='Nskies', help='Number of sky realizations to generate.', default=1, type=int)
+parser.add_argument('-N', dest='Nprocs', help='Number of processors.', default=1)
 
 args = parser.parse_args()
+
+if 'SLURM_CPUS_PER_TASK' in os.environ:
+    Nprocs = os.environ['SLURM_CPUS_PER_TASK']
+else:
+    Nprocs = int(args.Nprocs)
 
 # Observatory
 latitude  = -30.7215277777
@@ -67,7 +72,8 @@ Nside = args.Nside
 Npix = 12*Nside**2
 sig = args.sigma
 Nskies = args.Nskies
-shell0 = np.zeros((Nskies,Npix,Nfreqs), dtype=float)
+#shell0 = np.zeros((Nskies,Npix,Nfreqs), dtype=float)
+shell0 = utils.mparray((Nskies, Npix, Nfreqs), dtype=float)
 #shell0 = np.random.normal(0.0, sig, (Nskies, Npix, Nfreqs))
 dnu = np.diff(freqs)[0]/1e6
 om = 4*np.pi/float(Npix)
@@ -77,7 +83,6 @@ for fi in range(Nfreqs):
     dV = comoving_voxel_volume(Zs[fi], dnu, om) 
     s = sig  * np.sqrt(dV0/dV)
     shell0[:,:,fi] = np.random.normal(0.0, s, (Nskies, Npix))
-
 #Make observatories
 visibs = []
 #fwhms = [2.5, 5.0, 10.0, 20.0, 25.0, 30.0]
@@ -88,7 +93,7 @@ obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
 obs.set_fov(fov)
 obs.set_pointings(time_arr)
 obs.set_beam('gaussian', sigma=sigma)
-visibs.append(obs.make_visibilities(shell0,Nprocs=5))
+visibs.append(obs.make_visibilities(shell0, Nprocs=Nprocs))
 # Visibilities are in Jy
 
 # Get beam_sq_int

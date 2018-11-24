@@ -10,7 +10,8 @@ from astropy.coordinates import Angle, AltAz, EarthLocation, ICRS
 import healpy as hp
 from numba import jit
 import multiprocessing as mp
-import os
+import os, sys
+import resource
 
 from pyuvdata import UVBeam
 from pyuvsim.utils import progsteps
@@ -259,25 +260,30 @@ class observatory:
 
         return pixels
 
-    def vis_calc(self, pcents, ogrids, vis_array):
+    def vis_calc(self, pcents, shell, vis_array, Nfin):
         bl = self.array[0] # Make into a set of baselines and loop over them
         if len(pcents) == 0:
             return
         for count, c in enumerate(pcents):
-            za_arr, az_arr = self.calc_azza(self.Nside, c)
+            memory_usage_GB = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6
+            za_arr, az_arr, pix = self.calc_azza(self.Nside, c, return_inds=True)
             beam_cube = np.ones(az_arr.shape + (self.Nfreqs,))
             beam_one = self.beam.beam_val(az_arr, za_arr)
             beam_cube = np.repeat(beam_one[...,np.newaxis], self.Nfreqs, axis=1)
             fringe_cube = bl.get_fringe(az_arr, za_arr, np.array(self.freqs))
-            vis = np.sum(ogrids[count] * beam_cube * fringe_cube, axis=-2)
-            vis_array.put(vis) 
+            vis = np.sum(shell[..., pix, :] * beam_cube * fringe_cube, axis=-2)
+            vis_array.put(vis)
+            with Nfin.get_lock():
+                Nfin.value += 1
+            if mp.current_process().pid == 0:
+                print('Mem: {}GB'.format(memory_usage_GB))
 
     @profile
     def make_visibilities(self, shell, Nprocs = 1):
         """
         Orthoslant project sections of the shell (fov=radius, looping over centers)
         Make beam cube and fringe cube, multiply and sum.
-        shell (Npix, Nfreq) = healpix shell
+        shell (Npix, Nfreq) = healpix shell, as an mparray (multiprocessing shared array)
 
         Takes a shell in Kelvin
         Returns visibility in Jy
@@ -292,22 +298,22 @@ class observatory:
         self.Nside = Nside
         pix_area_sr = 4*np.pi/float(Npix)
         conv_fact = jy2Tstr(np.array(self.freqs), bm = pix_area_sr)
-        prog = progsteps(maxval=len(self.pointing_centers))
-        self.pointing_centers = np.array_split(self.pointing_centers, Nprocs)
+        self.Ntimes = len(self.pointing_centers)
+        pcenter_list = np.array_split(self.pointing_centers, Nprocs)
         procs = []
-        vis_array = mp.Queue()
-        radius = self.fov * np.pi / 180. * 1 / 2.
+        man = mp.Manager()
+        vis_array = man.Queue()
+        Nfin = mp.Value('i', 0)
+        prog = progsteps(maxval=self.Ntimes)
         for pi in range(Nprocs):
-            ogrids = []
-            for c in self.pointing_centers[pi]:
-                cvec = hp.ang2vec(c[0], c[1], lonlat=True)
-                ogrids.append(shell[..., hp.query_disc(Nside, cvec, radius),:])
-            p =  mp.Process(target=self.vis_calc, args=(self.pointing_centers[pi], ogrids, vis_array))
+            p =  mp.Process(target=self.vis_calc, args=(pcenter_list[pi], shell, vis_array, Nfin))
             p.start()
             procs.append(p)
-        for count, p in enumerate(procs):
-            p.join()
-            prog.update(count)
-        visibilities = [vis_array.get() for p in procs if not vis_array.empty()]
+        while (Nfin.value < self.Ntimes) and np.any([p.is_alive() for p in procs]):
+            prog.update(Nfin.value)
         prog.finish()
+        visibilities = np.concatenate([vis_array.get() for i in xrange(self.Ntimes) if not vis_array.empty()], axis=0)
+        if (shell.ndim == 3) and (visibilities.ndim == 2):      # If missing, add ensemble axis
+            visibilities = visibilities[:,np.newaxis,:]
+        ## TODO --- Add baseline axis.
         return np.array(visibilities, dtype=np.complex128)/conv_fact
