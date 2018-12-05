@@ -1,6 +1,6 @@
 
 """
-    Generate visibilities for a single baseline.
+    Generate visibilities for a HEALPix shell.
 """
 import numpy as np
 from pspec_funcs import orthoslant_project
