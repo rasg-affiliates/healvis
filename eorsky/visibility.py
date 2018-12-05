@@ -316,8 +316,8 @@ class observatory:
         man = mp.Manager()
         vis_array = man.Queue()
         Nfin = mp.Value('i', 0)
-        prog = progsteps(maxval=self.Ntimes)
-        for pi in reversed(range(Nprocs)):
+        prog = progsteps(maxval=self.Ntimes*Nbls)
+        for pi in range(Nprocs):
             p =  mp.Process(name=pi, target=self.vis_calc, args=(pcenter_list[pi], time_inds[pi], shell, vis_array, Nfin))
             p.start()
             procs.append(p)

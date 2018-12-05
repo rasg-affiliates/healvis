@@ -4,9 +4,11 @@
 #SBATCH -t 24:00:00
 #SBATCH -n 1
 #SBATCH --cpus-per-task=12
-#SBATCH --mem=70G
+#SBATCH --mem=100G
 #SBATCH -A jpober-condo
 #SBATCH --qos=jpober-condo
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=adam_lanman@brown.edu
 
 """
 Calculate visibilities for:
@@ -41,9 +43,18 @@ with open(param_file, 'r') as yfile:
     param_dict = yaml.safe_load(yfile)
 
 param_dict['config_path'] = '.'
+
+print("Making uvdata object")
+sys.stdout.flush()
 uv_obj, beam_list, beam_dict, beam_ids = pyuvsim.simsetup.initialize_uvdata_from_params(param_dict)
 
 # Reduce uv_obj to only selected parts (reduce metadata)
+Nbls = uv_obj.Nbls
+Ntimes = uv_obj.Ntimes
+uv_obj.time_array = uv_obj.time_array[::Nbls]
+uv_obj.baseline_array = uv_obj.baseline_array[:Nbls]
+uv_obj.ant_1_array = uv_obj.ant_1_array[:Nbls]
+uv_obj.ant_2_array = uv_obj.ant_2_array[:Nbls]
 ant_nums = np.unique(uv_obj.ant_1_array.tolist() +  uv_obj.ant_2_array.tolist())
 ant_pos = np.zeros((uv_obj.Nants_data, 3), dtype=float)
 ant_num_full = uv_obj.antenna_numbers
@@ -112,8 +123,6 @@ sys.stdout.flush()
 lat, lon, alt = uv_obj.telescope_location_lat_lon_alt_degrees
 enu, anum = uv_obj.get_ENU_antpos(center=False)
 
-Ntimes = uv_obj.Ntimes
-Nbls = uv_obj.Nbls
 
 array = []
 bl_array =  []
