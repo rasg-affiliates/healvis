@@ -4,7 +4,7 @@
 #SBATCH -t 12:00:00
 #SBATCH -n 1
 #SBATCH --cpus-per-task=10
-#SBATCH --mem=30G
+#SBATCH --mem=50G
 
 
 """
@@ -41,10 +41,9 @@ parser.add_argument('-N', dest='Nprocs', help='Number of processors.', default=1
 args = parser.parse_args()
 
 if 'SLURM_CPUS_PER_TASK' in os.environ:
-    Nprocs = os.environ['SLURM_CPUS_PER_TASK']
+    Nprocs = int(os.environ['SLURM_CPUS_PER_TASK'])
 else:
     Nprocs = int(args.Nprocs)
-
 # Observatory
 latitude  = -30.7215277777
 longitude =  21.4283055554
@@ -79,10 +78,12 @@ dnu = np.diff(freqs)[0]/1e6
 om = 4*np.pi/float(Npix)
 Zs = 1420e6/freqs - 1
 dV0 = comoving_voxel_volume(Zs[Nfreqs/2], dnu, om)
+print("Making skies")
 for fi in range(Nfreqs):
     dV = comoving_voxel_volume(Zs[fi], dnu, om) 
     s = sig  * np.sqrt(dV0/dV)
     shell0[:,:,fi] = np.random.normal(0.0, s, (Nskies, Npix))
+
 #Make observatories
 visibs = []
 #fwhms = [2.5, 5.0, 10.0, 20.0, 25.0, 30.0]
@@ -93,7 +94,9 @@ obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
 obs.set_fov(fov)
 obs.set_pointings(time_arr)
 obs.set_beam('gaussian', sigma=sigma)
-visibs.append(obs.make_visibilities(shell0, Nprocs=Nprocs))
+print("Nprocs: ", Nprocs)
+print("Shell = {:.4f}MB".format(shell0.nbytes/1e6))
+visibs.append(obs.make_visibilities(shell0, Nprocs=Nprocs)[0])
 # Visibilities are in Jy
 
 # Get beam_sq_int
@@ -130,7 +133,7 @@ uv.set_drift()
 uv.telescope_name = 'Eorsky gaussian'
 uv.instrument = 'simulator'
 uv.object_name = 'zenith'
-uv.vis_units = 'k str'
+uv.vis_units = 'Jy'
 uv.telescope_location_lat_lon_alt_degrees = (latitude, longitude, altitude)
 uv.set_lsts_from_time_array()
 uv.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sig, 'bm_fwhm' : fwhm, 'nside': Nside}
