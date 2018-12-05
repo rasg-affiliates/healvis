@@ -12,6 +12,7 @@ from numba import jit
 import multiprocessing as mp
 import os, sys
 import resource
+import itertools
 
 from pyuvdata import UVBeam
 from pyuvsim.utils import progsteps
@@ -125,11 +126,15 @@ def make_fringe(az, za, freq, enu):
 class baseline(object):
 
     def __init__(self, ant1_enu, ant2_enu):
+        if not isinstance(ant1_enu, np.ndarray):
+            ant1_enu = np.array(ant1_enu)
+            ant2_enu = np.array(ant2_enu)
         self.enu = ant1_enu - ant2_enu
         assert(self.enu.size == 3)
 
     def get_uvw(self, freq_Hz):
         return self.enu / (c_ms / float(freq_Hz))
+
     @profile
     def get_fringe(self, az, za, freq_Hz, degrees=False):
         if degrees:
@@ -187,7 +192,7 @@ class observatory:
     def set_pointings(self, time_arr):
         """
         Set the pointing centers (in ra/dec) based on array location and times.
-            Dec = self.latitude
+            Dec = self.lat
         RA  = What RA is at zenith at a given JD?
         """
 
@@ -195,7 +200,7 @@ class observatory:
         self.times_jd = time_arr
         centers = []
         for t in Time(time_arr, scale='utc', format='jd'):
-            zen = AltAz(alt=Angle('90d'), az=Angle('0d'), obstime=t, location=telescope_location)
+            zen = AltAz(alt=Angle('89d'), az=Angle('0d'), obstime=t, location=telescope_location)
             zen_radec = zen.transform_to(ICRS)
             centers.append([zen_radec.ra.deg, zen_radec.dec.deg])
         self.pointing_centers = centers
@@ -260,8 +265,7 @@ class observatory:
 
         return pixels
 
-    def vis_calc(self, pcents, shell, vis_array, Nfin):
-        bl = self.array[0] # Make into a set of baselines and loop over them
+    def vis_calc(self, pcents, tinds, shell, vis_array, Nfin):
         if len(pcents) == 0:
             return
         for count, c in enumerate(pcents):
@@ -270,13 +274,18 @@ class observatory:
             beam_cube = np.ones(az_arr.shape + (self.Nfreqs,))
             beam_one = self.beam.beam_val(az_arr, za_arr)
             beam_cube = np.repeat(beam_one[...,np.newaxis], self.Nfreqs, axis=1)
-            fringe_cube = bl.get_fringe(az_arr, za_arr, np.array(self.freqs))
-            vis = np.sum(shell[..., pix, :] * beam_cube * fringe_cube, axis=-2)
-            vis_array.put(vis)
+            for bi,bl in enumerate(self.array):
+                fringe_cube = bl.get_fringe(az_arr, za_arr, self.freqs)
+                vis = np.sum(shell[..., pix, :] * beam_cube * fringe_cube, axis=-2)
+                # vis.shape = (Nskies, Nfreqs)
+                vis_array.put((tinds[count], bi, vis.tolist()))
             with Nfin.get_lock():
                 Nfin.value += 1
-            if mp.current_process().pid == 0:
-                print('Mem: {}GB'.format(memory_usage_GB))
+            if mp.current_process().name == 1:
+        #        print('Mem: {}GB'.format(memory_usage_GB))
+        #        sys.stdout.flush()
+                print('Finished: ', Nfin.value)
+                sys.stdout.flush()
 
     @profile
     def make_visibilities(self, shell, Nprocs = 1):
@@ -295,25 +304,42 @@ class observatory:
 
         assert Nfreqs == self.Nfreqs
         Nside = hp.npix2nside(Npix)
+        Nbls = len(self.array)
         self.Nside = Nside
         pix_area_sr = 4*np.pi/float(Npix)
+        self.freqs = np.array(self.freqs)
         conv_fact = jy2Tstr(np.array(self.freqs), bm = pix_area_sr)
         self.Ntimes = len(self.pointing_centers)
         pcenter_list = np.array_split(self.pointing_centers, Nprocs)
+        time_inds = np.array_split(range(self.Ntimes), Nprocs)
         procs = []
         man = mp.Manager()
         vis_array = man.Queue()
         Nfin = mp.Value('i', 0)
         prog = progsteps(maxval=self.Ntimes)
-        for pi in range(Nprocs):
-            p =  mp.Process(target=self.vis_calc, args=(pcenter_list[pi], shell, vis_array, Nfin))
+        for pi in reversed(range(Nprocs)):
+            p =  mp.Process(name=pi, target=self.vis_calc, args=(pcenter_list[pi], time_inds[pi], shell, vis_array, Nfin))
             p.start()
             procs.append(p)
         while (Nfin.value < self.Ntimes) and np.any([p.is_alive() for p in procs]):
             prog.update(Nfin.value)
         prog.finish()
-        visibilities = np.concatenate([vis_array.get() for i in xrange(self.Ntimes) if not vis_array.empty()], axis=0)
-        if (shell.ndim == 3) and (visibilities.ndim == 2):      # If missing, add ensemble axis
-            visibilities = visibilities[:,np.newaxis,:]
-        ## TODO --- Add baseline axis.
-        return np.array(visibilities, dtype=np.complex128)/conv_fact
+        visibilities = []
+        time_inds, baseline_inds = [], []
+
+        for (ti, bi, varr) in iter(vis_array.get, None):
+            visibilities.append(varr)
+            N = len(varr)
+            time_inds += [ti]
+            baseline_inds += [bi]
+            if vis_array.empty():
+                break
+
+        srt = np.lexsort((time_inds, baseline_inds))
+        time_inds = np.array(time_inds)[srt]
+        visibilities = np.array(visibilities)[srt]      # Shape (Nblts, Nskies, Nfreqs)
+        time_array = self.times_jd[time_inds]
+        baseline_array = np.array(baseline_inds)[srt]
+
+        # Time and baseline arrays are now Nblts
+        return visibilities/conv_fact, time_array, baseline_array

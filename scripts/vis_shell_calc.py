@@ -15,8 +15,6 @@ Calculate visibilities for:
 and save to MIRIAD file
 """
 
-## TODO --- Write an MPI-parallelized wrapper
-
 import numpy as np
 from eorsky import visibility
 import pylab as pl
