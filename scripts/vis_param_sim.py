@@ -2,11 +2,11 @@
 
 #SBATCH -J eorsky
 #SBATCH -t 24:00:00
-#SBATCH -n 1
-#SBATCH --cpus-per-task=12
+# SBATCH -n 1
+#SBATCH --cpus-per-task=20
 #SBATCH --mem=100G
-#SBATCH -A jpober-condo
-#SBATCH --qos=jpober-condo
+# SBATCH -A jpober-condo
+# SBATCH --qos=jpober-condo
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=adam_lanman@brown.edu
 
@@ -70,6 +70,9 @@ uv_obj.antenna_names = ant_names
 uv_obj.antenna_numbers = np.array(ant_num_ord, dtype=int)
 uv_obj.antenna_positions = ant_pos
 uv_obj.Nants_telescope = uv_obj.Nants_data
+#import cPickle as pkl
+#pkl.dump(uv_obj, open('antstr_select.pkl','w'))
+#sys.exit()
 
 filing_params = param_dict['filing']
 
@@ -98,7 +101,7 @@ elif beam_type == 'airy':
 elif beam_type == 'uniform':
     beam_attr = {}
 else:
-    raise ValueError("UVBeam not currently supported")
+    raise ValueError("UVBeam is not yet supported")
 
 
 # ---------------------------
@@ -154,7 +157,6 @@ sys.stdout.flush()
 # Primary beam
 # ---------------------------
 obs.set_beam(beam_type, **beam_attr)
-
 
 # ---------------------------
 # Shells
@@ -218,14 +220,7 @@ if beam_type == 'gaussian':
 else:
     uv_obj.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sky_sigma, 'nside': Nside, 'slurm_id': sjob_id}
 
-
 for sky_i in range(Nskies):
-    if Nskies > 1:
-        filing_params['outfile_suffix'] = '{}sky_uv'.format(sky_i)
-    else:
-        filing_params['outfile_suffix'] = 'uv'
-    filing_params['outfile_prefix'] = \
-             'eorsky_{:.2f}hours_Nside{}'.format(Ntimes/(3600./11.0), Nside)
 
     data_arr = visibs[:,sky_i,:]  # (Nblts, Nskies, Nfreqs)
     data_arr = data_arr[:,np.newaxis,:,np.newaxis]  # (Nblts, Nspws, Nfreqs, Npol)
@@ -235,4 +230,12 @@ for sky_i in range(Nskies):
     uv_obj.nsample_array = np.ones(uv_obj.data_array.shape).astype(float)
 
     uv_obj.check()
-    pyuvsim.simsetup.write_uvfits(uv_obj, filing_params, miriad=True)
+
+    if Nskies > 1:
+        filing_params['outfile_suffix'] = '{}sky_uv'.format(sky_i)
+    else:
+        filing_params['outfile_suffix'] = 'uv'
+    filing_params['outfile_prefix'] = \
+                  'eorsky_{:.2f}hours_Nside{}_sigma{:.2f}'.format(Ntimes/(3600./11.0), Nside, sky_sigma)
+
+    pyuvsim.simsetup.write_uvdata(uv_obj, filing_params, out_format='miriad')#, run_check=False, run_check_acceptability=False, check_extra=False)
