@@ -1,6 +1,9 @@
 import numpy as np
 import multiprocessing as mp
 
+## TODO --- replace this. numpy no longer supports assignment to the data attribute:
+##  https://stackoverflow.com/questions/7894791/use-numpy-array-in-shared-memory-for-multiprocessing
+
 class mparray(np.ndarray):
 
     """
