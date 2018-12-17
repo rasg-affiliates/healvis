@@ -2,6 +2,8 @@
 """
     Generate visibilities for a HEALPix shell.
 """
+from __future__ import print_function
+
 import numpy as np
 from pspec_funcs import orthoslant_project
 from astropy.constants import c
@@ -13,6 +15,7 @@ import multiprocessing as mp
 import os, sys
 import resource
 import itertools
+import time
 
 from pyuvdata import UVBeam
 from pyuvsim.utils import progsteps
@@ -108,16 +111,18 @@ class analyticbeam(object):
             return 1
         if self.beam_type == 'gaussian':
             return np.exp(-(za**2) / (2 * self.sigma**2))  # Peak normalized
+
 @jit
 def make_fringe(az, za, freq, enu):
     """
     az, za = Azimuth, zenith angle, radians
     freq = frequeny in Hz
+    enu = baseline vector in meters
     """
     pos_l = np.sin(az) * np.sin(za)
     pos_m = np.cos(az) * np.sin(za)
     pos_n = np.cos(za)
-    lmn = np.array([pos_l, pos_m, pos_n])
+    lmn = np.vstack((pos_l, pos_m, pos_n))
     uvw = np.outer(enu, 1/(c_ms / freq))  # In wavelengths
     udotl = np.einsum("jk,jl->kl", lmn, uvw)
     fringe = np.cos(2 * np.pi * udotl) + (1j) * np.sin( 2 * np.pi * udotl)  # This is weirdly faster than np.exp
@@ -284,7 +289,7 @@ class observatory:
             if mp.current_process().name == 1:
         #        print('Mem: {}GB'.format(memory_usage_GB))
         #        sys.stdout.flush()
-                print('Finished: ', Nfin.value)
+                print('Finished {:d}, Elapsed {:.2f}sec  '.format(Nfin.value, time.time()-self.time0))
                 sys.stdout.flush()
 
     @profile
@@ -303,6 +308,7 @@ class observatory:
             Npix, Nfreqs = shell.shape
 
         assert Nfreqs == self.Nfreqs
+        self.time0 = time.time()
         Nside = hp.npix2nside(Npix)
         Nbls = len(self.array)
         self.Nside = Nside
@@ -316,7 +322,7 @@ class observatory:
         man = mp.Manager()
         vis_array = man.Queue()
         Nfin = mp.Value('i', 0)
-        prog = progsteps(maxval=self.Ntimes*Nbls)
+        prog = progsteps(maxval=self.Ntimes)
         for pi in range(Nprocs):
             p =  mp.Process(name=pi, target=self.vis_calc, args=(pcenter_list[pi], time_inds[pi], shell, vis_array, Nfin))
             p.start()
