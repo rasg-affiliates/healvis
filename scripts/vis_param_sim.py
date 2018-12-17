@@ -44,32 +44,35 @@ with open(param_file, 'r') as yfile:
 
 param_dict['config_path'] = '.'
 
-print("Making uvdata object")
+#print("Making uvdata object")
 sys.stdout.flush()
-uv_obj, beam_list, beam_dict, beam_ids = pyuvsim.simsetup.initialize_uvdata_from_params(param_dict)
+tele_dict, beam_list, beam_dict = pyuvsim.simsetup.parse_telescope_params(param_dict['telescope'], param_dict['config_path'])
+freq_dict = pyuvsim.simsetup.parse_frequency_params(param_dict['freq'])
+time_dict = pyuvsim.simsetup.parse_time_params(param_dict['time'])
+#uv_obj, beam_list, beam_dict, beam_ids = pyuvsim.simsetup.initialize_uvdata_from_params(param_dict)
 
 # Reduce uv_obj to only selected parts (reduce metadata)
-Nbls = uv_obj.Nbls
-Ntimes = uv_obj.Ntimes
-uv_obj.time_array = uv_obj.time_array[::Nbls]
-uv_obj.baseline_array = uv_obj.baseline_array[:Nbls]
-uv_obj.ant_1_array = uv_obj.ant_1_array[:Nbls]
-uv_obj.ant_2_array = uv_obj.ant_2_array[:Nbls]
-ant_nums = np.unique(uv_obj.ant_1_array.tolist() +  uv_obj.ant_2_array.tolist())
-ant_pos = np.zeros((uv_obj.Nants_data, 3), dtype=float)
-ant_num_full = uv_obj.antenna_numbers
-ant_names = []
-ant_num_ord = []
-for i,anum in enumerate(ant_nums):
-    inds = np.where(ant_num_full == anum)
-    ant_pos[i] = uv_obj.antenna_positions[inds]
-    ant_names.append(uv_obj.antenna_names[inds][0])
-    ant_num_ord.append(ant_num_full[inds][0])
-
-uv_obj.antenna_names = ant_names
-uv_obj.antenna_numbers = np.array(ant_num_ord, dtype=int)
-uv_obj.antenna_positions = ant_pos
-uv_obj.Nants_telescope = uv_obj.Nants_data
+#Nbls = uv_obj.Nbls
+#Ntimes = uv_obj.Ntimes
+#uv_obj.time_array = uv_obj.time_array[::Nbls]
+#uv_obj.baseline_array = uv_obj.baseline_array[:Nbls]
+#uv_obj.ant_1_array = uv_obj.ant_1_array[:Nbls]
+#uv_obj.ant_2_array = uv_obj.ant_2_array[:Nbls]
+#ant_nums = np.unique(uv_obj.ant_1_array.tolist() +  uv_obj.ant_2_array.tolist())
+#ant_pos = np.zeros((uv_obj.Nants_data, 3), dtype=float)
+#ant_num_full = uv_obj.antenna_numbers
+#ant_names = []
+#ant_num_ord = []
+#for i,anum in enumerate(ant_nums):
+#    inds = np.where(ant_num_full == anum)
+#    ant_pos[i] = uv_obj.antenna_positions[inds]
+#    ant_names.append(uv_obj.antenna_names[inds][0])
+#    ant_num_ord.append(ant_num_full[inds][0])
+#
+#uv_obj.antenna_names = ant_names
+#uv_obj.antenna_numbers = np.array(ant_num_ord, dtype=int)
+#uv_obj.antenna_positions = ant_pos
+#uv_obj.Nants_telescope = uv_obj.Nants_data
 #import cPickle as pkl
 #pkl.dump(uv_obj, open('antstr_select.pkl','w'))
 #sys.exit()
@@ -123,21 +126,31 @@ sys.stdout.flush()
 # ---------------------------
 # Observatory
 # ---------------------------
-lat, lon, alt = uv_obj.telescope_location_lat_lon_alt_degrees
-enu, anum = uv_obj.get_ENU_antpos(center=False)
-
+lat, lon, alt = uvutils.LatLonAlt_from_XYZ(tele_dict['telescope_location'])
+enu = uvutils.ENU_from_ECEF(tele_dict['antenna_positions'] + tele_dict['telescope_location'], lat, lon, alt)
+anums = tele_dict['antenna_numbers']
+antnames = tele_dict['antenna_names']
+Nants = tele_dict['Nants_data']
 
 array = []
 bl_array =  []
 #uv_obj.Nants_telescope = uv_obj.Nants_data   # Select messes this up
-for a1, a2 in izip(uv_obj.ant_1_array[:Nbls], uv_obj.ant_2_array[:Nbls]):
-    i1 = np.where(anum == a1)
-    i2 = np.where(anum == a2)
-    array.append(visibility.baseline(enu[i1], enu[i2]))
-    bl_array.append(uv_obj.antnums_to_baseline(a1, a2))
+
+# TODO --- This is where baseline selection must be included.
+
+for i1 in xrange(Nants):
+    for i2 in xrange(i1,Nants):
+        array.append(visibility.baseline(enu[i1], enu[i2]))
+        bl_array.append(uvutils.antnums_to_baseline(anums[i1], anums[i2], Nants))
+
+#for a1, a2 in izip(uv_obj.ant_1_array[:Nbls], uv_obj.ant_2_array[:Nbls]):
+#    i1 = np.where(anum == a1)
+#    i2 = np.where(anum == a2)
+#    array.append(visibility.baseline(enu[i1], enu[i2]))
+#    bl_array.append(uv_obj.antnums_to_baseline(a1, a2))
 bl_array = np.array(bl_array)
-freqs = uv_obj.freq_array[0]        #Hz
-obs = visibility.observatory(lat, lon, array=array, freqs=freqs)
+freqs = freq_dict['freq_array'][0]        #Hz
+obs = visibility.observatory(np.degrees(lat), np.degrees(lon), array=array, freqs=freqs)
 obs.set_fov(fov)
 
 print("Observatory built.")
@@ -147,7 +160,8 @@ sys.stdout.flush()
 # ---------------------------
 # Pointings
 # ---------------------------
-time_arr = np.unique(uv_obj.time_array)
+#time_arr = np.unique(uv_obj.time_array)
+time_arr = time_dict['time_array']
 obs.set_pointings(time_arr)
 
 print("Pointings set.")
@@ -157,13 +171,14 @@ sys.stdout.flush()
 # Primary beam
 # ---------------------------
 obs.set_beam(beam_type, **beam_attr)
+import IPython; IPython.embed()
 
 # ---------------------------
 # Shells
 # ---------------------------
 Npix = 12*Nside**2
 sig = sky_sigma
-Nfreqs = uv_obj.Nfreqs
+Nfreqs = freq_dict['Nfreqs']
 shell0 = utils.mparray((Nskies, Npix, Nfreqs), dtype=float)
 dnu = np.diff(freqs)[0]/1e6
 om = 4*np.pi/float(Npix)
