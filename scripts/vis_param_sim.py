@@ -34,6 +34,7 @@ import argparse
 parser = argparse.ArgumentParser()
 
 parser.add_argument(dest='param', help='obsparam yaml file')
+parser.add_argument('-b', '--beam_width', help='Primary beam fwhm in degrees.', default=None, type=float)
 
 args = parser.parse_args()
 
@@ -44,38 +45,11 @@ with open(param_file, 'r') as yfile:
 
 param_dict['config_path'] = '.'
 
-#print("Making uvdata object")
+print("Making uvdata object")
 sys.stdout.flush()
 tele_dict, beam_list, beam_dict = pyuvsim.simsetup.parse_telescope_params(param_dict['telescope'], param_dict['config_path'])
 freq_dict = pyuvsim.simsetup.parse_frequency_params(param_dict['freq'])
 time_dict = pyuvsim.simsetup.parse_time_params(param_dict['time'])
-#uv_obj, beam_list, beam_dict, beam_ids = pyuvsim.simsetup.initialize_uvdata_from_params(param_dict)
-
-# Reduce uv_obj to only selected parts (reduce metadata)
-#Nbls = uv_obj.Nbls
-#Ntimes = uv_obj.Ntimes
-#uv_obj.time_array = uv_obj.time_array[::Nbls]
-#uv_obj.baseline_array = uv_obj.baseline_array[:Nbls]
-#uv_obj.ant_1_array = uv_obj.ant_1_array[:Nbls]
-#uv_obj.ant_2_array = uv_obj.ant_2_array[:Nbls]
-#ant_nums = np.unique(uv_obj.ant_1_array.tolist() +  uv_obj.ant_2_array.tolist())
-#ant_pos = np.zeros((uv_obj.Nants_data, 3), dtype=float)
-#ant_num_full = uv_obj.antenna_numbers
-#ant_names = []
-#ant_num_ord = []
-#for i,anum in enumerate(ant_nums):
-#    inds = np.where(ant_num_full == anum)
-#    ant_pos[i] = uv_obj.antenna_positions[inds]
-#    ant_names.append(uv_obj.antenna_names[inds][0])
-#    ant_num_ord.append(ant_num_full[inds][0])
-#
-#uv_obj.antenna_names = ant_names
-#uv_obj.antenna_numbers = np.array(ant_num_ord, dtype=int)
-#uv_obj.antenna_positions = ant_pos
-#uv_obj.Nants_telescope = uv_obj.Nants_data
-#import cPickle as pkl
-#pkl.dump(uv_obj, open('antstr_select.pkl','w'))
-#sys.exit()
 
 filing_params = param_dict['filing']
 
@@ -99,6 +73,8 @@ beam = beam_list[beam_select]
 beam_type = beam.type
 if beam_type == 'gaussian':
     beam_attr = {'sigma' : np.degrees(beam.sigma)}
+    if args.beam_width is not None:
+        beam_attr = {'sigma' : args.beam_width/2.355}
 elif beam_type == 'airy':
     beam_attr = {'diameter': beam.diameter}
 elif beam_type == 'uniform':
@@ -106,7 +82,7 @@ elif beam_type == 'uniform':
 else:
     raise ValueError("UVBeam is not yet supported")
 
-
+print(beam_attr)
 # ---------------------------
 # Parallelization
 # ---------------------------
@@ -127,27 +103,51 @@ sys.stdout.flush()
 # Observatory
 # ---------------------------
 lat, lon, alt = uvutils.LatLonAlt_from_XYZ(tele_dict['telescope_location'])
+antpos = tele_dict['antenna_positions']
 enu = uvutils.ENU_from_ECEF(tele_dict['antenna_positions'] + tele_dict['telescope_location'], lat, lon, alt)
 anums = tele_dict['antenna_numbers']
 antnames = tele_dict['antenna_names']
 Nants = tele_dict['Nants_data']
 
+uv_obj = UVData()
+uv_obj.telescope_location = tele_dict['telescope_location']
+uv_obj.telescope_location_lat_lon_alt = (lat, lon, alt)
+uv_obj.telescope_location_lat_lon_alt_degrees = (np.degrees(lat), np.degrees(lon), alt)
+uv_obj.antenna_numbers = anums
+uv_obj.antenna_names = antnames
+uv_obj.antenna_positions = antpos
+uv_obj.Nants_telescope = Nants
+uv_obj.Ntimes = time_dict['Ntimes']
+Ntimes = time_dict['Ntimes']
+uv_obj.freq_array = freq_dict['freq_array']
+uv_obj.Nfreqs = freq_dict['Nfreqs']
+
 array = []
 bl_array =  []
-#uv_obj.Nants_telescope = uv_obj.Nants_data   # Select messes this up
 
-# TODO --- This is where baseline selection must be included.
+bls = [(a1, a2) for a2 in anums for a1 in anums if a1>a2]
+#TODO Add redundancy selection option.
+if 'select' in param_dict:
+    sel = param_dict['select']
+    if 'bls' in sel:
+        bls = eval(sel['bls'])
+    if 'antenna_nums' in sel:
+        antnums = sel['antenna_nums']
+        if isinstance(antnums, str):
+            antnums = eval(sel['antenna_nums'])
+        if isinstance(antnums, int):
+            antnums = [antnums]
+        bls = [(a1, a2) for (a1, a2) in bls if a1 in antnums or a2 in antnums]
+        uv_obj.antenna_nums = antnums
+uv_obj.Nants_data = np.unique(bls).size
+for (a1, a2) in bls:
+    i1, i2 = np.where(anums == a1), np.where(anums == a2)
+    array.append(visibility.baseline(enu[i1], enu[i2]))
+    bl_array.append(uvutils.antnums_to_baseline(a1, a2, Nants))
+Nbls = len(bl_array)
+uv_obj.Nbls = Nbls
+uv_obj.Nblts = Nbls * Ntimes
 
-for i1 in xrange(Nants):
-    for i2 in xrange(i1,Nants):
-        array.append(visibility.baseline(enu[i1], enu[i2]))
-        bl_array.append(uvutils.antnums_to_baseline(anums[i1], anums[i2], Nants))
-
-#for a1, a2 in izip(uv_obj.ant_1_array[:Nbls], uv_obj.ant_2_array[:Nbls]):
-#    i1 = np.where(anum == a1)
-#    i2 = np.where(anum == a2)
-#    array.append(visibility.baseline(enu[i1], enu[i2]))
-#    bl_array.append(uv_obj.antnums_to_baseline(a1, a2))
 bl_array = np.array(bl_array)
 freqs = freq_dict['freq_array'][0]        #Hz
 obs = visibility.observatory(np.degrees(lat), np.degrees(lon), array=array, freqs=freqs)
@@ -171,7 +171,6 @@ sys.stdout.flush()
 # Primary beam
 # ---------------------------
 obs.set_beam(beam_type, **beam_attr)
-import IPython; IPython.embed()
 
 # ---------------------------
 # Shells
@@ -251,6 +250,12 @@ for sky_i in range(Nskies):
     else:
         filing_params['outfile_suffix'] = 'uv'
     filing_params['outfile_prefix'] = \
-                  'eorsky_{:.2f}hours_Nside{}_sigma{:.2f}'.format(Ntimes/(3600./11.0), Nside, sky_sigma)
+                  'eorsky_{:.2f}hours_Nside{}_sigma{:.2f}_fwhm{:.2f}'.format(Ntimes/(3600./11.0), Nside, sky_sigma, fwhm)
 
-    pyuvsim.simsetup.write_uvdata(uv_obj, filing_params, out_format='miriad')#, run_check=False, run_check_acceptability=False, check_extra=False)
+    while True:
+        try:
+            pyuvsim.utils.write_uvdata(uv_obj, filing_params, out_format='miriad')#, run_check=False, run_check_acceptability=False, check_extra=False)
+        except ValueError:
+            pass
+        else:
+            break
