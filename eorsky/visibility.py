@@ -289,7 +289,7 @@ class observatory:
             if mp.current_process().name == 1:
         #        print('Mem: {}GB'.format(memory_usage_GB))
         #        sys.stdout.flush()
-                print('Finished {:d}, Elapsed {:.2f}sec  '.format(Nfin.value, time.time()-self.time0))
+                print('Finished {:d}, Elapsed {:.2f}sec, MaxRSS {}GB '.format(Nfin.value, time.time()-self.time0, memory_usage_GB))
                 sys.stdout.flush()
 
     @profile

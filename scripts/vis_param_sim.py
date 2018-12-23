@@ -1,10 +1,9 @@
 #!/bin/env python
 
 #SBATCH -J eorsky
-#SBATCH -t 24:00:00
-# SBATCH -n 1
+#SBATCH -t 2-00:00:00
 #SBATCH --cpus-per-task=20
-#SBATCH --mem=100G
+#SBATCH --mem=150G
 # SBATCH -A jpober-condo
 # SBATCH --qos=jpober-condo
 #SBATCH --mail-type=FAIL
@@ -139,6 +138,11 @@ if 'select' in param_dict:
             antnums = [antnums]
         bls = [(a1, a2) for (a1, a2) in bls if a1 in antnums or a2 in antnums]
         uv_obj.antenna_nums = antnums
+    if 'redundancy' in sel:
+        red_tol = sel['redundancy']
+        reds, vec_bin_centers, lengths = uvutils.get_antenna_redundancies(anums, enu, tol=red_tol, include_autos=False)
+        bls = [r[0] for r in reds]
+        bls = [uvutils.baseline_to_antnums(bl_ind, Nants) for bl_ind in bls]
 uv_obj.Nants_data = np.unique(bls).size
 for (a1, a2) in bls:
     i1, i2 = np.where(anums == a1), np.where(anums == a2)
@@ -154,6 +158,7 @@ obs = visibility.observatory(np.degrees(lat), np.degrees(lon), array=array, freq
 obs.set_fov(fov)
 
 print("Observatory built.")
+print("Nbls: ", Nbls)
 sys.stdout.flush()
 
 
