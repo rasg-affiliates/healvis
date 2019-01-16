@@ -3,7 +3,7 @@
 #SBATCH -J eorsky
 #SBATCH -t 2-00:00:00
 #SBATCH --cpus-per-task=20
-#SBATCH --mem=150G
+#SBATCH --mem=100G
 # SBATCH -A jpober-condo
 # SBATCH --qos=jpober-condo
 #SBATCH --mail-type=FAIL
@@ -125,7 +125,6 @@ array = []
 bl_array =  []
 
 bls = [(a1, a2) for a2 in anums for a1 in anums if a1>a2]
-#TODO Add redundancy selection option.
 if 'select' in param_dict:
     sel = param_dict['select']
     if 'bls' in sel:
@@ -156,9 +155,9 @@ bl_array = np.array(bl_array)
 freqs = freq_dict['freq_array'][0]        #Hz
 obs = visibility.observatory(np.degrees(lat), np.degrees(lon), array=array, freqs=freqs)
 obs.set_fov(fov)
-
 print("Observatory built.")
 print("Nbls: ", Nbls)
+print("Ntimes: ", Ntimes)
 sys.stdout.flush()
 
 
@@ -255,7 +254,7 @@ for sky_i in range(Nskies):
     else:
         filing_params['outfile_suffix'] = 'uv'
     filing_params['outfile_prefix'] = \
-                  'eorsky_{:.2f}hours_Nside{}_sigma{:.2f}_fwhm{:.2f}'.format(Ntimes/(3600./11.0), Nside, sky_sigma, fwhm)
+                  'eorsky_{:.2f}hours_Nside{}_sigma{:.3f}_fwhm{:.3f}'.format(Ntimes/(3600./11.0), Nside, sky_sigma, fwhm)
 
     while True:
         try:
