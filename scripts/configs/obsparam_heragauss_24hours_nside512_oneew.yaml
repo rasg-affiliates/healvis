@@ -1,0 +1,27 @@
+filing:
+  outdir: "./eorsky_out/hera_one-ew_bl_30mk"
+  clobber: False
+freq:
+        #  Nfreqs: 384
+  channel_width: 78125.0
+  start_freq: 100000000.0
+  bandwidth:  10000000.0
+telescope:
+  array_layout: telescope_config/HERA65_layout.csv
+  telescope_config_name: telescope_config/HERA65_config.yaml
+sources:
+  catalog: 'gaussian_eor_shell'
+time:
+        #Ntimes: 7854   # 24 hours
+  Ntimes: 3927   # 12 hours
+        #  Ntimes: 100
+  integration_time: 11.0
+  start_time: 2458098.5521759833
+select:
+  bls: '[(11,12)]'
+
+#shell_path: '/users/alanman/data/alanman/BubbleCube/shell_0.031_nside512_mwafreq.hdf5'
+fov: 110   # Deg
+Nskies: 1
+sky_sigma: 0.031      # 31 mK
+Nside: 512

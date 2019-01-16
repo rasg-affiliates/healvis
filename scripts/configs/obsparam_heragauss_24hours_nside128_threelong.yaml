@@ -1,0 +1,24 @@
+filing:
+  outdir: "./eorsky_out/hera_three_long_bl_30mK"
+  clobber: False
+freq:
+  Nfreqs: 384
+  start_freq: 100000000.0
+  bandwidth:  30000000.0
+telescope:
+  array_layout: telescope_config/HERA65_layout.csv
+  telescope_config_name: telescope_config/HERA65_config.yaml
+sources:
+  catalog: 'gaussian_eor_shell'
+time:
+  Ntimes: 7854   # 24 hours
+  #  Ntimes: 100   # 24 hours
+  integration_time: 11.0
+  start_time: 2458098.5521759833
+select:
+  bls: '[(136,143),(136,2),(2,143)]'
+
+fov: 110   # Deg
+Nskies: 10
+sky_sigma: 0.031      # 31 mK
+Nside: 128
