@@ -1,0 +1,23 @@
+filing:
+  outdir: "./eorsky_out/baseline_tests"
+  clobber: False
+freq:
+  Nfreqs: 384
+  start_freq: 100000000.0
+  bandwidth:  30000000.0
+telescope:
+  array_layout: telescope_config/MULTIBL_layout.csv
+  telescope_config_name: telescope_config/MWA65_config.yaml
+sources:
+  catalog: 'gaussian_eor_shell'
+time:
+  integration_time: 11.0
+  start_time: 2458098.5521759833
+  duration_hours: 2.0 
+select:
+  antenna_nums: '50'
+
+fov: 110   # Deg
+Nskies: 1
+sky_sigma: 0.031      # mK
+Nside: 128
