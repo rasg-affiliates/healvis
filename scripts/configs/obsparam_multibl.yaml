@@ -1,5 +1,5 @@
 filing:
-  outdir: "./eorsky_out/baseline_tests"
+  outdir: "./results/baseline_tests"
   clobber: False
 freq:
   Nfreqs: 384

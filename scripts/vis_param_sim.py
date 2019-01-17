@@ -1,6 +1,6 @@
 #!/bin/env python
 
-#SBATCH -J eorsky
+#SBATCH -J healvis
 #SBATCH -t 2-00:00:00
 #SBATCH --cpus-per-task=20
 #SBATCH --mem=100G
@@ -19,14 +19,14 @@ and save to MIRIAD file
 """
 
 import numpy as np
-from eorsky import visibility, utils
+from healvis import visibility, utils
 import pylab as pl
 from scipy.stats import binned_statistic
 import os, sys, yaml
 import pyuvsim
 from pyuvdata import UVData
 from pyuvdata import utils as uvutils
-from eorsky import comoving_voxel_volume
+from healvis.utils import comoving_voxel_volume
 from itertools import izip
 import argparse
 
@@ -55,7 +55,7 @@ filing_params = param_dict['filing']
 beam_list = [pyuvsim.simsetup.beam_string_to_object(b) for b in beam_list]
 
 # ---------------------------
-# Extra parameters required for eorsky
+# Extra parameters required for healvis
 # ---------------------------
 
 fov = param_dict['fov']  #Deg
@@ -222,9 +222,9 @@ uv_obj.Nspws = 1
 uv_obj.set_uvws_from_antenna_positions()
 uv_obj.channel_width = np.diff(freqs)[0]
 uv_obj.integration_time = np.ones(uv_obj.Nblts) * np.diff(time_arr)[0] * 24 * 3600.  # Seconds
-uv_obj.history = 'eorsky'
+uv_obj.history = 'healvis'
 uv_obj.set_drift()
-uv_obj.telescope_name = 'eorsky'
+uv_obj.telescope_name = 'healvis'
 uv_obj.instrument = 'simulator'
 uv_obj.object_name = 'zenith'
 uv_obj.vis_units = 'Jy'
@@ -254,7 +254,7 @@ for sky_i in range(Nskies):
     else:
         filing_params['outfile_suffix'] = 'uv'
     filing_params['outfile_prefix'] = \
-                  'eorsky_{:.2f}hours_Nside{}_sigma{:.3f}_fwhm{:.3f}'.format(Ntimes/(3600./11.0), Nside, sky_sigma, fwhm)
+                  'healvis_{:.2f}hours_Nside{}_sigma{:.3f}_fwhm{:.3f}'.format(Ntimes/(3600./11.0), Nside, sky_sigma, fwhm)
 
     while True:
         try:

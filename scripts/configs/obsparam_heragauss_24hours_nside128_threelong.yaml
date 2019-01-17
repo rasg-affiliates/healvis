@@ -1,5 +1,5 @@
 filing:
-  outdir: "./eorsky_out/hera_three_long_bl_30mK"
+  outdir: "./results/hera_three_long_bl_30mK"
   clobber: False
 freq:
   Nfreqs: 384

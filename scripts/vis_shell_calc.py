@@ -1,6 +1,6 @@
 #!/bin/env python
 
-#SBATCH -J eorsky
+#SBATCH -J healvis
 #SBATCH -t 12:00:00
 #SBATCH -n 5
 #SBATCH --mem=30G
@@ -13,17 +13,19 @@ Calculate visibilities for:
     > Sky from file
 
 and save to MIRIAD file
+
+Requires eorsky
 """
 
 import numpy as np
-from eorsky import visibility
+from healvis import visibility
 import pylab as pl
 from scipy.stats import binned_statistic
 import os, sys, yaml
 from pyuvsim.simsetup import check_file_exists_and_increment
 from pyuvdata import UVData
 from pyuvdata import utils as uvutils
-from eorsky import comoving_voxel_volume, eorsky
+from eorsky import eorsky
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -124,9 +126,9 @@ uv.extra_keywords = {'bsq_int': beam_sq_int[0], 'filename': os.path.basename(arg
 
 for sky_i in range(Nskies):
     if Nskies > 1:
-        ofilename = 'eorsky_gauss{}d_{:.2f}hours_{}m_{}nside_{}fov_{}sky_uv'.format(args.fwhm, args.Ntimes/(3600./11.0), args.bllen, Nside, args.fov, sky_i)
+        ofilename = 'healvis_gauss{}d_{:.2f}hours_{}m_{}nside_{}fov_{}sky_uv'.format(args.fwhm, args.Ntimes/(3600./11.0), args.bllen, Nside, args.fov, sky_i)
     else:
-        ofilename = 'eorsky_gauss{}d_{:.2f}hours_{}m_{}nside_{}fov_uv'.format(args.fwhm, args.Ntimes/(3600./11.0), args.bllen, Nside, args.fov, sky_i)
+        ofilename = 'healvis_gauss{}d_{:.2f}hours_{}m_{}nside_{}fov_uv'.format(args.fwhm, args.Ntimes/(3600./11.0), args.bllen, Nside, args.fov, sky_i)
     print("ofilename: ", ofilename)
     data_arr = visibs[0][:,sky_i,:]  # (Nblts, Nskies, Nfreqs)
     data_arr = data_arr[:,np.newaxis,:,np.newaxis]  # (Nblts, Nspws, Nfreqs, Npol)

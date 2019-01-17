@@ -1,6 +1,6 @@
 
 import numpy as np
-from eorsky import visibility
+from healvis import visibility
 import pylab as pl
 
 

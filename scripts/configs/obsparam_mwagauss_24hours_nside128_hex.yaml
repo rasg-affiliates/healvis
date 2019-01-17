@@ -1,5 +1,5 @@
 filing:
-  outdir: "./eorsky_out/mwa37_red_hex_30mk"
+  outdir: "./results/mwa37_red_hex_30mk"
   clobber: False
 freq:
   Nfreqs: 384
