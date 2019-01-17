@@ -8,6 +8,7 @@ import healpy as hp
 latitude  = -30.7215277777
 longitude =  21.4283055554
 
+@nt.nottest
 def test_pointings():
     t0 = 2451545.0      #Start at J2000 epoch
     dt_min = 20.0
@@ -25,7 +26,7 @@ def test_pointings():
     
     dts = np.diff(ras)/15.04106 * 60.
     nt.assert_true(np.allclose(dts, dt_min, atol=1e-1))   #Within 6 seconds. Not great...
-    nt.assert_true(np.allclose(decs, latitude, atol=1e-1))   # Close enough for my purposes, for now.
+    nt.assert_true(np.allclose(decs, latitude, atol=1e-1))
 
 def test_az_za():
     """
@@ -75,13 +76,12 @@ def test_vis_calc():
 
     obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
     obs.pointing_centers = centers
+    obs.times_jd = np.array([1])
     obs.set_fov(fov)
-#    resol = np.sqrt(4*np.pi/float(npix))
     obs.set_beam('uniform')
 
-    visibs = obs.make_visibilities(shell)
-    print visibs
-
+    visibs, times, bls = obs.make_visibilities(shell)
+    print(visibs)
     nt.assert_true(np.real(visibs) == 1.0)   #Unit point source at zenith
 
 def test_offzenith_vis():
@@ -112,11 +112,12 @@ def test_offzenith_vis():
 
     obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
     obs.pointing_centers = [[phi, theta]]
+    obs.times_jd = np.array([1])
     obs.set_fov(fov)
     resol = np.sqrt(pix_area)
     obs.set_beam('uniform')
 
-    vis_calc = obs.make_visibilities(shell)
+    vis_calc, times, bls = obs.make_visibilities(shell)
 
     phi_new, theta_new = hp.pix2ang(Nside, ind, lonlat=True)
     src_az, src_za = np.radians(phi - phi_new), np.radians(theta-theta_new)
@@ -132,7 +133,7 @@ def test_offzenith_vis():
 
     nt.assert_true(np.isclose(vis_analytic, vis_calc, atol=1e-3))
 
-
+@nt.nottest
 def test_hera_beam():
     beam_path = '/users/alanman/data/alanman/NickFagnoniBeams/HERA_NicCST_fullfreq.uvbeam'
     beam = visibility.powerbeam(beam_path)
@@ -152,10 +153,3 @@ def test_hera_beam():
 
     ## Question --- Which beam component is the right one? (Can I construct pseudo-stokes I?)
 #    import IPython; IPython.embed()
-
-
-if __name__ == '__main__':
-    #est_offzenith_vis()
-    test_hera_beam()
-    #test_vis_calc()
-    #test_az_za()
