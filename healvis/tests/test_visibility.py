@@ -1,5 +1,4 @@
-from eorsky import pspec_funcs, comoving_voxel_volume, comoving_radial_length, comoving_transverse_length
-from eorsky import visibility
+from healvis import visibility
 from astropy.cosmology import WMAP9
 import nose.tools as nt
 import numpy as np

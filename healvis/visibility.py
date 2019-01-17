@@ -5,16 +5,14 @@
 from __future__ import print_function
 
 import numpy as np
-from pspec_funcs import orthoslant_project
 from astropy.constants import c
 from astropy.time import Time
 from astropy.coordinates import Angle, AltAz, EarthLocation, ICRS
 import healpy as hp
 from numba import jit
 import multiprocessing as mp
-import os, sys
+import sys
 import resource
-import itertools
 import time
 
 from pyuvdata import UVBeam
