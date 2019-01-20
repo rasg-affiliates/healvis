@@ -199,8 +199,8 @@ for fi in range(Nfreqs):
 # Beam^2 integral
 # ---------------------------
 za, az = obs.calc_azza(Nside, obs.pointing_centers[0])
-beam_sq_int = np.sum(obs.beam.beam_val(az, za)**2)
-beam_sq_int = np.ones(Nfreqs) * beam_sq_int * om 
+beam_sq_int = np.sum(obs.beam.beam_val(az[:,np.newaxis], za[:,np.newaxis], freqs[np.newaxis,:])**2, axis=0)
+beam_sq_int = beam_sq_int * om
 
 # ---------------------------
 # Run simulation
@@ -254,7 +254,12 @@ for sky_i in range(Nskies):
     else:
         filing_params['outfile_suffix'] = 'uv'
     filing_params['outfile_prefix'] = \
-                  'healvis_{:.2f}hours_Nside{}_sigma{:.3f}_fwhm{:.3f}'.format(Ntimes/(3600./11.0), Nside, sky_sigma, fwhm)
+                  'healvis_{:.2f}hours_Nside{}_sigma{:.3f}'.format(Ntimes/(3600./11.0), Nside, sky_sigma)
+
+    if beam_type == 'gaussian':
+        filing_params['outfile_prefix'] += '_fwhm{:.3f}'.format(fwhm)
+    if beam_type == 'airy':
+        filing_params['outfile_prefix'] += '_diam{:.2f}'.format(beam.diameter)
 
     while True:
         try:

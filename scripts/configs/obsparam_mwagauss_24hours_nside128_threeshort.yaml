@@ -11,14 +11,14 @@ telescope:
 sources:
   catalog: 'gaussian_eor_shell'
 time:
-  Ntimes: 7854   # 24 hours
-  #Ntimes: 100   # 24 hours
+        #  Ntimes: 7854   # 24 hours
+  Ntimes: 300
   integration_time: 11.0
   start_time: 2458098.5521759833
 select:
   bls: '[(0,11),(0,12),(11,12)]'
 
 fov: 110   # Deg
-Nskies: 10
+Nskies: 1
 sky_sigma: 0.031      # mwaK
 Nside: 128
