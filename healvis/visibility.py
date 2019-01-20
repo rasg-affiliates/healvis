@@ -286,14 +286,10 @@ class observatory:
         for count, c in enumerate(pcents):
             memory_usage_GB = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6
             za_arr, az_arr, pix = self.calc_azza(self.Nside, c, return_inds=True)
-#            beam_cube = np.ones(az_arr.shape + (self.Nfreqs,))
             beam_cube = self.beam.beam_val(az_arr[:,np.newaxis], za_arr[:,np.newaxis], self.freqs[np.newaxis,:])
-            print(beam_cube.shape)
-#            beam_cube = np.repeat(beam_one[...,np.newaxis], self.Nfreqs, axis=1)
             for bi,bl in enumerate(self.array):
                 fringe_cube = bl.get_fringe(az_arr, za_arr, self.freqs)
                 vis = np.sum(shell[..., pix, :] * beam_cube * fringe_cube, axis=-2)
-                # vis.shape = (Nskies, Nfreqs)
                 vis_array.put((tinds[count], bi, vis.tolist()))
             with Nfin.get_lock():
                 Nfin.value += 1
