@@ -14,6 +14,7 @@ import multiprocessing as mp
 import sys
 import resource
 import time
+from scipy.special import j1
 
 from pyuvdata import UVBeam
 from pyuvsim.utils import progsteps
@@ -64,7 +65,7 @@ class powerbeam(UVBeam):
             self.efield_to_power(calc_cross_pols=False)
         self.interpolation_function = 'az_za_simple'
 
-    def beam_val(self, az, za, freq_Hz=None):
+    def beam_val(self, az, za, freq_Hz):
         """
         az, za = radians
         """
@@ -83,14 +84,18 @@ class powerbeam(UVBeam):
 
 class analyticbeam(object):
 
-    def __init__(self, beam_type, sigma=None):
-        if beam_type not in ['uniform', 'gaussian']:
+    def __init__(self, beam_type, sigma=None, diameter=None):
+        if beam_type not in ['uniform', 'gaussian', 'airy']:
             raise NotImplementedError("Beam type " + str(beam_type) + " not available yet.")
         self.beam_type = beam_type
         if beam_type == 'gaussian':
             if sigma is None:
                 raise KeyError("Sigma required for gaussian beam")
             self.sigma = sigma * np.pi / 180.  # deg -> radians
+        if beam_type == 'airy':
+            if diameter is None:
+                raise KeyError("Dish diameter required for airy beam")
+            self.diameter=diameter
 
     def plot_beam(self, az, za):
         import pylab as pl
@@ -109,6 +114,13 @@ class analyticbeam(object):
             return 1
         if self.beam_type == 'gaussian':
             return np.exp(-(za**2) / (2 * self.sigma**2))  # Peak normalized
+
+        if self.beam_type == 'airy':
+            xvals = self.diameter / 2. * np.sin(za) * 2. * np.pi * freq_Hz / 3e8
+            values = np.zeros_like(xvals)
+            values = (2. * j1(xvals) / xvals)**2
+            values[xvals == 0] = 1
+            return values
 
 @jit
 def make_fringe(az, za, freq, enu):
@@ -274,9 +286,10 @@ class observatory:
         for count, c in enumerate(pcents):
             memory_usage_GB = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6
             za_arr, az_arr, pix = self.calc_azza(self.Nside, c, return_inds=True)
-            beam_cube = np.ones(az_arr.shape + (self.Nfreqs,))
-            beam_one = self.beam.beam_val(az_arr, za_arr)
-            beam_cube = np.repeat(beam_one[...,np.newaxis], self.Nfreqs, axis=1)
+#            beam_cube = np.ones(az_arr.shape + (self.Nfreqs,))
+            beam_cube = self.beam.beam_val(az_arr[:,np.newaxis], za_arr[:,np.newaxis], self.freqs[np.newaxis,:])
+            print(beam_cube.shape)
+#            beam_cube = np.repeat(beam_one[...,np.newaxis], self.Nfreqs, axis=1)
             for bi,bl in enumerate(self.array):
                 fringe_cube = bl.get_fringe(az_arr, za_arr, self.freqs)
                 vis = np.sum(shell[..., pix, :] * beam_cube * fringe_cube, axis=-2)
