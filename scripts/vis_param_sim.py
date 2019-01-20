@@ -199,7 +199,7 @@ for fi in range(Nfreqs):
 # Beam^2 integral
 # ---------------------------
 za, az = obs.calc_azza(Nside, obs.pointing_centers[0])
-beam_sq_int = np.sum(obs.beam.beam_val(az, za)**2)
+beam_sq_int = np.sum(obs.beam.beam_val(az, za)**2, freqs)
 beam_sq_int = np.ones(Nfreqs) * beam_sq_int * om 
 
 # ---------------------------

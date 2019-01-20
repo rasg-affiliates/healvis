@@ -103,7 +103,7 @@ class analyticbeam(object):
         pl.imshow(self.beam_val(az, za))
         pl.show()
 
-    def beam_val(self, az, za, freq_Hz=None):
+    def beam_val(self, az, za, freq_Hz):
         """
         az, za = radians
 
