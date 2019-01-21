@@ -235,6 +235,9 @@ if sjob_id is None:
 if beam_type == 'gaussian':
     fwhm = beam_attr['sigma'] * 2.355
     uv_obj.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sky_sigma, 'bm_fwhm': fwhm, 'nside': Nside, 'slurm_id': sjob_id}
+elif beam_type == 'airy':
+    uv_obj.extra_keywords = {'bsq_int': beam_sq_int, 'skysig': sky_sigma, 'nside': Nside, 'slurm_id': sjob_id}
+        ## Since the beam is frequency dependent, we need to pass along the full set of beam integrals somehow.
 else:
     uv_obj.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sky_sigma, 'nside': Nside, 'slurm_id': sjob_id}
 
@@ -263,7 +266,7 @@ for sky_i in range(Nskies):
 
     while True:
         try:
-            pyuvsim.utils.write_uvdata(uv_obj, filing_params, out_format='miriad')#, run_check=False, run_check_acceptability=False, check_extra=False)
+            pyuvsim.utils.write_uvdata(uv_obj, filing_params, out_format='uvh5')#, run_check=False, run_check_acceptability=False, check_extra=False)
         except ValueError:
             pass
         else:
