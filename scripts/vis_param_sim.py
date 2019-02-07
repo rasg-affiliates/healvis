@@ -2,10 +2,10 @@
 
 #SBATCH -J healvis
 #SBATCH -t 2-00:00:00
-#SBATCH --cpus-per-task=20
+#SBATCH --cpus-per-task=24
 #SBATCH --mem=100G
-# SBATCH -A jpober-condo
-# SBATCH --qos=jpober-condo
+#SBATCH -A jpober-condo
+#SBATCH --qos=jpober-condo
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=adam_lanman@brown.edu
 
@@ -123,7 +123,6 @@ uv_obj.Nfreqs = freq_dict['Nfreqs']
 
 array = []
 bl_array =  []
-
 bls = [(a1, a2) for a2 in anums for a1 in anums if a1>a2]
 if 'select' in param_dict:
     sel = param_dict['select']
@@ -140,7 +139,13 @@ if 'select' in param_dict:
     if 'redundancy' in sel:
         red_tol = sel['redundancy']
         reds, vec_bin_centers, lengths = uvutils.get_antenna_redundancies(anums, enu, tol=red_tol, include_autos=False)
-        bls = [r[0] for r in reds]
+        bls = []
+        for rg in reds:
+                for r in rg:
+                    if r not in bls:
+                        bls.append(r)
+                        break
+#        bls = [r[0] for r in reds]
         bls = [uvutils.baseline_to_antnums(bl_ind, Nants) for bl_ind in bls]
 uv_obj.Nants_data = np.unique(bls).size
 for (a1, a2) in bls:
