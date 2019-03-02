@@ -1,15 +1,15 @@
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import multiprocessing as mp
-from astropy.cosmology import WMAP9 as cosmo
-
-## TODO --- replace this. numpy no longer supports assignment to the data attribute:
-##  https://stackoverflow.com/questions/7894791/use-numpy-array-in-shared-memory-for-multiprocessing
+from astropy.cosmology import Planck15 as cosmo
 
 class mparray(np.ndarray):
-
     """
     A multiprocessing RawArray accessible with numpy array slicing.
     """
+    ## TODO --- replace this. numpy no longer supports assignment to the data attribute:
+    ##  https://stackoverflow.com/questions/7894791/use-numpy-array-in-shared-memory-for-multiprocessing
 
     def __init__(self, *args, **kwargs):
         super(mparray, self).__init__(*args, **kwargs)
@@ -39,3 +39,6 @@ def comoving_voxel_volume(z,dnu,omega):
     vol = cosmo.differential_comoving_volume(z).value*dz*omega
     return vol
 
+
+def comoving_distance(z):
+    return cosmo.comoving_distance(z).to('Mpc').value

@@ -98,7 +98,6 @@ class analyticbeam(object):
             self.diameter=diameter
 
     def plot_beam(self, az, za):
-        import pylab as pl
         fig = pl.figure()
         pl.imshow(self.beam_val(az, za))
         pl.show()
