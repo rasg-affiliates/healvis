@@ -33,11 +33,12 @@ atexit.register(prof.print_stats, stream=ofile)
 c_ms = c.to('m/s').value
 
 # Multiprocessing:
-## Setup --- The flattened shell is saved in a SharedArray object.
-##           Accessing it requires finding unraveled indices for the correct shape.
-##           Parallelize across time chunks.
+# Setup --- The flattened shell is saved in a SharedArray object.
+# Accessing it requires finding unraveled indices for the correct shape.
+# Parallelize across time chunks.
 
-def jy2Tstr(f, bm = 1.0):
+
+def jy2Tstr(f, bm=1.0):
     '''Return [K sr] / [Jy] vs. frequency (in Hz)
         Arguments:
             f = frequencies (Hz)
@@ -45,15 +46,16 @@ def jy2Tstr(f, bm = 1.0):
     '''
     c_cmps = c_ms * 100.   # cm/s
     k_boltz = 1.380658e-16   # erg/K
-    lam = c_cmps / f   #cm
+    lam = c_cmps / f  # cm
     return 1e-23 * lam**2 / (2 * k_boltz * bm)
+
 
 class powerbeam(UVBeam):
     """
     Interface for using beamfits files here.
     """
 
-    ### TODO Develop and test!
+    # TODO Develop and test!
     def __init__(self, beamfits_path=None):
         super(powerbeam, self).__init__()
         if beamfits_path is not None:
@@ -76,11 +78,12 @@ class powerbeam(UVBeam):
         if isinstance(za, float):
             za = np.array([za])
         if freq_Hz is None:
-            freq_Hz = self.freq_array[0,0]
+            freq_Hz = self.freq_array[0, 0]
         if isinstance(freq_Hz, float):
             freq_Hz = np.array([freq_Hz])
-        interp_beam, interp_basis = self.interp(az_array = az, za_array = za, freq_array = freq_Hz, reuse_spline=True)
-        return interp_beam[0,0,0,:]  #  pol XX
+        interp_beam, interp_basis = self.interp(az_array=az, za_array=za, freq_array=freq_Hz, reuse_spline=True)
+        return interp_beam[0, 0, 0, :]  # pol XX
+
 
 class analyticbeam(object):
 
@@ -95,7 +98,7 @@ class analyticbeam(object):
         if beam_type == 'airy':
             if diameter is None:
                 raise KeyError("Dish diameter required for airy beam")
-            self.diameter=diameter
+            self.diameter = diameter
 
     def plot_beam(self, az, za):
         fig = pl.figure()
@@ -121,6 +124,7 @@ class analyticbeam(object):
             values[xvals == 0] = 1
             return values
 
+
 @jit
 def make_fringe(az, za, freq, enu):
     """
@@ -132,10 +136,11 @@ def make_fringe(az, za, freq, enu):
     pos_m = np.cos(az) * np.sin(za)
     pos_n = np.cos(za)
     lmn = np.vstack((pos_l, pos_m, pos_n))
-    uvw = np.outer(enu, 1/(c_ms / freq))  # In wavelengths
+    uvw = np.outer(enu, 1 / (c_ms / freq))  # In wavelengths
     udotl = np.einsum("jk,jl->kl", lmn, uvw)
-    fringe = np.cos(2 * np.pi * udotl) + (1j) * np.sin( 2 * np.pi * udotl)  # This is weirdly faster than np.exp
+    fringe = np.cos(2 * np.pi * udotl) + (1j) * np.sin(2 * np.pi * udotl)  # This is weirdly faster than np.exp
     return fringe
+
 
 class baseline(object):
 
@@ -152,8 +157,8 @@ class baseline(object):
     @profile
     def get_fringe(self, az, za, freq_Hz, degrees=False):
         if degrees:
-            az *= np.pi/180.
-            za *= np.pi/180.
+            az *= np.pi / 180.
+            za *= np.pi / 180.
         freq_Hz = freq_Hz.astype(float)
         return make_fringe(az, za, freq_Hz, self.enu)
 
@@ -163,16 +168,16 @@ class baseline(object):
             # Healpix mode
             if pix is None or Nside is None:
                 raise ValueError("Need to provide healpix indices and Nside")
-            map0 = np.zeros(12*Nside**2)
+            map0 = np.zeros(12 * Nside**2)
             if isinstance(freq, np.ndarray):
                 freq = np.array(freq[0])
             if isinstance(freq, float):
                 freq = np.array(freq)
 
             vecs = hp.pixelfunc.pix2vec(Nside, pix)
-            mean_vec = (np.mean(vecs[0]), np.mean(vecs[1]), np.mean(vecs[2]))    
-            dt, dp = hp.rotator.vec2dir(mean_vec,lonlat=True)
-            map0[pix] = self.get_fringe(az,za, freq, degrees=degrees)[:,0]
+            mean_vec = (np.mean(vecs[0]), np.mean(vecs[1]), np.mean(vecs[2]))
+            dt, dp = hp.rotator.vec2dir(mean_vec, lonlat=True)
+            map0[pix] = self.get_fringe(az, za, freq, degrees=degrees)[:, 0]
             hp.mollview(map0, rot=(dt, dp, 0))
             pl.show()
         else:
@@ -285,21 +290,21 @@ class observatory:
         for count, c in enumerate(pcents):
             memory_usage_GB = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6
             za_arr, az_arr, pix = self.calc_azza(self.Nside, c, return_inds=True)
-            beam_cube = self.beam.beam_val(az_arr[:,np.newaxis], za_arr[:,np.newaxis], self.freqs[np.newaxis,:])
-            for bi,bl in enumerate(self.array):
+            beam_cube = self.beam.beam_val(az_arr[:, np.newaxis], za_arr[:, np.newaxis], self.freqs[np.newaxis, :])
+            for bi, bl in enumerate(self.array):
                 fringe_cube = bl.get_fringe(az_arr, za_arr, self.freqs)
                 vis = np.sum(shell[..., pix, :] * beam_cube * fringe_cube, axis=-2)
                 vis_array.put((tinds[count], bi, vis.tolist()))
             with Nfin.get_lock():
                 Nfin.value += 1
             if mp.current_process().name == 1:
-        #        print('Mem: {}GB'.format(memory_usage_GB))
-        #        sys.stdout.flush()
-                print('Finished {:d}, Elapsed {:.2f}sec, MaxRSS {}GB '.format(Nfin.value, time.time()-self.time0, memory_usage_GB))
+                #        print('Mem: {}GB'.format(memory_usage_GB))
+                #        sys.stdout.flush()
+                print('Finished {:d}, Elapsed {:.2f}sec, MaxRSS {}GB '.format(Nfin.value, time.time() - self.time0, memory_usage_GB))
                 sys.stdout.flush()
 
     @profile
-    def make_visibilities(self, shell, Nprocs = 1):
+    def make_visibilities(self, shell, Nprocs=1):
         """
         Orthoslant project sections of the shell (fov=radius, looping over centers)
         Make beam cube and fringe cube, multiply and sum.
@@ -318,9 +323,9 @@ class observatory:
         Nside = hp.npix2nside(Npix)
         Nbls = len(self.array)
         self.Nside = Nside
-        pix_area_sr = 4*np.pi/float(Npix)
+        pix_area_sr = 4 * np.pi / float(Npix)
         self.freqs = np.array(self.freqs)
-        conv_fact = jy2Tstr(np.array(self.freqs), bm = pix_area_sr)
+        conv_fact = jy2Tstr(np.array(self.freqs), bm=pix_area_sr)
         self.Ntimes = len(self.pointing_centers)
         pcenter_list = np.array_split(self.pointing_centers, Nprocs)
         time_inds = np.array_split(range(self.Ntimes), Nprocs)
@@ -330,7 +335,7 @@ class observatory:
         Nfin = mp.Value('i', 0)
         prog = progsteps(maxval=self.Ntimes)
         for pi in range(Nprocs):
-            p =  mp.Process(name=pi, target=self.vis_calc, args=(pcenter_list[pi], time_inds[pi], shell, vis_array, Nfin))
+            p = mp.Process(name=pi, target=self.vis_calc, args=(pcenter_list[pi], time_inds[pi], shell, vis_array, Nfin))
             p.start()
             procs.append(p)
         while (Nfin.value < self.Ntimes) and np.any([p.is_alive() for p in procs]):
@@ -354,4 +359,4 @@ class observatory:
         baseline_array = np.array(baseline_inds)[srt]
 
         # Time and baseline arrays are now Nblts
-        return visibilities/conv_fact, time_array, baseline_array
+        return visibilities / conv_fact, time_array, baseline_array

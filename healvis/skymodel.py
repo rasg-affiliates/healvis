@@ -15,6 +15,8 @@ from .utils import mparray, comoving_voxel_volume, comoving_distance
 
 # Moving a lot from eorsky to here.
 
+f21 = 1420e6
+
 class skymodel(object):
 
     Npix = None
@@ -33,16 +35,16 @@ class skymodel(object):
 
         params = ['Npix', 'Nside', 'Nskies, Nfreqs', 'indices', 'ref_chan', 'pspec_amp', 'freq_array', 'data']
 
-        for k,v in kwargs.items():
+        for k, v in kwargs.items():
             if k in params:
                 setattr(self, k, v)
         self._update()
 
-    def __setattr__(self,name,value):
-        if self._updated is None: self._updated = []
+    def __setattr__(self, name, value):
+        if self._updated is None:
+            self._updated = []
         self._updated.append(name)
         super(skymodel, self).__setattr__(name, value)
-
 
     def _update(self):
         """
@@ -50,22 +52,23 @@ class skymodel(object):
             If two parameters from the same group change at the same time, confirm that they're consistent.
         """
 
-        hpx_params = ['Nside','Npix','data','indices']
-        z_params   = ['Z_array', 'freq_array','Nfreqs','r_mpc']
+        hpx_params = ['Nside', 'Npix', 'data', 'indices']
+        z_params = ['Z_array', 'freq_array', 'Nfreqs', 'r_mpc']
         ud = np.unique(self._updated)
         for p in ud:
             if p == 'freq_array':
-                self.Z_array = 1420./self.freq_array - 1.
+                self.Z_array = f21 / self.freq_array - 1.
                 self.r_mpc = comoving_distance(self.Z_array)
                 self.Nfreqs = self.freq_array.size
             if p == 'Nside':
-                if self.Npix is None: self.Npix = 12*self.Nside**2
+                if self.Npix is None:
+                    self.Npix = 12 * self.Nside**2
                 if 'indices' not in ud:
-                    if self.indices is None: self.indices = np.arange(self.Npix)
+                    if self.indices is None:
+                        self.indices = np.arange(self.Npix)
             if p == 'indices':
                 self.Npix = self.indices.size
         self._updated = []
-
 
     def make_flat_spectrum_shell(self, sigma, shared_mem=False):
         """
@@ -88,14 +91,14 @@ class skymodel(object):
         else:
             self.data = np.zeros((self.Nskies, self.Npix, self.Nfreqs), dtype=float)
 
-        dnu = np.diff(self.freq_array)[0]/1e6
-        om = 4*np.pi/float(12*self.Nside**2)
-        Zs = 1420e6/self.freq_array - 1
+        dnu = np.diff(self.freq_array)[0] / 1e6
+        om = 4 * np.pi / float(12 * self.Nside**2)
+        Zs = f21 / self.freq_array - 1
         dV0 = comoving_voxel_volume(Zs[self.ref_chan], dnu, om)
         for fi in range(self.Nfreqs):
             dV = comoving_voxel_volume(Zs[fi], dnu, om)
-            s = sig  * np.sqrt(dV0/dV)
-            self.data[:,:,fi] = np.random.normal(0.0, s, (self.Nskies, self.Npix))
+            s = sig * np.sqrt(dV0 / dV)
+            self.data[:, :, fi] = np.random.normal(0.0, s, (self.Nskies, self.Npix))
         self._update()
 
     def read_hdf5(self, filename, chan_range=None):
@@ -112,12 +115,12 @@ class skymodel(object):
             transpose = True
         if chan_range is None:
             chan_range = [0, infile[freqs_key].shape[0]]
-        c0,c1 = chan_range
-        self.freq_array = infile[freqs_key][c0:c1]/1e6  # Hz -> MHz
+        c0, c1 = chan_range
+        self.freq_array = infile[freqs_key][c0:c1] / 1e6  # Hz -> MHz
         if not transpose:
-            self.shell = infile[shell_key][:,c0:c1]
+            self.shell = infile[shell_key][:, c0:c1]
         else:
-            self.shell = infile[shell_key][c0:c1,:].T
+            self.shell = infile[shell_key][c0:c1, :].T
         self.Npix, self.Nfreq = self.shell.shape
         self.indices = np.arange(self.Npix)
         self.Nside = hp.npix2nside(self.Npix)
