@@ -1,0 +1,4 @@
+include *.md
+include LICENSE
+include healvis/VERSION
+include healvis/GIT_INFO
