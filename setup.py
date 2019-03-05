@@ -17,6 +17,19 @@ data = [version.git_origin, version.git_hash, version.git_description, version.g
 with open(os.path.join('healvis', 'GIT_INFO'), 'w') as outfile:
     json.dump(data, outfile)
 
+def package_files(package_dir, subdirectory):
+    # walk the input package_dir/subdirectory
+    # return a package_data list
+    paths = []
+    directory = os.path.join(package_dir, subdirectory)
+    for (path, directories, filenames) in os.walk(directory):
+        for filename in filenames:
+            path = path.replace(package_dir + '/', '')
+            paths.append(os.path.join(path, filename))
+    return paths
+
+data_files = package_files('healvis', 'data')
+
 setup_args = {
     'name': 'healvis',
     'author': 'Radio Astronomy Software Group',
@@ -25,6 +38,8 @@ setup_args = {
     'description': 'a healpix-based radio interferometric visibility simulator',
     'package_dir': {'healvis': 'healvis'},
     'packages': ['healvis', 'healvis.tests'],
+    'include_package_data': True,
+    'package_data': {'healvis': data_files},
 #    'scripts': glob.glob('scripts/*'),
     'version': version.version,
     'include_package_data': True,
