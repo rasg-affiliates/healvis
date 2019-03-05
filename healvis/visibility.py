@@ -21,22 +21,17 @@ from pyuvsim.utils import progsteps
 
 from .skymodel import skymodel
 
-## Line profiling
+# Line profiling
 #from line_profiler import LineProfiler
 #import atexit
 #import __builtin__ as builtins
 #prof = LineProfiler()
 #builtins.__dict__['profile'] = prof
 #ofile = open('time_profiling.out', 'w')
-#atexit.register(ofile.close)
+# atexit.register(ofile.close)
 #atexit.register(prof.print_stats, stream=ofile)
 
 c_ms = c.to('m/s').value
-
-# Multiprocessing:
-# Setup --- The flattened shell is saved in a SharedArray object.
-# Accessing it requires finding unraveled indices for the correct shape.
-# Parallelize across time chunks.
 
 
 def jy2Tstr(f, bm=1.0):
