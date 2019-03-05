@@ -17,6 +17,7 @@ from .utils import mparray, comoving_voxel_volume, comoving_distance
 
 f21 = 1420e6
 
+
 class skymodel(object):
 
     Npix = None
@@ -32,11 +33,10 @@ class skymodel(object):
     _updated = []
 
     def __init__(self, **kwargs):
-
-        params = ['Npix', 'Nside', 'Nskies, Nfreqs', 'indices', 'ref_chan', 'pspec_amp', 'freq_array', 'data']
-
+        self.valid_params = ['Npix', 'Nside', 'Nskies', 'Nfreqs', 'indices', 'Z_array', 'ref_chan', 'pspec_amp', 'freq_array', 'data']
+        self._updated = []
         for k, v in kwargs.items():
-            if k in params:
+            if k in self.valid_params:
                 setattr(self, k, v)
         self._update()
 
@@ -46,12 +46,18 @@ class skymodel(object):
         self._updated.append(name)
         super(skymodel, self).__setattr__(name, value)
 
+    def __eq__(self, other):
+        for k in self.valid_params:
+            if not np.all(getattr(self, k) == getattr(other, k)):
+                print('Mismatch: ', k)
+                return False
+        return True
+
     def _update(self):
         """
             Assume that whatever parameter was just changed has priority over others.
             If two parameters from the same group change at the same time, confirm that they're consistent.
         """
-
         hpx_params = ['Nside', 'Npix', 'data', 'indices']
         z_params = ['Z_array', 'freq_array', 'Nfreqs', 'r_mpc']
         ud = np.unique(self._updated)
@@ -101,39 +107,46 @@ class skymodel(object):
             self.data[:, :, fi] = np.random.normal(0.0, s, (self.Nskies, self.Npix))
         self._update()
 
-    def read_hdf5(self, filename, chan_range=None):
+    def read_hdf5(self, filename, chan_range=None, load_data=True, shared_mem=False):
         print('Reading: ', filename)
-        infile = h5py.File(filename)
-        skymodel = 'spectral_info' in infile.keys()
-        transpose = False
-        if skymodel:
-            freqs_key = 'spectral_info/freq'
-            shell_key = 'spectral_info/spectrum'
-        else:
-            freqs_key = 'specinfo/freqs'
-            shell_key = 'skyinfo/surfaces'
-            transpose = True
-        if chan_range is None:
-            chan_range = [0, infile[freqs_key].shape[0]]
-        c0, c1 = chan_range
-        self.freq_array = infile[freqs_key][c0:c1] / 1e6  # Hz -> MHz
-        if not transpose:
-            self.shell = infile[shell_key][:, c0:c1]
-        else:
-            self.shell = infile[shell_key][c0:c1, :].T
-        self.Npix, self.Nfreq = self.shell.shape
-        self.indices = np.arange(self.Npix)
-        self.Nside = hp.npix2nside(self.Npix)
-        infile.close()
+        with h5py.File(filename) as infile:
+            for k in infile.keys():
+                if chan_range is not None:
+                    c0, c1 = chan_range
+                if k == 'freq_array':
+                    if chan_range is not None:
+                        self.freq_array = infile[k][c0:c1]
+                    else:
+                        self.freq_array = infile[k][()]
+                elif k == 'data':
+                    if not load_data:
+                        self.data = infile[k]   # Keep on disk until needed.
+                        continue
+                    dat = infile[k]
+                    if shared_mem:
+                        self.data = mparray(dat.shape, dtype=float)
+                        if chan_range:
+                            self.data = dat[:, :, c0:c1]
+                        else:
+                            self.data[()] = dat[()]
+                    else:
+                        if chan_range:
+                            self.data = dat[:, :, c0:c1]
+                        else:
+                            self.data = dat[()]
+                elif k in self.valid_params:
+                    dat = infile[k][()]
+                    setattr(self, k, dat)
         self._update()
 
     def write_hdf5(self, filename):
         with h5py.File(filename, 'w') as fileobj:
-            freqs_Hz = self.freq_array
-            hdr_grp = fileobj.create_group('header')
-            hdr_grp['units'] = "K"
-            hdr_grp['is_healpix'] = 1
-            spec_group = fileobj.create_group('spectral_info')
-            freq_dset = spec_group.create_dataset('freq', data=freqs_Hz, compression='gzip', compression_opts=9)
-            freq_dset.attrs['units'] = 'Hz'
-            spectrum_dset = spec_group.create_dataset('spectrum', data=self.shell, compression='gzip', compression_opts=9)
+            for k in self.valid_params:
+                d = getattr(self, k)
+                if k.startswith('N'):
+                    fileobj.attrs
+                if d is not None:
+                    if np.isscalar(d):
+                        dset = fileobj.create_dataset(k, data=d)
+                    else:
+                        dset = fileobj.create_dataset(k, data=d, compression='gzip', compression_opts=9)

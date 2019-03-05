@@ -2,6 +2,7 @@ from healvis import skymodel
 from astropy.cosmology import Planck15
 import nose.tools as nt
 import numpy as np
+import os
 
 
 def verify_update(sky_obj):
@@ -47,3 +48,22 @@ def test_flat_spectrum():
     freq_array = np.linspace(167.0, 177.0, Nfreqs)
     sky = skymodel(Nside=64, freq_array=freq_array, ref_chan=50)
     sky.make_flat_spectrum_shell(sigma=2.0)
+
+
+def test_write_read():
+    testfilename = 'test_out.hdf5'
+    Nfreqs = 10
+    freq_array = np.linspace(167.0, 177.0, Nfreqs)
+    sky = skymodel(Nside=64, freq_array=freq_array, ref_chan=5)
+    sky.make_flat_spectrum_shell(sigma=2.0)
+    sky.write_hdf5(testfilename)
+    sky2 = skymodel()
+    sky3 = skymodel()
+    sky2.read_hdf5(testfilename, shared_mem=True)
+    sky3.read_hdf5(testfilename)
+    nt.assert_equal(sky, sky2)
+    nt.assert_equal(sky2, sky3)
+    os.remove(testfilename)
+
+
+test_write_read()
