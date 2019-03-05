@@ -1,2 +1,6 @@
 /data/gaussian_cube.hdf5
 *.pyc
+dist/*
+healvis.egg-info/*
+*.out
+build/*
