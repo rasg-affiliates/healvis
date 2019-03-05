@@ -19,16 +19,17 @@ from scipy.special import j1
 from pyuvdata import UVBeam
 from pyuvsim.utils import progsteps
 
-from line_profiler import LineProfiler
-import atexit
-import __builtin__ as builtins
+from .skymodel import skymodel
 
-# Line profiling
-prof = LineProfiler()
-builtins.__dict__['profile'] = prof
-ofile = open('time_profiling.out', 'w')
-atexit.register(ofile.close)
-atexit.register(prof.print_stats, stream=ofile)
+## Line profiling
+#from line_profiler import LineProfiler
+#import atexit
+#import __builtin__ as builtins
+#prof = LineProfiler()
+#builtins.__dict__['profile'] = prof
+#ofile = open('time_profiling.out', 'w')
+#atexit.register(ofile.close)
+#atexit.register(prof.print_stats, stream=ofile)
 
 c_ms = c.to('m/s').value
 
