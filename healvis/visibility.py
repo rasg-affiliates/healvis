@@ -19,23 +19,19 @@ from scipy.special import j1
 from pyuvdata import UVBeam
 from pyuvsim.utils import progsteps
 
-from line_profiler import LineProfiler
-import atexit
-import __builtin__ as builtins
+from .skymodel import skymodel
 
 # Line profiling
-prof = LineProfiler()
-builtins.__dict__['profile'] = prof
-ofile = open('time_profiling.out', 'w')
-atexit.register(ofile.close)
-atexit.register(prof.print_stats, stream=ofile)
+#from line_profiler import LineProfiler
+#import atexit
+#import __builtin__ as builtins
+#prof = LineProfiler()
+#builtins.__dict__['profile'] = prof
+#ofile = open('time_profiling.out', 'w')
+# atexit.register(ofile.close)
+#atexit.register(prof.print_stats, stream=ofile)
 
 c_ms = c.to('m/s').value
-
-# Multiprocessing:
-# Setup --- The flattened shell is saved in a SharedArray object.
-# Accessing it requires finding unraveled indices for the correct shape.
-# Parallelize across time chunks.
 
 
 def jy2Tstr(f, bm=1.0):
@@ -154,7 +150,6 @@ class baseline(object):
     def get_uvw(self, freq_Hz):
         return self.enu / (c_ms / float(freq_Hz))
 
-    @profile
     def get_fringe(self, az, za, freq_Hz, degrees=False):
         if degrees:
             az *= np.pi / 180.
@@ -224,7 +219,6 @@ class observatory:
             centers.append([zen_radec.ra.deg, zen_radec.dec.deg])
         self.pointing_centers = centers
 
-    @profile
     def calc_azza(self, Nside, center, return_inds=False):
         """
         Set the az/za arrays.
@@ -303,7 +297,6 @@ class observatory:
                 print('Finished {:d}, Elapsed {:.2f}sec, MaxRSS {}GB '.format(Nfin.value, time.time() - self.time0, memory_usage_GB))
                 sys.stdout.flush()
 
-    @profile
     def make_visibilities(self, shell, Nprocs=1):
         """
         Orthoslant project sections of the shell (fov=radius, looping over centers)
