@@ -54,6 +54,10 @@ class skymodel(object):
                 return False
         return True
 
+    def set_data(self, data):
+        self.data = data
+        self._update()
+
     def _update(self):
         """
             Assume that whatever parameter was just changed has priority over others.
