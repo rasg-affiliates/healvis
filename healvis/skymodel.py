@@ -8,6 +8,7 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+import os
 import h5py
 from astropy.cosmology import Planck15 as cosmo
 
@@ -105,9 +106,12 @@ class skymodel(object):
             dV = comoving_voxel_volume(Zs[fi], dnu, om)
             s = sig * np.sqrt(dV0 / dV)
             self.data[:, :, fi] = np.random.normal(0.0, s, (self.Nskies, self.Npix))
+        self.pspec_amp = sigma
         self._update()
 
     def read_hdf5(self, filename, chan_range=None, load_data=True, shared_mem=False):
+        if not os.path.exists(filename):
+            raise ValueError("File {} not found.".format(filename))
         print('Reading: ', filename)
         with h5py.File(filename) as infile:
             for k in infile.keys():

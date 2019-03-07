@@ -3,6 +3,8 @@ from __future__ import absolute_import, division, print_function
 
 
 import numpy as np
+import yaml
+import sys
 
 from pyuvdata import UVData
 from pyuvdata import utils as uvutils
@@ -23,14 +25,17 @@ def parse_skymodel(param_dict):
         return sky
 
     # Construct a flat spectrum shell.
-    required = ['freq_array', 'ref_chan', 'Nside', 'sigma']]
+    required = ['freq_array', 'ref_chan', 'Nside', 'sigma']
     missing = [p for p in required if p not in param_dict.keys()]
     if len(missing) > 0:
         raise KeyError("Missing required parameters for shell construction: " + ", ".join(missing))
     sky.Nside = param_dict['Nside']
-    sky.freq_array = param_dict['freq_array']
+    sky.freq_array = param_dict['freq_array'].squeeze()     # Remove spw axis
     sky.ref_chan = param_dict['ref_chan']
     sky.make_flat_spectrum_shell(param_dict['sigma'], shared_mem=True)
+
+    if 'savepath' in param_dict.keys():
+        sky.write_hdf5(param_dict['savepath'])
     return sky
 
 
@@ -60,20 +65,19 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
     # Extra parameters required for healvis
     # ---------------------------
 
-    fov= param_dict['fov']  # Deg
+    fov = param_dict['fov']  # Deg
     skyparam = param_dict['skymodel']
     skyparam['freq_array'] = freq_dict['freq_array']
     Nskies = 1 if 'Nskies' not in param_dict else int(param_dict['Nskies'])
     try:
         beam_select = int(param_dict['beam_select'])
     except KeyError:
-        beam_select= 0
-
+        beam_select = 0
 
     beam = beam_list[beam_select]
     beam_type = beam.type
     if beam_type == 'gaussian':
-        beam_attr= {'sigma': np.degrees(beam.sigma)}
+        beam_attr = {'sigma': np.degrees(beam.sigma)}
     elif beam_type == 'airy':
         beam_attr = {'diameter': beam.diameter}
     elif beam_type == 'uniform':
@@ -107,8 +111,8 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
     uv_obj.Nfreqs = freq_dict['Nfreqs']
 
     array = []
-    bl_array =  []
-    bls= [(a1, a2) for a2 in anums for a1 in anums if a1 > a2]
+    bl_array = []
+    bls = [(a1, a2) for a2 in anums for a1 in anums if a1 > a2]
     if 'select' in param_dict:
         sel = param_dict['select']
         if 'bls' in sel:
@@ -126,10 +130,10 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
             reds, vec_bin_centers, lengths = uvutils.get_antenna_redundancies(anums, enu, tol=red_tol, include_autos=False)
             bls = []
             for rg in reds:
-                    for r in rg:
-                        if r not in bls:
-                            bls.append(r)
-                            break
+                for r in rg:
+                    if r not in bls:
+                        bls.append(r)
+                        break
     #        bls = [r[0] for r in reds]
             bls = [uvutils.baseline_to_antnums(bl_ind, Nants) for bl_ind in bls]
     uv_obj.Nants_data = np.unique(bls).size
@@ -142,14 +146,13 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
     uv_obj.Nblts = Nbls * Ntimes
 
     bl_array = np.array(bl_array)
-    freqs= freq_dict['freq_array'][0]  # Hz
+    freqs = freq_dict['freq_array'][0]  # Hz
     obs = visibility.observatory(np.degrees(lat), np.degrees(lon), array=array, freqs=freqs)
     obs.set_fov(fov)
     print("Observatory built.")
     print("Nbls: ", Nbls)
     print("Ntimes: ", Ntimes)
     sys.stdout.flush()
-
 
     # ---------------------------
     # Pointings
@@ -166,13 +169,6 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
     obs.set_beam(beam_type, **beam_attr)
 
     # ---------------------------
-    # Beam^2 integral
-    # ---------------------------
-    za, az = obs.calc_azza(Nside, obs.pointing_centers[0])
-    beam_sq_int = np.sum(obs.beam.beam_val(az[: , np.newaxis], za[: , np.newaxis], freqs[np.newaxis, : ])**2, axis=0)
-    beam_sq_int = beam_sq_int * om
-
-    # ---------------------------
     # Skymodel
     # ---------------------------
 
@@ -184,7 +180,15 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
 
     print("Running simulation")
     sys.stdout.flush()
-    visibs, time_array, baseline_inds = obs.make_visibilities(skymodel, Nprocs=Nprocs)
+    visibs, time_array, baseline_inds = obs.make_visibilities(skymodel.data, Nprocs=Nprocs)
+
+    # ---------------------------
+    # Beam^2 integral
+    # ---------------------------
+    za, az = obs.calc_azza(skymodel.Nside, obs.pointing_centers[0])
+    beam_sq_int = np.sum(obs.beam.beam_val(az[:, np.newaxis], za[:, np.newaxis], freqs[np.newaxis, :])**2, axis=0)
+    om = 4 * np.pi / (12 * skymodel.Nside)
+    beam_sq_int = beam_sq_int * om
 
     # ---------------------------
     # Fill in the UVData object and write out.
@@ -197,7 +201,7 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
 
     uv_obj.spw_array = np.array([0])
     uv_obj.Npols = 1
-    uv_obj.polarization_array= np.array([1])
+    uv_obj.polarization_array = np.array([1])
     uv_obj.Nspws = 1
     uv_obj.set_uvws_from_antenna_positions()
     uv_obj.channel_width = np.diff(freqs)[0]
@@ -212,19 +216,20 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
     if sjob_id is None:
         sjob_id = ''
 
+    sky_sigma = skymodel.pspec_amp
     if beam_type == 'gaussian':
         fwhm = beam_attr['sigma'] * 2.355
-        uv_obj.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sky_sigma, 'bm_fwhm': fwhm, 'nside': Nside, 'slurm_id': sjob_id}
+        uv_obj.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sky_sigma, 'bm_fwhm': fwhm, 'nside': skymodel.Nside, 'slurm_id': sjob_id}
     elif beam_type == 'airy':
-        uv_obj.extra_keywords = {'bsq_int': beam_sq_int, 'skysig': sky_sigma, 'nside': Nside, 'slurm_id': sjob_id}
-            # Since the beam is frequency dependent, we need to pass along the full set of beam integrals somehow.
+        uv_obj.extra_keywords = {'bsq_int': beam_sq_int, 'skysig': sky_sigma, 'nside': skymodel.Nside, 'slurm_id': sjob_id}
+        # Since the beam is frequency dependent, we need to pass along the full set of beam integrals somehow.
     else:
-        uv_obj.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sky_sigma, 'nside': Nside, 'slurm_id': sjob_id}
+        uv_obj.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sky_sigma, 'nside': skymodel.Nside, 'slurm_id': sjob_id}
 
     for sky_i in range(Nskies):
 
-        data_arr = visibs[: , sky_i, : ]  # (Nblts, Nskies, Nfreqs)
-        data_arr = data_arr[:, np.newaxis, : , np.newaxis]  # (Nblts, Nspws, Nfreqs, Npol)
+        data_arr = visibs[:, sky_i, :]  # (Nblts, Nskies, Nfreqs)
+        data_arr = data_arr[:, np.newaxis, :, np.newaxis]  # (Nblts, Nspws, Nfreqs, Npol)
         uv_obj.data_array = data_arr
 
         uv_obj.flag_array = np.zeros(uv_obj.data_array.shape).astype(bool)
@@ -237,7 +242,7 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
         else:
             filing_params['outfile_suffix'] = 'uv'
         filing_params['outfile_prefix'] = \
-                      'healvis_{:.2f}hours_Nside{}_sigma{:.3f}'.format(Ntimes / (3600. / 11.0), Nside, sky_sigma)
+            'healvis_{:.2f}hours_Nside{}_sigma{:.3f}'.format(Ntimes / (3600. / 11.0), skymodel.Nside, sky_sigma)
 
         if beam_type == 'gaussian':
             filing_params['outfile_prefix'] += '_fwhm{:.3f}'.format(fwhm)

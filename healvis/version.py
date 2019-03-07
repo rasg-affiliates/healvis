@@ -12,6 +12,7 @@ import json
 
 healvis_dir = os.path.dirname(os.path.realpath(__file__))
 
+
 def _get_git_output(args, capture_stderr=False):
     """Get output from Git, ensuring that it is of the ``str`` type,
     not bytes."""
