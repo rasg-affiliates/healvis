@@ -237,12 +237,19 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
 
         uv_obj.check()
 
+        if 'format' in filing_params:
+            out_format = filing_params['format']
+        else:
+            out_format = 'uvh5'
+
         if Nskies > 1:
             filing_params['outfile_suffix'] = '{}sky_uv'.format(sky_i)
-        else:
+        elif out_format == 'miriad':
             filing_params['outfile_suffix'] = 'uv'
-        filing_params['outfile_prefix'] = \
-            'healvis_{:.2f}hours_Nside{}_sigma{:.3f}'.format(Ntimes / (3600. / 11.0), skymodel.Nside, sky_sigma)
+
+        if 'outfile_prefix' not in filing_params:
+            filing_params['outfile_prefix'] = \
+                'healvis_{:.2f}hours_Nside{}_sigma{:.3f}'.format(Ntimes / (3600. / 11.0), skymodel.Nside, sky_sigma)
 
         if beam_type == 'gaussian':
             filing_params['outfile_prefix'] += '_fwhm{:.3f}'.format(fwhm)
@@ -251,7 +258,7 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
 
         while True:
             try:
-                pyuvsim.utils.write_uvdata(uv_obj, filing_params, out_format='uvh5')  # , run_check=False, run_check_acceptability=False, check_extra=False)
+                pyuvsim.utils.write_uvdata(uv_obj, filing_params, out_format=out_format)  # , run_check=False, run_check_acceptability=False, check_extra=False)
             except ValueError:
                 pass
             else:
