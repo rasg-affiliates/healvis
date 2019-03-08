@@ -299,27 +299,27 @@ class observatory:
 
     def make_visibilities(self, shell, Nprocs=1):
         """
-        Orthoslant project sections of the shell (fov=radius, looping over centers)
         Make beam cube and fringe cube, multiply and sum.
         shell (Npix, Nfreq) = healpix shell, as an mparray (multiprocessing shared array)
 
         Takes a shell in Kelvin
         Returns visibility in Jy
         """
-        if len(shell.shape) == 3:
-            Nskies, Npix, Nfreqs = shell.shape
-        else:
-            Npix, Nfreqs = shell.shape
+
+        Nskies = shell.Nskies
+        Npix = shell.Npix
+        Nfreqs = shell.Nfreqs
+        pix_area_sr = shell.pix_area_sr
 
         assert Nfreqs == self.Nfreqs
+
         self.time0 = time.time()
-        Nside = hp.npix2nside(Npix)
         Nbls = len(self.array)
         self.Nside = Nside
-        pix_area_sr = 4 * np.pi / float(Npix)
         self.freqs = np.array(self.freqs)
         conv_fact = jy2Tstr(np.array(self.freqs), bm=pix_area_sr)
         self.Ntimes = len(self.pointing_centers)
+
         pcenter_list = np.array_split(self.pointing_centers, Nprocs)
         time_inds = np.array_split(range(self.Ntimes), Nprocs)
         procs = []

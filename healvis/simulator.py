@@ -182,7 +182,7 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
 
     print("Running simulation")
     sys.stdout.flush()
-    visibs, time_array, baseline_inds = obs.make_visibilities(skymodel.data, Nprocs=Nprocs)
+    visibs, time_array, baseline_inds = obs.make_visibilities(skymodel, Nprocs=Nprocs)
 
     # ---------------------------
     # Beam^2 integral
