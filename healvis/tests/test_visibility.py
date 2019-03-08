@@ -126,7 +126,9 @@ def test_offzenith_vis():
     resol = np.sqrt(pix_area)
     obs.set_beam('uniform')
 
-    vis_calc, times, bls = obs.make_visibilities(shell)
+    sky = skymodel(Nside=Nside, freq_array=np.array(freqs), data=shell)
+
+    vis_calc, times, bls = obs.make_visibilities(sky)
 
     phi_new, theta_new = hp.pix2ang(Nside, ind, lonlat=True)
     src_az, src_za = np.radians(phi - phi_new), np.radians(theta - theta_new)

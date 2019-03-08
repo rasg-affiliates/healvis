@@ -1,8 +1,7 @@
-
 """
     Generate visibilities for a HEALPix shell.
 """
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
 from astropy.constants import c
@@ -307,6 +306,7 @@ class observatory:
         """
 
         Nskies = shell.Nskies
+        Nside = shell.Nside
         Npix = shell.Npix
         Nfreqs = shell.Nfreqs
         pix_area_sr = shell.pix_area_sr
@@ -328,7 +328,7 @@ class observatory:
         Nfin = mp.Value('i', 0)
         prog = progsteps(maxval=self.Ntimes)
         for pi in range(Nprocs):
-            p = mp.Process(name=pi, target=self.vis_calc, args=(pcenter_list[pi], time_inds[pi], shell, vis_array, Nfin))
+            p = mp.Process(name=pi, target=self.vis_calc, args=(pcenter_list[pi], time_inds[pi], shell.data, vis_array, Nfin))
             p.start()
             procs.append(p)
         while (Nfin.value < self.Ntimes) and np.any([p.is_alive() for p in procs]):
