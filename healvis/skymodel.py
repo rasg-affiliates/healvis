@@ -29,6 +29,7 @@ class skymodel(object):
     ref_chan = None
     pspec_amp = None
     freq_array = None
+    pix_area_sr = None
     Z_array = None
     data = None
     _updated = []
@@ -74,6 +75,7 @@ class skymodel(object):
             if p == 'Nside':
                 if self.Npix is None:
                     self.Npix = 12 * self.Nside**2
+                self.pix_area_sr = 4*np.pi/(12. * self.Nside**2)
                 if 'indices' not in ud:
                     if self.indices is None:
                         self.indices = np.arange(self.Npix)
