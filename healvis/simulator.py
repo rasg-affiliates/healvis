@@ -173,6 +173,8 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
     # ---------------------------
 
     skymodel = parse_skymodel(skyparam)
+    if not np.all(skymodel.freq_array == obs.freqs):      # Make sure frequencies match
+        raise ValueError("Skymodel frequencies do not match observation frequencies")
 
     # ---------------------------
     # Run simulation

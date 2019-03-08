@@ -13,14 +13,8 @@
 Visibility simulation
 """
 
-import numpy as np
 import argparse
 import os
-import sys
-import yaml
-import pyuvsim
-from healvis.utils import comoving_voxel_volume
-from itertools import izip
 
 import healvis
 
