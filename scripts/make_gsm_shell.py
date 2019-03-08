@@ -2,8 +2,12 @@ import numpy as np
 import argparse
 import yaml
 import healpy as hp
+import os
 
-import pygsm
+try:
+    import pygsm
+except ImportError:
+    raise ImportError("pygsm package not found. This is required to use {}".format(os.path.basename(__file__)))
 import pyuvsim
 
 from healvis import skymodel
