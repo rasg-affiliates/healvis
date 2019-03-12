@@ -1,4 +1,4 @@
-from healvis import skymodel
+from healvis.skymodel import skymodel
 from astropy.cosmology import Planck15
 import nose.tools as nt
 import numpy as np

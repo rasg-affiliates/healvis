@@ -186,7 +186,7 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
     # Beam^2 integral
     # ---------------------------
     za, az = obs.calc_azza(skymodel.Nside, obs.pointing_centers[0])
-    beam_sq_int = np.sum(obs.beam.beam_val(az[:, np.newaxis], za[:, np.newaxis], freqs[np.newaxis, :])**2, axis=0)
+    beam_sq_int = np.sum(obs.beam.beam_val(az, za, freqs)**2, axis=1)
     om = 4 * np.pi / (12 * skymodel.Nside)
     beam_sq_int = beam_sq_int * om
 
