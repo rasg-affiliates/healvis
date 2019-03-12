@@ -1,3 +1,5 @@
+sudo: required
+dist: trusty
 language: python
 python:
   # We don't actually use the Travis Python, but this keeps it organized.
@@ -22,14 +24,11 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
   # create environment and install dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy astropy nose pip matplotlib coverage pandas scikit-learn h5py six
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy astropy nose pip matplotlib coverage h5py six pyyaml numba
   - source activate test-environment
-  - conda install -c conda-forge healpy aipy pycodestyle
+  - conda install -c conda-forge healpy pycodestyle mpi4py
   - pip install coveralls
-  - pip install git+https://github.com/HERA-Team/pyuvdata.git
-  - pip install git+https://github.com/HERA-Team/uvtools.git
-  - pip install pyyaml
-  - pip install multiprocess
-  - pip install multiprocessing
+  - pip install git+https://github.com/RadioAstronomySoftwareGroup/pyuvdata.git
 script:
   - nosetests healvis
+  - pycodestyle . --ignore=E501,W503
