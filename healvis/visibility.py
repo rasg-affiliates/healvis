@@ -71,6 +71,7 @@ class PowerBeam(UVBeam):
     """
     Interface for using beamfits files.
     """
+
     def __init__(self, beamfits=None):
         """
         Initialize a PowerBeam object
@@ -152,7 +153,7 @@ class PowerBeam(UVBeam):
             za = np.array([za])
         az = np.asarray(az)
         za = np.asarray(za)
-        
+
         if self.pixel_coordinate_system == 'az_za':
             self.interpolation_function = 'az_za_simple'
         elif self.pixel_coordinate_system == 'healpix':
@@ -182,7 +183,7 @@ class PowerBeam(UVBeam):
             # healpix interpolation
             interp_beam, interp_basis = self._interp_healpix_bilinear(az_array=az, za_array=za, freq_array=freqs, polarizations=[pol])
 
-        return interp_beam[0, 0 ,0]
+        return interp_beam[0, 0, 0]
 
 
 class AnalyticBeam(object):
@@ -219,7 +220,7 @@ class AnalyticBeam(object):
             self.diameter = diameter
 
     def plot_beam(self, az, za, freqs, **kwargs):
-        ## TODO: needs development, and testing coverage?
+        # TODO: needs development, and testing coverage?
         fig = pl.figure()
         pl.imshow(self.beam_val(az, za, freqs, **kwargs))
         pl.show()
@@ -415,7 +416,8 @@ class Observatory:
         for count, c in enumerate(pcents):
             memory_usage_GB = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6
             za_arr, az_arr, pix = self.calc_azza(self.Nside, c, return_inds=True)
-            beam_cube = self.beam.beam_val(az_arr[:, np.newaxis], za_arr[:, np.newaxis], self.freqs[np.newaxis, :])
+            beam_cube = self.beam.beam_val(az_arr, za_arr, self.freqs)
+            beam_cube = np.moveaxis(beam_cube, -1, 0)
             for bi, bl in enumerate(self.array):
                 fringe_cube = bl.get_fringe(az_arr, za_arr, self.freqs)
                 vis = np.sum(shell[..., pix, :] * beam_cube * fringe_cube, axis=-2)

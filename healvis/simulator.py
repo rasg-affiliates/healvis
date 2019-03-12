@@ -139,7 +139,7 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
     uv_obj.Nants_data = np.unique(bls).size
     for (a1, a2) in bls:
         i1, i2 = np.where(anums == a1), np.where(anums == a2)
-        array.append(visibility.baseline(enu[i1], enu[i2]))
+        array.append(visibility.Baseline(enu[i1], enu[i2]))
         bl_array.append(uvutils.antnums_to_baseline(a1, a2, Nants))
     Nbls = len(bl_array)
     uv_obj.Nbls = Nbls
@@ -147,7 +147,7 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
 
     bl_array = np.array(bl_array)
     freqs = freq_dict['freq_array'][0]  # Hz
-    obs = visibility.observatory(np.degrees(lat), np.degrees(lon), array=array, freqs=freqs)
+    obs = visibility.Observatory(np.degrees(lat), np.degrees(lon), array=array, freqs=freqs)
     obs.set_fov(fov)
     print("Observatory built.")
     print("Nbls: ", Nbls)
