@@ -463,6 +463,7 @@ class Observatory:
             p.start()
             procs.append(p)
         while (Nfin.value < self.Ntimes) and np.any([p.is_alive() for p in procs]):
+            continue
         visibilities = []
         time_inds, baseline_inds = [], []
 
