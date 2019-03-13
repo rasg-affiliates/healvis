@@ -159,11 +159,12 @@ def test_PowerBeam():
     nt.assert_true(P3.bandpass_array.shape[1] == P3.Nfreqs == Nfreqs)
 
     # get beam value
-    az = np.linspace(0, 2*np.pi, 20, endpoint=False)
-    za = np.linspace(0, 1, 20, endpoint=False)
+    Npix = 20
+    az = np.linspace(0, 2*np.pi, Npix, endpoint=False)
+    za = np.linspace(0, 1, Npix, endpoint=False)
     b = P.beam_val(az, az, freqs, pol='XX')
     # check shape and rough value check (i.e. interpolation is near zenith as expected)
-    nt.assert_equal(b.shape, (Nfreqs, 20))
+    nt.assert_equal(b.shape, (Npix, Nfreqs))
     nt.assert_true(np.isclose(b.max(), 1.0, atol=1e-3))
 
     # shift frequnecies by a delta and assert beams are EXACLTY the same (i.e. no freq interpolation)
@@ -176,33 +177,33 @@ def test_PowerBeam():
 def test_AnalyticBeam():
     freqs = np.arange(120e6, 160e6, 4e6)
     Nfreqs = len(freqs)
-    Nza = 20
-    az = np.linspace(0, 2*np.pi, Nza, endpoint=False)
-    za = np.linspace(0, 1, Nza, endpoint=False)
+    Npix = 20
+    az = np.linspace(0, 2*np.pi, Npix, endpoint=False)
+    za = np.linspace(0, 1, Npix, endpoint=False)
 
     # Gaussian
     A = visibility.AnalyticBeam('gaussian', sigma=15.0)
     b = A.beam_val(az, za, freqs)
-    nt.assert_equal(b.shape, (Nfreqs, Nza))  # assert array shape
-    nt.assert_true(np.isclose(b[:, 0], 1.0).all())  # assert peak normalized
+    nt.assert_equal(b.shape, (Npix, Nfreqs))  # assert array shape
+    nt.assert_true(np.isclose(b[0, :], 1.0).all())  # assert peak normalized
 
     # Uniform
     A = visibility.AnalyticBeam('uniform')
     b = A.beam_val(az, za, freqs)
-    nt.assert_equal(b.shape, (Nfreqs, Nza))  # assert array shape
+    nt.assert_equal(b.shape, (Npix, Nfreqs))  # assert array shape
     nt.assert_true(np.isclose(b, 1.0).all())
 
     # Airy
     A = visibility.AnalyticBeam('airy', diameter=15.0)
     b = A.beam_val(az, za, freqs)
-    nt.assert_equal(b.shape, (Nfreqs, Nza))  # assert array shape
-    nt.assert_true(np.isclose(b[:, 0], 1.0).all())  # assert peak normalized
+    nt.assert_equal(b.shape, (Npix, Nfreqs))  # assert array shape
+    nt.assert_true(np.isclose(b[0, :], 1.0).all())  # assert peak normalized
 
     # custom
     A = visibility.AnalyticBeam(visibility.airy_disk)
     b2 = A.beam_val(az, za, freqs, diameter=15.0)
-    nt.assert_equal(b2.shape, (Nfreqs, Nza))  # assert array shape
-    nt.assert_true(np.isclose(b2[:, 0], 1.0).all())  # assert peak normalized
+    nt.assert_equal(b2.shape, (Npix, Nfreqs))  # assert array shape
+    nt.assert_true(np.isclose(b2[0, :], 1.0).all())  # assert peak normalized
     np.testing.assert_array_almost_equal(b, b2)  # assert its the same as airy
 
     # exceptions
@@ -210,4 +211,3 @@ def test_AnalyticBeam():
     nt.assert_raises(NotImplementedError, visibility.AnalyticBeam, "foo")
     nt.assert_raises(KeyError, visibility.AnalyticBeam, "gaussian")
     nt.assert_raises(KeyError, visibility.AnalyticBeam, "airy")
-

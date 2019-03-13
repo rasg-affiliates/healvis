@@ -18,7 +18,7 @@ import copy
 
 from pyuvdata import UVBeam
 
-from .skymodel import skymodel
+from .skymodel import SkyModel
 
 # Line profiling
 #from line_profiler import LineProfiler
@@ -55,10 +55,9 @@ def airy_disk(za_array, freqs, diameter=15.0):
         diameter: float, antenna diameter [meters]
 
     Returns:
-        beam: 2D array of shape (Nfreqs, Nza_array)
+        beam: 2D array of shape (Npix, Nfreqs) where Npix = len(za_array)
     """
-    Nfreqs, Nza_array = len(freqs), len(za_array)
-    xvals = diameter / 2. * np.sin(za_array.reshape(1, -1)) * 2. * np.pi * freqs.reshape(-1, 1) / c.value
+    xvals = diameter / 2. * np.sin(za_array.reshape(-1, 1)) * 2. * np.pi * freqs.reshape(1, -1) / c.value
     zeros = np.isclose(xvals, 0.0)
     beam = (2.0 * np.true_divide(j1(xvals), xvals, where=~zeros))**2.0
     beam[zeros] = 1.0
@@ -142,7 +141,7 @@ class PowerBeam(UVBeam):
             pol : str, requested visibility polarization, Ex: 'XX' or 'pI'.
 
         Returns:
-            beam_value : ndarray of beam power, with shape (Nfreqs, Naz_array)
+            beam_value : ndarray of beam power, with shape (Npix, Nfreqs) where Npix = len(za)
         """
         # type checks
         assert self.beam_type == 'power', "beam_type must be power. See efield_to_power()"
@@ -182,7 +181,7 @@ class PowerBeam(UVBeam):
             # healpix interpolation
             interp_beam, interp_basis = self._interp_healpix_bilinear(az_array=az, za_array=za, freq_array=freqs, polarizations=[pol])
 
-        return interp_beam[0, 0, 0]
+        return interp_beam[0, 0, 0].T
 
 
 class AnalyticBeam(object):
@@ -204,7 +203,8 @@ class AnalyticBeam(object):
                 with respect to zenith angle.
             Airy beam uses the dish diameter to set the airy beam width as a function of frequency.
             callable is any function that takes (za_array, freqs) in units [radians, Hz] respectively
-                and returns an ndarray of shape (Nfreqs, Nza_array) with power beam values.
+                and returns an ndarray of shape (Npix, Nfreqs) with power beam values, where
+                Npix = len(za_array)
         """
         if beam_type not in ['uniform', 'gaussian', 'airy'] and not callable(beam_type):
             raise NotImplementedError("Beam type " + str(beam_type) + " not available yet.")
@@ -235,16 +235,16 @@ class AnalyticBeam(object):
             kwargs : keyword arguments to pass if self.beam_type is callable
 
         Returns:
-            beam_value : ndarray of beam power, with shape (Nfreqs, Naz_array)
+            beam_value : ndarray of beam power, with shape (Npix, Nfreqs) where Npix = len(za)
         """
         if self.beam_type == 'uniform':
             if isinstance(az, np.ndarray):
-                beam_value = np.ones((len(freqs), len(az)), dtype=np.float)
+                beam_value = np.ones((len(za), len(freqs)), dtype=np.float)
             else:
                 beam_value = 1.0
         elif self.beam_type == 'gaussian':
             beam_value = np.exp(-(za**2) / (2 * self.sigma**2))  # Peak normalized
-            beam_value = np.repeat(beam_value[None], len(freqs), axis=0)
+            beam_value = np.repeat(beam_value[:, np.newaxis], len(freqs), axis=1)
         elif self.beam_type == 'airy':
             beam_value = airy_disk(za, freqs, diameter=self.diameter)
         elif callable(self.beam_type):
