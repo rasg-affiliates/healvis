@@ -89,7 +89,7 @@ def test_vis_calc():
     obs.set_fov(fov)
     obs.set_beam('uniform')
 
-    sky = skymodel(Nside=nside, freq_array=freqs, data=shell)
+    sky = skymodel.SkyModel(Nside=nside, freq_array=freqs, data=shell)
 
     visibs, times, bls = obs.make_visibilities(sky)
     print(visibs)
@@ -129,7 +129,7 @@ def test_offzenith_vis():
     resol = np.sqrt(pix_area)
     obs.set_beam('uniform')
 
-    sky = skymodel(Nside=Nside, freq_array=np.array(freqs), data=shell)
+    sky = skymodel.SkyModel(Nside=Nside, freq_array=np.array(freqs), data=shell)
 
     vis_calc, times, bls = obs.make_visibilities(sky)
 
