@@ -32,4 +32,4 @@ install:
   - pip install git+https://github.com/RadioAstronomySoftwareGroup/pyuvsim.git
 script:
   - nosetests healvis
-  - pycodestyle . --ignore=E501,W503
+  - pycodestyle healvis/* healvis/tests/* --ignore=E501,W503
