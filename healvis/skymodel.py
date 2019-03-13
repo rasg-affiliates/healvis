@@ -19,7 +19,7 @@ from .utils import mparray, comoving_voxel_volume, comoving_distance
 f21 = 1420e6
 
 
-class skymodel(object):
+class SkyModel(object):
 
     Npix = None
     Nside = None
@@ -45,7 +45,7 @@ class skymodel(object):
         if self._updated is None:
             self._updated = []
         self._updated.append(name)
-        super(skymodel, self).__setattr__(name, value)
+        super(SkyModel, self).__setattr__(name, value)
 
     def __eq__(self, other):
         for k in self.valid_params:
