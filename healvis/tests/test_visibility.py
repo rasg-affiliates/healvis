@@ -7,7 +7,7 @@ from healvis.data import DATA_PATH
 import os
 import copy
 
-## TODO
+# TODO
 # Test a skymodel that isn't a complete-sky shell (ie., use the sky.indices key)
 
 # HERA site
