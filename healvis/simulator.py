@@ -172,8 +172,9 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
     # ---------------------------
     # SkyModel
     # ---------------------------
-
     sky = parse_skyparam(skyparam)
+    if not np.all(sky.freq_array == obs.freqs):      # Make sure frequencies match
+        raise ValueError("SkyModel frequencies do not match observation frequencies")
 
     # ---------------------------
     # Run simulation
@@ -181,7 +182,7 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
 
     print("Running simulation")
     sys.stdout.flush()
-    visibs, time_array, baseline_inds = obs.make_visibilities(sky.data, Nprocs=Nprocs)
+    visibs, time_array, baseline_inds = obs.make_visibilities(sky, Nprocs=Nprocs)
 
     # ---------------------------
     # Beam^2 integral

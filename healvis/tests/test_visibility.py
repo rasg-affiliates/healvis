@@ -1,4 +1,4 @@
-from healvis import visibility
+from healvis import visibility, skymodel
 from astropy.cosmology import WMAP9
 import nose.tools as nt
 import numpy as np
@@ -6,6 +6,9 @@ import healpy as hp
 from healvis.data import DATA_PATH
 import os
 import copy
+
+## TODO
+# Test a skymodel that isn't a complete-sky shell (ie., use the sky.indices key)
 
 # HERA site
 latitude = -30.7215277777
@@ -86,7 +89,9 @@ def test_vis_calc():
     obs.set_fov(fov)
     obs.set_beam('uniform')
 
-    visibs, times, bls = obs.make_visibilities(shell)
+    sky = skymodel(Nside=nside, freq_array=freqs, data=shell)
+
+    visibs, times, bls = obs.make_visibilities(sky)
     print(visibs)
     nt.assert_true(np.isclose(np.real(visibs), 1.0).all())  # Unit point source at zenith
 
@@ -124,7 +129,9 @@ def test_offzenith_vis():
     resol = np.sqrt(pix_area)
     obs.set_beam('uniform')
 
-    vis_calc, times, bls = obs.make_visibilities(shell)
+    sky = skymodel(Nside=Nside, freq_array=np.array(freqs), data=shell)
+
+    vis_calc, times, bls = obs.make_visibilities(sky)
 
     phi_new, theta_new = hp.pix2ang(Nside, ind, lonlat=True)
     src_az, src_za = np.radians(phi - phi_new), np.radians(theta - theta_new)

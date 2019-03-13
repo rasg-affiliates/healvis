@@ -29,6 +29,7 @@ class SkyModel(object):
     ref_chan = None
     pspec_amp = None
     freq_array = None
+    pix_area_sr = None
     Z_array = None
     data = None
     _updated = []
@@ -54,6 +55,10 @@ class SkyModel(object):
                 return False
         return True
 
+    def set_data(self, data):
+        self.data = data
+        self._update()
+
     def _update(self):
         """
             Assume that whatever parameter was just changed has priority over others.
@@ -70,6 +75,7 @@ class SkyModel(object):
             if p == 'Nside':
                 if self.Npix is None:
                     self.Npix = 12 * self.Nside**2
+                self.pix_area_sr = 4*np.pi/(12. * self.Nside**2)
                 if 'indices' not in ud:
                     if self.indices is None:
                         self.indices = np.arange(self.Npix)
