@@ -17,7 +17,6 @@ from scipy.special import j1
 import copy
 
 from pyuvdata import UVBeam
-from pyuvsim.utils import progsteps
 
 from .skymodel import skymodel
 
@@ -459,14 +458,11 @@ class Observatory:
         man = mp.Manager()
         vis_array = man.Queue()
         Nfin = mp.Value('i', 0)
-        prog = progsteps(maxval=self.Ntimes)
         for pi in range(Nprocs):
             p = mp.Process(name=pi, target=self.vis_calc, args=(pcenter_list[pi], time_inds[pi], shell, vis_array, Nfin))
             p.start()
             procs.append(p)
         while (Nfin.value < self.Ntimes) and np.any([p.is_alive() for p in procs]):
-            prog.update(Nfin.value)
-        prog.finish()
         visibilities = []
         time_inds, baseline_inds = [], []
 

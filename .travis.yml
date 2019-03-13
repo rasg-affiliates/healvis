@@ -29,6 +29,7 @@ install:
   - conda install -c conda-forge healpy pycodestyle mpi4py
   - pip install coveralls
   - pip install git+https://github.com/RadioAstronomySoftwareGroup/pyuvdata.git
+  - pip install git+https://github.com/RadioAstronomySoftwareGroup/pyuvsim.git
 script:
   - nosetests healvis
   - pycodestyle . --ignore=E501,W503
