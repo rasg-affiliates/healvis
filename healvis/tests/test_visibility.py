@@ -167,7 +167,7 @@ def test_PowerBeam():
 
     # get beam value
     Npix = 20
-    az = np.linspace(0, 2*np.pi, Npix, endpoint=False)
+    az = np.linspace(0, 2 * np.pi, Npix, endpoint=False)
     za = np.linspace(0, 1, Npix, endpoint=False)
     b = P.beam_val(az, az, freqs, pol='XX')
     # check shape and rough value check (i.e. interpolation is near zenith as expected)
@@ -185,7 +185,7 @@ def test_AnalyticBeam():
     freqs = np.arange(120e6, 160e6, 4e6)
     Nfreqs = len(freqs)
     Npix = 20
-    az = np.linspace(0, 2*np.pi, Npix, endpoint=False)
+    az = np.linspace(0, 2 * np.pi, Npix, endpoint=False)
     za = np.linspace(0, 1, Npix, endpoint=False)
 
     # Gaussian

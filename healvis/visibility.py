@@ -21,14 +21,14 @@ from pyuvdata import UVBeam
 from .skymodel import SkyModel
 
 # Line profiling
-#from line_profiler import LineProfiler
-#import atexit
-#import __builtin__ as builtins
-#prof = LineProfiler()
-#builtins.__dict__['profile'] = prof
-#ofile = open('time_profiling.out', 'w')
+# from line_profiler import LineProfiler
+# import atexit
+# import __builtin__ as builtins
+# prof = LineProfiler()
+# builtins.__dict__['profile'] = prof
+# ofile = open('time_profiling.out', 'w')
 # atexit.register(ofile.close)
-#atexit.register(prof.print_stats, stream=ofile)
+# atexit.register(prof.print_stats, stream=ofile)
 
 c_ms = c.to('m/s').value
 
