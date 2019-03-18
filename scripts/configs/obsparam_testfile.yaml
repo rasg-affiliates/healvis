@@ -14,7 +14,7 @@ sources:
 skymodel:
     sigma: 0.031      # 31 mK
     Nside: 64
-    filepath: 'flatspectrum.hdf5'
+    savepath: 'flatspectrum.hdf5'
     ref_chan: 10
 time:
   Ntimes: 5   # 24 hours

@@ -3,8 +3,11 @@ from astropy.cosmology import WMAP9
 import nose.tools as nt
 import numpy as np
 import healpy as hp
+from healvis.data import DATA_PATH
+import os
+import copy
 
-## TODO
+# TODO
 # Test a skymodel that isn't a complete-sky shell (ie., use the sky.indices key)
 
 # HERA site
@@ -19,7 +22,7 @@ def test_pointings():
     dt_days = dt_min * 1 / 60. * 1 / 24.  # 20 minutes in days
 
     time_arr = np.arange(20) * dt_days + t0
-    obs = visibility.observatory(latitude, longitude)
+    obs = visibility.Observatory(latitude, longitude)
 
     obs.set_pointings(time_arr)
 
@@ -38,7 +41,7 @@ def test_az_za():
     Check the calculated azimuth and zenith angle of a point exactly 5 deg east on the sphere (az = 90d, za = 5d)
     """
     Nside = 128
-    obs = visibility.observatory(latitude, longitude)
+    obs = visibility.Observatory(latitude, longitude)
     center = [0, 0]
     lon, lat = [5, 0]
     ind0 = hp.ang2pix(Nside, lon, lat, lonlat=True)
@@ -61,7 +64,7 @@ def test_vis_calc():
     ant1_enu = np.array([0, 0, 0])
     ant2_enu = np.array([0.0, 14.6, 0])
 
-    bl = visibility.baseline(ant1_enu, ant2_enu)
+    bl = visibility.Baseline(ant1_enu, ant2_enu)
 
     freqs = np.array([1e8])
     nfreqs = 1
@@ -80,17 +83,17 @@ def test_vis_calc():
     shell[ind] = 1  # Jy/pix
     shell[ind] *= visibility.jy2Tstr(freqs[0], bm=pix_area)  # K
 
-    obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
+    obs = visibility.Observatory(latitude, longitude, array=[bl], freqs=freqs)
     obs.pointing_centers = centers
     obs.times_jd = np.array([1])
     obs.set_fov(fov)
     obs.set_beam('uniform')
 
-    sky = skymodel(Nside=nside, freq_array=freqs, data=shell)
+    sky = skymodel.SkyModel(Nside=nside, freq_array=freqs, data=shell)
 
     visibs, times, bls = obs.make_visibilities(sky)
     print(visibs)
-    nt.assert_true(np.real(visibs) == 1.0)  # Unit point source at zenith
+    nt.assert_true(np.isclose(np.real(visibs), 1.0).all())  # Unit point source at zenith
 
 
 def test_offzenith_vis():
@@ -103,7 +106,7 @@ def test_offzenith_vis():
     ant1_enu = np.array([0, 0, 0])
     ant2_enu = np.array([0.0, 140.6, 0])
 
-    bl = visibility.baseline(ant1_enu, ant2_enu)
+    bl = visibility.Baseline(ant1_enu, ant2_enu)
 
     Nside = 128
     ind = 9081
@@ -119,14 +122,14 @@ def test_offzenith_vis():
     shell[ind] = 1  # Jy/pix
     shell[ind] *= visibility.jy2Tstr(freqs[0], pix_area)  # K
 
-    obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
+    obs = visibility.Observatory(latitude, longitude, array=[bl], freqs=freqs)
     obs.pointing_centers = [[phi, theta]]
     obs.times_jd = np.array([1])
     obs.set_fov(fov)
     resol = np.sqrt(pix_area)
     obs.set_beam('uniform')
 
-    sky = skymodel(Nside=Nside, freq_array=np.array(freqs), data=shell)
+    sky = skymodel.SkyModel(Nside=Nside, freq_array=np.array(freqs), data=shell)
 
     vis_calc, times, bls = obs.make_visibilities(sky)
 
@@ -142,26 +145,76 @@ def test_offzenith_vis():
     print(vis_analytic)
     print(vis_calc)
 
-    nt.assert_true(np.isclose(vis_analytic, vis_calc, atol=1e-3))
+    nt.assert_true(np.isclose(vis_calc, vis_analytic, atol=1e-3).all())
 
 
-@nt.nottest
-def test_hera_beam():
-    beam_path = '/users/alanman/data/alanman/NickFagnoniBeams/HERA_NicCST_fullfreq.uvbeam'
-    beam = visibility.powerbeam(beam_path)
+def test_PowerBeam():
+    # load it
+    beam_path = os.path.join(DATA_PATH, "HERA_NF_dipole_power.beamfits")
+    P = visibility.PowerBeam(beam_path)
+    freqs = np.arange(120e6, 160e6, 4e6)
+    Nfreqs = len(freqs)
 
-    Nside = 64
-    center = [0, 0]
-    obs = visibility.observatory(latitude, longitude)
-    obs.set_fov(40)
-    za, az, inds = obs.calc_azza(Nside, center, return_inds=True)
-    bv = beam.beam_val(az, za)
-    beam.to_healpix(Nside)
-    pix2 = hp.query_disc(Nside, [0, 0, 0], np.radians(20))
-    map1 = np.zeros(12 * Nside**2)
-    map1[pix2] = beam.data_array[0, 0, 0, 0][pix2]
+    # test frequency interpolation
+    P2 = copy.deepcopy(P)
+    P3 = P2.interp_freq(freqs, inplace=False, kind='linear')
+    P2.interp_freq(freqs, inplace=True, kind='linear')
+    # assert inplace and not inplace are consistent
+    nt.assert_equal(P2, P3)
+    # assert correct frequencies
+    np.testing.assert_array_almost_equal(freqs, P3.freq_array[0])
+    nt.assert_true(P3.bandpass_array.shape[1] == P3.Nfreqs == Nfreqs)
 
-    nt.assert_equal(np.around(np.sum(map1)), np.around(np.sum(map0)))   # Close to nearest integer
+    # get beam value
+    Npix = 20
+    az = np.linspace(0, 2 * np.pi, Npix, endpoint=False)
+    za = np.linspace(0, 1, Npix, endpoint=False)
+    b = P.beam_val(az, az, freqs, pol='XX')
+    # check shape and rough value check (i.e. interpolation is near zenith as expected)
+    nt.assert_equal(b.shape, (Npix, Nfreqs))
+    nt.assert_true(np.isclose(b.max(), 1.0, atol=1e-3))
 
-    # Question --- Which beam component is the right one? (Can I construct pseudo-stokes I?)
-#    import IPython; IPython.embed()
+    # shift frequnecies by a delta and assert beams are EXACLTY the same (i.e. no freq interpolation)
+    # delta must be larger than UVBeam._inter_freq tol, but small enough
+    # to keep the same freq nearest neighbors
+    b2 = P.beam_val(az, az, freqs + 1e6, pol='XX')
+    np.testing.assert_array_almost_equal(b, b2)
+
+
+def test_AnalyticBeam():
+    freqs = np.arange(120e6, 160e6, 4e6)
+    Nfreqs = len(freqs)
+    Npix = 20
+    az = np.linspace(0, 2 * np.pi, Npix, endpoint=False)
+    za = np.linspace(0, 1, Npix, endpoint=False)
+
+    # Gaussian
+    A = visibility.AnalyticBeam('gaussian', sigma=15.0)
+    b = A.beam_val(az, za, freqs)
+    nt.assert_equal(b.shape, (Npix, Nfreqs))  # assert array shape
+    nt.assert_true(np.isclose(b[0, :], 1.0).all())  # assert peak normalized
+
+    # Uniform
+    A = visibility.AnalyticBeam('uniform')
+    b = A.beam_val(az, za, freqs)
+    nt.assert_equal(b.shape, (Npix, Nfreqs))  # assert array shape
+    nt.assert_true(np.isclose(b, 1.0).all())
+
+    # Airy
+    A = visibility.AnalyticBeam('airy', diameter=15.0)
+    b = A.beam_val(az, za, freqs)
+    nt.assert_equal(b.shape, (Npix, Nfreqs))  # assert array shape
+    nt.assert_true(np.isclose(b[0, :], 1.0).all())  # assert peak normalized
+
+    # custom
+    A = visibility.AnalyticBeam(visibility.airy_disk)
+    b2 = A.beam_val(az, za, freqs, diameter=15.0)
+    nt.assert_equal(b2.shape, (Npix, Nfreqs))  # assert array shape
+    nt.assert_true(np.isclose(b2[0, :], 1.0).all())  # assert peak normalized
+    np.testing.assert_array_almost_equal(b, b2)  # assert its the same as airy
+
+    # exceptions
+    A = visibility.AnalyticBeam("uniform")
+    nt.assert_raises(NotImplementedError, visibility.AnalyticBeam, "foo")
+    nt.assert_raises(KeyError, visibility.AnalyticBeam, "gaussian")
+    nt.assert_raises(KeyError, visibility.AnalyticBeam, "airy")

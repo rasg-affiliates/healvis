@@ -11,15 +11,16 @@ from pyuvdata import utils as uvutils
 import pyuvsim
 
 from . import visibility
-from .skymodel import skymodel
+from .skymodel import SkyModel
 
 
-def parse_skymodel(param_dict):
+def parse_skyparam(param_dict):
     """
-    Either load a skymodel from file or construct.
+    Either load a sky model from file or construct one and
+    return a SkyModel object
     """
 
-    sky = skymodel()
+    sky = SkyModel()
     if 'filepath' in param_dict:
         sky.read_hdf5(param_dict['filepath'])
         return sky
@@ -41,7 +42,7 @@ def parse_skymodel(param_dict):
 
 def run_simulation(param_file, Nprocs=None, sjob_id=None):
     """
-    Parse input parameter file, construct UVData and skymodel objects, and run simulation.
+    Parse input parameter file, construct UVData and SkyModel objects, and run simulation.
 
     (Moved code from wrapper to here)
     """
@@ -139,7 +140,7 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
     uv_obj.Nants_data = np.unique(bls).size
     for (a1, a2) in bls:
         i1, i2 = np.where(anums == a1), np.where(anums == a2)
-        array.append(visibility.baseline(enu[i1], enu[i2]))
+        array.append(visibility.Baseline(enu[i1], enu[i2]))
         bl_array.append(uvutils.antnums_to_baseline(a1, a2, Nants))
     Nbls = len(bl_array)
     uv_obj.Nbls = Nbls
@@ -147,7 +148,7 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
 
     bl_array = np.array(bl_array)
     freqs = freq_dict['freq_array'][0]  # Hz
-    obs = visibility.observatory(np.degrees(lat), np.degrees(lon), array=array, freqs=freqs)
+    obs = visibility.Observatory(np.degrees(lat), np.degrees(lon), array=array, freqs=freqs)
     obs.set_fov(fov)
     print("Observatory built.")
     print("Nbls: ", Nbls)
@@ -169,12 +170,11 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
     obs.set_beam(beam_type, **beam_attr)
 
     # ---------------------------
-    # Skymodel
+    # SkyModel
     # ---------------------------
-
-    skymodel = parse_skymodel(skyparam)
-    if not np.all(skymodel.freq_array == obs.freqs):      # Make sure frequencies match
-        raise ValueError("Skymodel frequencies do not match observation frequencies")
+    sky = parse_skyparam(skyparam)
+    if not np.all(sky.freq_array == obs.freqs):      # Make sure frequencies match
+        raise ValueError("SkyModel frequencies do not match observation frequencies")
 
     # ---------------------------
     # Run simulation
@@ -182,14 +182,14 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
 
     print("Running simulation")
     sys.stdout.flush()
-    visibs, time_array, baseline_inds = obs.make_visibilities(skymodel, Nprocs=Nprocs)
+    visibs, time_array, baseline_inds = obs.make_visibilities(sky, Nprocs=Nprocs)
 
     # ---------------------------
     # Beam^2 integral
     # ---------------------------
-    za, az = obs.calc_azza(skymodel.Nside, obs.pointing_centers[0])
-    beam_sq_int = np.sum(obs.beam.beam_val(az[:, np.newaxis], za[:, np.newaxis], freqs[np.newaxis, :])**2, axis=0)
-    om = 4 * np.pi / (12 * skymodel.Nside)
+    za, az = obs.calc_azza(sky.Nside, obs.pointing_centers[0])
+    beam_sq_int = np.sum(obs.beam.beam_val(az, za, freqs)**2, axis=1)
+    om = 4 * np.pi / (12 * sky.Nside)
     beam_sq_int = beam_sq_int * om
 
     # ---------------------------
@@ -218,15 +218,15 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
     if sjob_id is None:
         sjob_id = ''
 
-    sky_sigma = skymodel.pspec_amp
+    sky_sigma = sky.pspec_amp
     if beam_type == 'gaussian':
         fwhm = beam_attr['sigma'] * 2.355
-        uv_obj.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sky_sigma, 'bm_fwhm': fwhm, 'nside': skymodel.Nside, 'slurm_id': sjob_id}
+        uv_obj.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sky_sigma, 'bm_fwhm': fwhm, 'nside': sky.Nside, 'slurm_id': sjob_id}
     elif beam_type == 'airy':
-        uv_obj.extra_keywords = {'bsq_int': beam_sq_int, 'skysig': sky_sigma, 'nside': skymodel.Nside, 'slurm_id': sjob_id}
+        uv_obj.extra_keywords = {'bsq_int': beam_sq_int, 'skysig': sky_sigma, 'nside': sky.Nside, 'slurm_id': sjob_id}
         # Since the beam is frequency dependent, we need to pass along the full set of beam integrals somehow.
     else:
-        uv_obj.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sky_sigma, 'nside': skymodel.Nside, 'slurm_id': sjob_id}
+        uv_obj.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sky_sigma, 'nside': sky.Nside, 'slurm_id': sjob_id}
 
     for sky_i in range(Nskies):
 
@@ -251,7 +251,7 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
 
         if 'outfile_prefix' not in filing_params:
             filing_params['outfile_prefix'] = \
-                'healvis_{:.2f}hours_Nside{}_sigma{:.3f}'.format(Ntimes / (3600. / 11.0), skymodel.Nside, sky_sigma)
+                'healvis_{:.2f}hours_Nside{}_sigma{:.3f}'.format(Ntimes / (3600. / 11.0), sky.Nside, sky_sigma)
 
         if beam_type == 'gaussian':
             filing_params['outfile_prefix'] += '_fwhm{:.3f}'.format(fwhm)
