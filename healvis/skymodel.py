@@ -81,6 +81,14 @@ class SkyModel(object):
                         self.indices = np.arange(self.Npix)
             if p == 'indices':
                 self.Npix = self.indices.size
+            if p == 'data':
+                # Make sure the data array has a Nskies axis
+                s = self.data.shape
+                if len(s) == 2:
+                    if not ((s[0] == self.Npix) and (s[1] == self.Nfreqs)):
+                        raise ValueError("Invalid data array shape: " + str(s))
+                    else:
+                        self.data = self.data.reshape( (1,) + s)
         self._updated = []
 
     def make_flat_spectrum_shell(self, sigma, shared_mem=False):
