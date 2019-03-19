@@ -1,6 +1,5 @@
 Nants: 65
 beam_paths:
-        # 0: 'gaussian'
     0: 'airy'
 #sigma: 0.089897
 diameter: 14.6

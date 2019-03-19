@@ -22,7 +22,7 @@ def parse_skyparam(param_dict):
 
     sky = SkyModel()
     if 'filepath' in param_dict:
-        sky.read_hdf5(param_dict['filepath'])
+        sky.read_hdf5(param_dict['filepath'], shared_mem=True)
         return sky
 
     # Construct a flat spectrum shell.
@@ -218,18 +218,19 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
     if sjob_id is None:
         sjob_id = ''
 
-    sky_sigma = sky.pspec_amp
+    uv_obj.extra_keywords = {'nside': sky.Nside, 'slurm_id': sjob_id}
     if beam_type == 'gaussian':
         fwhm = beam_attr['sigma'] * 2.355
-        uv_obj.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sky_sigma, 'bm_fwhm': fwhm, 'nside': sky.Nside, 'slurm_id': sjob_id}
+        uv_obj.extra_keywords['bm_fwhm'] = fwhm
+        uv_obj.extra_keywords['bsq_int'] = beam_sq_int[0]
     elif beam_type == 'airy':
-        uv_obj.extra_keywords = {'bsq_int': beam_sq_int, 'skysig': sky_sigma, 'nside': sky.Nside, 'slurm_id': sjob_id}
-        # Since the beam is frequency dependent, we need to pass along the full set of beam integrals somehow.
-    else:
-        uv_obj.extra_keywords = {'bsq_int': beam_sq_int[0], 'skysig': sky_sigma, 'nside': sky.Nside, 'slurm_id': sjob_id}
+        uv_obj.extra_keywords['bm_diam'] = beam_attr['diameter']
+        uv_obj.extra_keywords['bsq_int'] = beam_sq_int[0]
+
+    if sky.pspec_amp is not None:
+        uv_obj.extra_keywords['skysig'] = sky.pspec_amp   # Flat spectrum sources
 
     for sky_i in range(Nskies):
-
         data_arr = visibs[:, sky_i, :]  # (Nblts, Nskies, Nfreqs)
         data_arr = data_arr[:, np.newaxis, :, np.newaxis]  # (Nblts, Nspws, Nfreqs, Npol)
         uv_obj.data_array = data_arr
