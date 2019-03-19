@@ -1,13 +1,13 @@
 #!/bin/env python
 
-# SBATCH -J healvis
-# SBATCH -t 2-00:00:00
-# SBATCH --cpus-per-task=24
-# SBATCH --mem=100G
-# SBATCH -A jpober-condo
-# SBATCH --qos=jpober-condo
-# SBATCH --mail-type=FAIL
-# SBATCH --mail-user=adam_lanman@brown.edu
+#SBATCH -J healvis
+#SBATCH -t 2-00:00:00
+#SBATCH --cpus-per-task=24
+#SBATCH --mem=100G
+#SBATCH -A jpober-condo
+#SBATCH --qos=jpober-condo
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=adam_lanman@brown.edu
 
 """
 Visibility simulation
