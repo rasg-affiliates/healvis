@@ -67,28 +67,28 @@ class SkyModel(object):
         hpx_params = ['Nside', 'Npix', 'data', 'indices']
         z_params = ['Z_array', 'freq_array', 'Nfreqs', 'r_mpc']
         ud = np.unique(self._updated)
-        for p in ud:
-            if p == 'freq_array':
-                self.Z_array = f21 / self.freq_array - 1.
-                self.r_mpc = comoving_distance(self.Z_array)
-                self.Nfreqs = self.freq_array.size
-            if p == 'Nside':
-                if self.Npix is None:
-                    self.Npix = 12 * self.Nside**2
-                self.pix_area_sr = 4 * np.pi / (12. * self.Nside**2)
-                if 'indices' not in ud:
-                    if self.indices is None:
-                        self.indices = np.arange(self.Npix)
-            if p == 'indices':
-                self.Npix = self.indices.size
-            if p == 'data':
-                # Make sure the data array has a Nskies axis
-                s = self.data.shape
-                if len(s) == 2:
-                    if not ((s[0] == self.Npix) and (s[1] == self.Nfreqs)):
-                        raise ValueError("Invalid data array shape: " + str(s))
-                    else:
-                        self.data = self.data.reshape( (1,) + s)
+        if 'freq_array' in ud:
+            self.Z_array = f21 / self.freq_array - 1.
+            self.r_mpc = comoving_distance(self.Z_array)
+            self.Nfreqs = self.freq_array.size
+        if 'Nside' in ud:
+            if self.Npix is None:
+                self.Npix = 12 * self.Nside**2
+            self.pix_area_sr = 4 * np.pi / (12. * self.Nside**2)
+            if 'indices' not in ud:
+                if self.indices is None:
+                    self.indices = np.arange(self.Npix)
+        if 'indices' in ud:
+            self.Npix = self.indices.size
+        if 'data' in ud:
+            # Make sure the data array has a Nskies axis
+            s = self.data.shape
+            if len(s) == 2:
+                print(self.Npix, self.Nfreqs)
+                if not ((s[0] == self.Npix) and (s[1] == self.Nfreqs)):
+                    raise ValueError("Invalid data array shape: " + str(s))
+                else:
+                    self.data = self.data.reshape((1,) + s)
         self._updated = []
 
     def make_flat_spectrum_shell(self, sigma, shared_mem=False):

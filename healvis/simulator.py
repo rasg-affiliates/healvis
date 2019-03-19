@@ -218,7 +218,7 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
     if sjob_id is None:
         sjob_id = ''
 
-    uv_obj.extra_keywords = {'nside' : sky.Nside, 'slurm_id' : sjob_id }
+    uv_obj.extra_keywords = {'nside': sky.Nside, 'slurm_id': sjob_id}
     if beam_type == 'gaussian':
         fwhm = beam_attr['sigma'] * 2.355
         uv_obj.extra_keywords['bm_fwhm'] = fwhm
