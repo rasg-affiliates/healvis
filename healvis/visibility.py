@@ -45,7 +45,7 @@ def jy2Tstr(f, bm=1.0):
     return 1e-23 * lam**2 / (2 * k_boltz * bm)
 
 
-def airy_disk(za_array, freqs, diameter=15.0):
+def airy_disk(za_array, freqs, diameter=15.0, **kwargs):
     """
     Airy disk function for an antenna of specified diameter.
 
@@ -383,8 +383,23 @@ class Observatory:
         """
         self.fov = fov
 
-    def set_beam(self, beam_type='uniform', **kwargs):
-        self.beam = AnalyticBeam(beam_type, **kwargs)
+    def set_beam(self, beam='uniform', **kwargs):
+        """
+        Set the beam of the array.
+
+        Args:
+            beam : str
+                Input to PowerBeam or AnalyticBeam. If beam is
+                a viable input to AnalyticBeam, then instantiates
+                an AnalyticBeam, otherwise assumes beam is a filepath
+                to a beamfits and instantiates a PowerBeam.
+            kwargs : keyword arguments
+                kwargs to pass to AnalyticBeam instantiation.
+        """
+        if beam in ['uniform', 'gaussian', 'airy'] or callable(beam):
+            self.beam = AnalyticBeam(beam, **kwargs)
+        else:
+            self.beam = PowerBeam(beam)
 
     def get_observed_region(self, Nside):
         """
@@ -416,7 +431,6 @@ class Observatory:
             memory_usage_GB = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6
             za_arr, az_arr, pix = self.calc_azza(self.Nside, c, return_inds=True)
             beam_cube = self.beam.beam_val(az_arr, za_arr, self.freqs)
-
             for bi, bl in enumerate(self.array):
                 fringe_cube = bl.get_fringe(az_arr, za_arr, self.freqs)
                 vis = np.sum(shell[..., pix, :] * beam_cube * fringe_cube, axis=-2)

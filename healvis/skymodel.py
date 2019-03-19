@@ -16,7 +16,7 @@ from .utils import mparray, comoving_voxel_volume, comoving_distance
 
 # Moving a lot from eorsky to here.
 
-f21 = 1420e6
+f21 = 1.420405751e9
 
 
 class SkyModel(object):
