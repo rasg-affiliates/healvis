@@ -416,7 +416,7 @@ class Observatory:
             memory_usage_GB = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6
             za_arr, az_arr, pix = self.calc_azza(self.Nside, c, return_inds=True)
             beam_cube = self.beam.beam_val(az_arr, za_arr, self.freqs)
-            beam_cube = np.moveaxis(beam_cube, -1, 0)
+
             for bi, bl in enumerate(self.array):
                 fringe_cube = bl.get_fringe(az_arr, za_arr, self.freqs)
                 vis = np.sum(shell[..., pix, :] * beam_cube * fringe_cube, axis=-2)
