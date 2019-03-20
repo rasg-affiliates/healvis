@@ -43,7 +43,7 @@ def test_update():
     sky.make_flat_spectrum_shell(sigma=2.0)
     verify_update(sky)
 
-                                                                                    
+
 def test_flat_spectrum():
     Nfreqs = 100
     freq_array = np.linspace(167.0e6, 177.0e6, Nfreqs)

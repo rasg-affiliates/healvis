@@ -216,4 +216,3 @@ class AnalyticBeam(object):
             beam_value = self.beam_type(za, freqs, **kwargs)
 
         return beam_value
-

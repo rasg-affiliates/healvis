@@ -238,5 +238,3 @@ def gsm_shell(Nside, freq_array):
     maps = maps[:, :Npix]
 
     return maps.T
-
-
