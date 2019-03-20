@@ -19,7 +19,7 @@ and save to MIRIAD file
 """
 
 import numpy as np
-from healvis import visibility, utils
+from healvis import observatory, utils
 import pylab as pl
 from scipy.stats import binned_statistic
 import os, sys, yaml
@@ -150,7 +150,7 @@ if 'select' in param_dict:
 uv_obj.Nants_data = np.unique(bls).size
 for (a1, a2) in bls:
     i1, i2 = np.where(anums == a1), np.where(anums == a2)
-    array.append(visibility.baseline(enu[i1], enu[i2]))
+    array.append(observatory.Baseline(enu[i1], enu[i2]))
     bl_array.append(uvutils.antnums_to_baseline(a1, a2, Nants))
 Nbls = len(bl_array)
 uv_obj.Nbls = Nbls
@@ -158,7 +158,7 @@ uv_obj.Nblts = Nbls * Ntimes
 
 bl_array = np.array(bl_array)
 freqs = freq_dict['freq_array'][0]        #Hz
-obs = visibility.observatory(np.degrees(lat), np.degrees(lon), array=array, freqs=freqs)
+obs = observatory.Observatory(np.degrees(lat), np.degrees(lon), array=array, freqs=freqs)
 obs.set_fov(fov)
 print("Observatory built.")
 print("Nbls: ", Nbls)

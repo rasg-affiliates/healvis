@@ -18,7 +18,7 @@ Requires eorsky
 """
 
 import numpy as np
-from healvis import visibility
+from healvis import observatory
 import pylab as pl
 from scipy.stats import binned_statistic
 import os, sys, yaml
@@ -45,7 +45,7 @@ altitude = 1073.
 fov = args.fov  #Deg
 ant1_enu = np.array([0, 0, 0])
 ant2_enu = np.array([0.0, args.bllen , 0])
-bl = visibility.baseline(ant1_enu, ant2_enu)
+bl = observatory.Baseline(ant1_enu, ant2_enu)
 
 # Time
 
@@ -75,7 +75,7 @@ Npix = 12*Nside**2
 visibs = []
 fwhm = args.fwhm
 sigma = fwhm/2.355
-obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
+obs = observatory.Observatory(latitude, longitude, array=[bl], freqs=freqs)
 obs.set_fov(fov)
 obs.set_pointings(time_arr)
 obs.set_beam('gaussian', sigma=sigma)

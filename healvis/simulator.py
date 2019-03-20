@@ -10,8 +10,8 @@ from pyuvdata import UVData
 from pyuvdata import utils as uvutils
 import pyuvsim
 
-from . import visibility
-from .skymodel import SkyModel
+from . import observatory, version
+from .sky_model import SkyModel
 
 
 def parse_skyparam(param_dict):
@@ -40,7 +40,7 @@ def parse_skyparam(param_dict):
     return sky
 
 
-def run_simulation(param_file, Nprocs=None, sjob_id=None):
+def run_simulation(param_file, Nprocs=None, sjob_id=None, add_to_history=''):
     """
     Parse input parameter file, construct UVData and SkyModel objects, and run simulation.
 
@@ -140,7 +140,7 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
     uv_obj.Nants_data = np.unique(bls).size
     for (a1, a2) in bls:
         i1, i2 = np.where(anums == a1), np.where(anums == a2)
-        array.append(visibility.Baseline(enu[i1], enu[i2]))
+        array.append(observatory.Baseline(enu[i1], enu[i2]))
         bl_array.append(uvutils.antnums_to_baseline(a1, a2, Nants))
     Nbls = len(bl_array)
     uv_obj.Nbls = Nbls
@@ -148,7 +148,7 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
 
     bl_array = np.array(bl_array)
     freqs = freq_dict['freq_array'][0]  # Hz
-    obs = visibility.Observatory(np.degrees(lat), np.degrees(lon), array=array, freqs=freqs)
+    obs = observatory.Observatory(np.degrees(lat), np.degrees(lon), array=array, freqs=freqs)
     obs.set_fov(fov)
     print("Observatory built.")
     print("Nbls: ", Nbls)
@@ -208,7 +208,7 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None):
     uv_obj.set_uvws_from_antenna_positions()
     uv_obj.channel_width = np.diff(freqs)[0]
     uv_obj.integration_time = np.ones(uv_obj.Nblts) * np.diff(time_arr)[0] * 24 * 3600.  # Seconds
-    uv_obj.history = 'healvis'
+    uv_obj.history = version.history_string(notes=add_to_history)
     uv_obj.set_drift()
     uv_obj.telescope_name = 'healvis'
     uv_obj.instrument = 'simulator'

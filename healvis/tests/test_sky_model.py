@@ -1,8 +1,9 @@
-from healvis.skymodel import SkyModel
+from healvis import sky_model
 from astropy.cosmology import Planck15
 import nose.tools as nt
 import numpy as np
 import os
+import healpy as hp
 
 
 def verify_update(sky_obj):
@@ -36,7 +37,7 @@ def verify_update(sky_obj):
 def test_update():
     Nfreqs = 100
     freq_array = np.linspace(167.0, 177.0, Nfreqs)
-    sky = SkyModel(Nside=64, freq_array=freq_array)
+    sky = sky_model.SkyModel(Nside=64, freq_array=freq_array)
     verify_update(sky)
     sky.ref_chan = 50
     sky.make_flat_spectrum_shell(sigma=2.0)
@@ -45,20 +46,25 @@ def test_update():
 
 def test_flat_spectrum():
     Nfreqs = 100
-    freq_array = np.linspace(167.0, 177.0, Nfreqs)
-    sky = SkyModel(Nside=64, freq_array=freq_array, ref_chan=50)
-    sky.make_flat_spectrum_shell(sigma=2.0)
+    freq_array = np.linspace(167.0e6, 177.0e6, Nfreqs)
+    sigma = 2.0
+    Nside = 32
+    Npix = hp.nside2npix(Nside)
+    Nskies = 1
+    maps = sky_model.flat_spectrum_noise_shell(sigma, freq_array, Nside, Nskies)
+    nt.assert_equal(maps.shape, (Nskies, Npix, Nfreqs))
+    # any other checks?
 
 
 def test_write_read():
     testfilename = 'test_out.hdf5'
     Nfreqs = 10
     freq_array = np.linspace(167.0, 177.0, Nfreqs)
-    sky = SkyModel(Nside=64, freq_array=freq_array, ref_chan=5)
+    sky = sky_model.SkyModel(Nside=64, freq_array=freq_array, ref_chan=5)
     sky.make_flat_spectrum_shell(sigma=2.0)
     sky.write_hdf5(testfilename)
-    sky2 = SkyModel()
-    sky3 = SkyModel()
+    sky2 = sky_model.SkyModel()
+    sky3 = sky_model.SkyModel()
     sky2.read_hdf5(testfilename, shared_mem=True)
     sky3.read_hdf5(testfilename)
     nt.assert_equal(sky, sky2)

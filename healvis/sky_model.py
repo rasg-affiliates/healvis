@@ -11,12 +11,18 @@ import numpy as np
 import os
 import h5py
 from astropy.cosmology import Planck15 as cosmo
+import healpy as hp
 
 from .utils import mparray, comoving_voxel_volume, comoving_distance
 
-# Moving a lot from eorsky to here.
+try:
+    import pygsm
+    pygsm_import = True
+except ImportError:
+    pygsm_import = False
 
-f21 = 1420e6
+
+f21 = 1.420405751e9
 
 
 class SkyModel(object):
@@ -66,7 +72,7 @@ class SkyModel(object):
         """
         hpx_params = ['Nside', 'Npix', 'data', 'indices']
         z_params = ['Z_array', 'freq_array', 'Nfreqs', 'r_mpc']
-        ud = np.unique(self._updated)
+        ud = list(np.unique(self._updated))
         if 'freq_array' in ud:
             self.Z_array = f21 / self.freq_array - 1.
             self.r_mpc = comoving_distance(self.Z_array)
@@ -84,7 +90,7 @@ class SkyModel(object):
             # Make sure the data array has a Nskies axis
             s = self.data.shape
             if len(s) == 2:
-                print(self.Npix, self.Nfreqs)
+                # print(self.Npix, self.Nfreqs)
                 if not ((s[0] == self.Npix) and (s[1] == self.Nfreqs)):
                     raise ValueError("Invalid data array shape: " + str(s))
                 else:
@@ -106,20 +112,8 @@ class SkyModel(object):
         if len(missing) > 0:
             raise ValueError("Missing required parameters: " + ', '.join(missing))
 
-        sig = sigma
-        if shared_mem:
-            self.data = mparray((self.Nskies, self.Npix, self.Nfreqs), dtype=float)
-        else:
-            self.data = np.zeros((self.Nskies, self.Npix, self.Nfreqs), dtype=float)
-
-        dnu = np.diff(self.freq_array)[0] / 1e6
-        om = 4 * np.pi / float(12 * self.Nside**2)
-        Zs = f21 / self.freq_array - 1
-        dV0 = comoving_voxel_volume(Zs[self.ref_chan], dnu, om)
-        for fi in range(self.Nfreqs):
-            dV = comoving_voxel_volume(Zs[fi], dnu, om)
-            s = sig * np.sqrt(dV0 / dV)
-            self.data[:, :, fi] = np.random.normal(0.0, s, (self.Nskies, self.Npix))
+        self.data = flat_spectrum_noise_shell(sigma, self.freq_array, self.Nside, self.Nskies,
+                                              ref_chan=self.ref_chan, shared_mem=shared_mem)
         self.pspec_amp = sigma
         self._update()
 
@@ -168,3 +162,76 @@ class SkyModel(object):
                         dset = fileobj.create_dataset(k, data=d)
                     else:
                         dset = fileobj.create_dataset(k, data=d, compression='gzip', compression_opts=9)
+
+
+def flat_spectrum_noise_shell(sigma, freq_array, Nside, Nskies, ref_chan=0, shared_mem=False):
+    """
+    Make a flat-spectrum noise-like shell.
+
+    Args:
+        sigma : float
+            Power spectrum amplitude
+        freq_array : ndarray
+            Frequencies [Hz]
+        Nside : int
+            HEALpix Nside resolution
+        Nskies : int
+            Number of indepenent skies to simulate
+        ref_chan : int
+            freq_array reference channel index for comoving volume factor
+        shared_mem : bool
+            If True use mparray to generate data
+
+    Returns:
+        data : ndarray, shape (Nskies, Npix, Nfreqs)
+            EoR shell as HEALpix maps
+    """
+    # generate empty array
+    Nfreqs = len(freq_array)
+    Npix = hp.nside2npix(Nside)
+    if shared_mem:
+        data = mparray((Nskies, Npix, Nfreqs), dtype=float)
+    else:
+        data = np.zeros((Nskies, Npix, Nfreqs), dtype=float)
+
+    # setup parameters
+    dnu = np.diff(freq_array)[0]
+    om = 4 * np.pi / float(12 * Nside**2)
+    Zs = f21 / freq_array - 1.0
+    dV0 = comoving_voxel_volume(Zs[ref_chan], dnu, om)
+
+    # iterate over frequencies
+    for i in range(Nfreqs):
+        dV = comoving_voxel_volume(Zs[i], dnu, om)
+        amp = sigma * np.sqrt(dV0 / dV)
+        data[:, :, i] = np.random.normal(0.0, amp, (Nskies, Npix))
+
+    return data
+
+
+def gsm_shell(Nside, freq_array):
+    """
+    Generate a Global Sky Model shell
+
+    Args:
+        Nside : int
+            Nside resolution of HEALpix maps
+        freq_array : ndarray
+            Array of frequencies [Hz]
+
+    Returns:
+        data : ndarray, shape (Npix, Nfreqs)
+            GSM shell as HEALpix maps
+    """
+    assert pygsm_import, "pygsm package not found. This is required to use GSM functionality."
+
+    maps = pygsm.GlobalSkyModel(freq_unit='Hz', basemap='haslam').generate(freq_array) # Units K
+
+    rot = hp.Rotator(coord=['G', 'C'])
+    Npix = Nside**2 * 12
+    for fi, f in enumerate(freq_array):
+        maps[fi] = rot.rotate_map_pixel(maps[fi])  # Convert to equatorial coordinates (ICRS)
+        maps[fi, :Npix] = hp.ud_grade(maps[fi], Nside)
+    maps = maps[:, :Npix]
+
+    return maps.T
