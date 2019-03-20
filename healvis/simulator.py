@@ -250,14 +250,15 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None, add_to_history=''):
         elif out_format == 'miriad':
             filing_params['outfile_suffix'] = 'uv'
 
-        if 'outfile_prefix' not in filing_params:
-            filing_params['outfile_prefix'] = \
-                'healvis_{:.2f}hours_Nside{}_sigma{:.3f}'.format(Ntimes / (3600. / 11.0), sky.Nside, sky_sigma)
+        if 'outfile_name' not in filing_params:
+            if 'outfile_prefix' not in filing_params:
+                filing_params['outfile_prefix'] = \
+                    'healvis_{:.2f}hours_Nside{}'.format(Ntimes / (3600. / 11.0), sky.Nside)
 
-        if beam_type == 'gaussian':
-            filing_params['outfile_prefix'] += '_fwhm{:.3f}'.format(fwhm)
-        if beam_type == 'airy':
-            filing_params['outfile_prefix'] += '_diam{:.2f}'.format(beam.diameter)
+            if beam_type == 'gaussian':
+                filing_params['outfile_prefix'] += '_fwhm{:.3f}'.format(fwhm)
+            if beam_type == 'airy':
+                filing_params['outfile_prefix'] += '_diam{:.2f}'.format(beam.diameter)
 
         while True:
             try:

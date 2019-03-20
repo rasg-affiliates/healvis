@@ -225,7 +225,7 @@ def gsm_shell(Nside, freq_array):
     """
     assert pygsm_import, "pygsm package not found. This is required to use GSM functionality."
 
-    maps = pygsm.GlobalSkyModel(freq_unit='Hz', basemap='haslam').generate(freq_array) # Units K
+    maps = pygsm.GlobalSkyModel(freq_unit='Hz', basemap='haslam').generate(freq_array)  # Units K
 
     rot = hp.Rotator(coord=['G', 'C'])
     Npix = Nside**2 * 12

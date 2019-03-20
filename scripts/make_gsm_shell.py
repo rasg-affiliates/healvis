@@ -6,6 +6,7 @@ import argparse
 import yaml
 import healpy as hp
 import os
+import sys
 
 try:
     import pygsm
