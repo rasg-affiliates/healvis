@@ -1,6 +1,6 @@
 
 import numpy as np
-from healvis import visibility
+from healvis import observatory
 import pylab as pl
 
 
@@ -9,7 +9,7 @@ longitude =  21.4283055554
 fov = 2  #Deg
 ant1_enu = np.array([0, 0, 0])
 ant2_enu = np.array([0.0, 14.6, 0])
-bl = visibility.baseline(ant1_enu, ant2_enu)
+bl = observatory.Baseline(ant1_enu, ant2_enu)
 
 # Time
 Ntimes = 100
@@ -23,7 +23,7 @@ time_arr_long = np.arange(Ntimes) * dt_days_long + t0
 
 time_arr = time_arr_short
 freqs = [1e8]
-obs = visibility.observatory(latitude, longitude, array=[bl], freqs=freqs)
+obs = observatory.Observatory(latitude, longitude, array=[bl], freqs=freqs)
 obs.set_fov(fov)
 
 obs.set_pointings(time_arr)

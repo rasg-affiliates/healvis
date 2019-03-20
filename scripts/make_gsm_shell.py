@@ -13,7 +13,7 @@ except ImportError:
     raise ImportError("pygsm package not found. This is required to use {}".format(os.path.basename(__file__)))
 import pyuvsim
 
-from healvis import skymodel
+from healvis import sky_model
 
 
 """
@@ -39,7 +39,7 @@ freq_dict = pyuvsim.simsetup.parse_frequency_params(param_dict['freq'])
 
 freq_array = freq_dict['freq_array'][0]
 
-sky = skymodel.SkyModel(freq_array=freq_array)
+sky = sky_model.SkyModel(freq_array=freq_array)
 sky.Nside = args.nside
 
 maps = pygsm.GlobalSkyModel(freq_unit='Hz', basemap='haslam').generate(freq_array)

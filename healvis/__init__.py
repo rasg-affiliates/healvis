@@ -1,8 +1,9 @@
 from __future__ import absolute_import, division, print_function
 
-from . import visibility
+from . import observatory
 from . import utils
-from . import skymodel
+from . import sky_model
+from . import beam_model
 from . import simulator
 
 from . import version
