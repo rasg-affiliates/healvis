@@ -19,7 +19,6 @@ try:
     import pygsm
     pygsm_import = True
 except ImportError:
-    raise Warning("pygsm package not found. This is required to use GSM functionality.")
     pygsm_import = False
 
 
@@ -224,11 +223,9 @@ def gsm_shell(Nside, freq_array):
         data : ndarray, shape (Npix, Nfreqs)
             GSM shell as HEALpix maps
     """
-    assert pygsm_import, "Cannot use gsm_shell() when pygsm_import == False"
+    assert pygsm_import, "pygsm package not found. This is required to use GSM functionality."
 
-    maps = pygsm.GlobalSkyModel(freq_unit='Hz', basemap='haslam').generate(freq_array)
-    # Units K
-    # The 2016 version is working, but a little harder to interpret.
+    maps = pygsm.GlobalSkyModel(freq_unit='Hz', basemap='haslam').generate(freq_array) # Units K
 
     rot = hp.Rotator(coord=['G', 'C'])
     Npix = Nside**2 * 12
