@@ -42,19 +42,7 @@ freq_array = freq_dict['freq_array'][0]
 sky = sky_model.SkyModel(freq_array=freq_array)
 sky.Nside = args.nside
 
-maps = pygsm.GlobalSkyModel(freq_unit='Hz', basemap='haslam').generate(freq_array)
-# Units K
-# The 2016 version is working, but a little harder to interpret.
+data = sky_model.gsm_shell(sky.Nside, freq_array)
+sky.set_data(data)
 
-rot = hp.Rotator(coord=['G', 'E'])
-sky.Npix = sky.Nside**2 * 12
-for fi, f in enumerate(freq_array):
-    print(fi)
-    maps[fi] = rot.rotate_map(maps[fi])     # Convert to equatorial coordinates (ICRS)
-    maps[fi,:sky.Npix] = hp.ud_grade(maps[fi], args.nside)
-
-maps = maps[:,:sky.Npix]
-
-sky.set_data(maps.T)
-
-sky.write_hdf5('gsm_{:.2f}-{:.2f}MHz_nside{}.hdf5'.format(freq_array[0]/1e6,freq_array[-1]/1e6, args.nside))
+sky.write_hdf5('gsm_{:.2f}-{:.2f}MHz_nside{}.hdf5'.format(freq_array[0]/1e6, freq_array[-1]/1e6, args.nside))
