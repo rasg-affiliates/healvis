@@ -7,6 +7,7 @@ import numpy as np
 from astropy.time import Time
 from astropy.constants import c
 from astropy.coordinates import Angle, AltAz, EarthLocation, ICRS
+from astropy import units
 import healpy as hp
 from numba import jit
 import multiprocessing as mp
@@ -120,7 +121,7 @@ class Observatory:
             Dec = self.lat
         RA  = What RA is at zenith at a given JD?
         """
-        telescope_location = EarthLocation.from_geodetic(self.lon, self.lat)
+        telescope_location = EarthLocation.from_geodetic(self.lon * units.degree, self.lat * units.degree)
         self.times_jd = time_arr
         centers = []
         for t in Time(time_arr, scale='utc', format='jd'):

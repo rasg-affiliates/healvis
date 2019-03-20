@@ -197,3 +197,30 @@ def test_offzenith_vis():
     print(vis_calc)
 
     nt.assert_true(np.isclose(vis_calc, vis_analytic, atol=1e-3).all())
+
+
+def test_gsm_pointing():
+    # test that PyGSM visibility sim peaks at times when galactic center transits
+    ant1_enu = np.array([0.0, 0.0, 0.0])
+    ant2_enu = np.array([15.0, 0, 0])
+    bl = observatory.Baseline(ant1_enu, ant2_enu)
+
+    freqs = np.linspace(100e6, 200e6, 2)
+    nfreqs = len(freqs)
+    # for 2458000, galactic center at RA of 266 degrees transits at 2458000.2272949447
+    times = np.linspace(2458000.2272949447 - 0.2, 2458000.2272949447 + 0.2, 11)
+    fov = 20  # Deg
+
+    nside = 64
+    gsm = sky_model.gsm_shell(nside, freqs)[None, :, :]
+
+    obs = observatory.Observatory(latitude, longitude, array=[bl], freqs=freqs)
+    obs.set_pointings(times)
+    obs.set_fov(fov)
+    obs.set_beam('airy', diameter=15)
+
+    sky = sky_model.SkyModel(Nside=nside, freq_array=freqs, data=gsm)
+    visibs, times, bls = obs.make_visibilities(sky)
+
+    # make sure peak is at time index 5, centered at transit time
+    nt.assert_equal(np.argmax(np.abs(visibs[:, 0, 0])), 5)

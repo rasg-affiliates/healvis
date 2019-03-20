@@ -91,7 +91,7 @@ class SkyModel(object):
             # Make sure the data array has a Nskies axis
             s = self.data.shape
             if len(s) == 2:
-                print(self.Npix, self.Nfreqs)
+                # print(self.Npix, self.Nfreqs)
                 if not ((s[0] == self.Npix) and (s[1] == self.Nfreqs)):
                     raise ValueError("Invalid data array shape: " + str(s))
                 else:
@@ -230,7 +230,7 @@ def gsm_shell(Nside, freq_array):
     # Units K
     # The 2016 version is working, but a little harder to interpret.
 
-    rot = hp.Rotator(coord=['G', 'E'])
+    rot = hp.Rotator(coord=['G', 'C'])
     Npix = Nside**2 * 12
     for fi, f in enumerate(freq_array):
         maps[fi] = rot.rotate_map_pixel(maps[fi])  # Convert to equatorial coordinates (ICRS)

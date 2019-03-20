@@ -22,7 +22,10 @@ def airy_disk(za_array, freqs, diameter=15.0, **kwargs):
     Returns:
         beam: 2D array of shape (Npix, Nfreqs) where Npix = len(za_array)
     """
-    xvals = diameter / 2. * np.sin(za_array.reshape(-1, 1)) * 2. * np.pi * freqs.reshape(1, -1) / c.value
+    # set za values greater than pi/2 to pi/2, such that beam doesn't rise to unity at np.pi
+    za_arr = za_array.copy()
+    za_arr[za_arr > np.pi / 2] = np.pi / 2
+    xvals = diameter / 2. * np.sin(za_arr.reshape(-1, 1)) * 2. * np.pi * freqs.reshape(1, -1) / c.value
     zeros = np.isclose(xvals, 0.0)
     beam = (2.0 * np.true_divide(j1(xvals), xvals, where=~zeros))**2.0
     beam[zeros] = 1.0
