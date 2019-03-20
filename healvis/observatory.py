@@ -31,6 +31,7 @@ from .utils import jy2Tstr
 
 c_ms = c.to('m/s').value
 
+
 @jit
 def make_fringe(az, za, freq, enu):
     """
