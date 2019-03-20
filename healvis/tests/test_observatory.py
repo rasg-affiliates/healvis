@@ -1,5 +1,6 @@
 from healvis import observatory, sky_model, beam_model, utils
 from astropy.cosmology import WMAP9
+from astropy.time import Time
 import nose.tools as nt
 import numpy as np
 import healpy as hp
@@ -66,9 +67,17 @@ def test_Baseline():
 # Validation Tests #
 ####################
 
-@nt.nottest
 def test_pointings():
-    t0 = 2451545.0  # Start at J2000 epoch
+    """
+    Test pointings
+
+    In the ICRS, RAs should be close to the LST for times near J2000.
+
+    This test checks that the pointing centers shift in RA at near the sky rotation rate,
+    and that DEC stays close to the observatory latitude.
+    """
+
+    t0 = Time('J2000').jd
     dt_min = 20.0
     dt_days = dt_min * 1 / 60. * 1 / 24.  # 20 minutes in days
 
@@ -79,12 +88,14 @@ def test_pointings():
 
     ras = np.array([c[0] for c in obs.pointing_centers])
     decs = np.array([c[1] for c in obs.pointing_centers])
-    ind = np.where(np.diff(ras) < 0)[0][0]
-    ras[ind + 1:] += 360.   # Deal with 360 degree wrap
-
-    dts = np.diff(ras) / 15.04106 * 60.
-    nt.assert_true(np.allclose(dts, dt_min, atol=1e-1))  # Within 6 seconds. Not great...
-    nt.assert_true(np.allclose(decs, latitude, atol=1e-1))
+    if np.any(np.diff(ras) < 0):
+        ind = np.where(np.diff(ras) < 0)[0][0]
+        ras[ind + 1:] += 360.   # Deal with 360 degree wrap
+    degperhour_sidereal = 360. / 23.9344
+    dts = np.diff(ras) / degperhour_sidereal
+    dts *= 60.  # Minutes
+    nt.assert_true(np.allclose(dts, dt_min, atol=1e-2))  # Within half a second.
+    nt.assert_true(np.allclose(decs, latitude, atol=1e-1))  # Within 6 arcmin
 
 
 def test_az_za():
