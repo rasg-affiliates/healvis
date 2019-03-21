@@ -70,7 +70,7 @@ class SkyModel(object):
         """
         Assign data to self. Must be an ndarray or mparray of shape (Nskies, Npix, Nfreqs).
 
-        SkyModel currently only supports Stokes I sky models.
+        SkyModel currently only supports Stokes I sky models in Kelvin.
         """
         self.data = data
         self._update()
