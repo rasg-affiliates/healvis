@@ -68,7 +68,7 @@ class SkyModel(object):
 
     def set_data(self, data):
         """
-        Assign data to self. Must be an ndarray of shape (Nskies, Npix, Nfreqs).
+        Assign data to self. Must be an ndarray or mparray of shape (Nskies, Npix, Nfreqs).
 
         SkyModel currently only supports Stokes I sky models.
         """
