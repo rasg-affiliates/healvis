@@ -206,13 +206,13 @@ class Observatory:
 
         return pixels
 
-    def vis_calc(self, pcents, tinds, shell, vis_array, Nfin):
+    def vis_calc(self, pcents, tinds, shell, vis_array, Nfin, beam_pol='pI'):
         if len(pcents) == 0:
             return
         for count, c in enumerate(pcents):
             memory_usage_GB = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6
             za_arr, az_arr, pix = self.calc_azza(self.Nside, c, return_inds=True)
-            beam_cube = self.beam.beam_val(az_arr, za_arr, self.freqs)
+            beam_cube = self.beam.beam_val(az_arr, za_arr, self.freqs, pol=beam_pol)
             for bi, bl in enumerate(self.array):
                 fringe_cube = bl.get_fringe(az_arr, za_arr, self.freqs)
                 vis = np.sum(shell[..., pix, :] * beam_cube * fringe_cube, axis=-2)
@@ -225,7 +225,7 @@ class Observatory:
                 print('Finished {:d}, Elapsed {:.2f}sec, MaxRSS {}GB '.format(Nfin.value, time.time() - self.time0, memory_usage_GB))
                 sys.stdout.flush()
 
-    def make_visibilities(self, shell, Nprocs=1):
+    def make_visibilities(self, shell, Nprocs=1, beam_pol='pI'):
         """
         Make beam cube and fringe cube, multiply and sum.
         shell (Npix, Nfreq) = healpix shell, as an mparray (multiprocessing shared array)
@@ -256,7 +256,7 @@ class Observatory:
         vis_array = man.Queue()
         Nfin = mp.Value('i', 0)
         for pi in range(Nprocs):
-            p = mp.Process(name=pi, target=self.vis_calc, args=(pcenter_list[pi], time_inds[pi], shell.data, vis_array, Nfin))
+            p = mp.Process(name=pi, target=self.vis_calc, args=(pcenter_list[pi], time_inds[pi], shell.data, vis_array, Nfin), kwargs=dict(beam_pol=beam_pol))
             p.start()
             procs.append(p)
         while (Nfin.value < self.Ntimes) and np.any([p.is_alive() for p in procs]):

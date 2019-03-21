@@ -26,7 +26,9 @@ f21 = 1.420405751e9
 
 
 class SkyModel(object):
-
+    """
+    SkyModel class
+    """
     Npix = None
     Nside = None
     Nskies = 1
@@ -41,6 +43,9 @@ class SkyModel(object):
     _updated = []
 
     def __init__(self, **kwargs):
+        """
+        Instantiate a SkyModel object.
+        """
         self.valid_params = ['Npix', 'Nside', 'Nskies', 'Nfreqs', 'indices', 'Z_array', 'ref_chan', 'pspec_amp', 'freq_array', 'data']
         self._updated = []
         for k, v in kwargs.items():
@@ -62,6 +67,11 @@ class SkyModel(object):
         return True
 
     def set_data(self, data):
+        """
+        Assign data to self. Must be an ndarray of shape (Nskies, Npix, Nfreqs).
+
+        SkyModel currently only supports Stokes I sky models.
+        """
         self.data = data
         self._update()
 
