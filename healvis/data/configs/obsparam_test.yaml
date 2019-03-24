@@ -2,17 +2,17 @@
 
 # --- IO Parameters ---
 filing:
-  outdir: "./results/test_out"
+  outdir: "./test_out"
   outfile_prefix: 'healvis'
-  clobber: False
+  clobber: True
 
 # -- Simulation Parameters ---
 telescope:
-  config_dir: "./scripts/telescope_config"
+  config_dir: "../data/configs"
   array_layout: HERA65_layout.csv
   telescope_config_name: HERA65_config.yaml
 freq:
-  Nfreqs: 20
+  Nfreqs: 3
   start_freq: 100000000.0  # Hz
   bandwidth:  100000000.0  # Hz
 time:
@@ -39,9 +39,9 @@ sources:
 skyparam:
   # options are ['flat_spec', 'gsm', '<filepath>']
   sky_type: 'gsm'
-  ref_chan: 10
+  ref_chan: 0
   # additional params if sky_type is flat_spec or gsm
   sigma: 0.031      # 31 mK
   Nside: 64
-  savepath: 'flatspectrum.hdf5'
+  savepath: 'flatspectrum.hdf5'  # outdir is root; use None or '' for no file write
 

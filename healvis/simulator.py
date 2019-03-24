@@ -1,6 +1,4 @@
-
 from __future__ import absolute_import, division, print_function
-
 
 import numpy as np
 import yaml
@@ -103,8 +101,11 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     (Moved code from wrapper to here)
     """
     # parse parameter dictionary
-    with open(param_file, 'r') as yfile:
-        param_dict = yaml.safe_load(yfile)
+    if isinstance(param_file, (str, np.str)):
+        with open(param_file, 'r') as yfile:
+            param_dict = yaml.safe_load(yfile)
+    else:
+        param_dict = param_file
 
     print("Making uvdata object")
     sys.stdout.flush()
@@ -199,6 +200,21 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     sys.stdout.flush()
 
     # ---------------------------
+    # SkyModel
+    # ---------------------------
+    # construct sky model 
+    sky = sky_model.construct_skymodel(skyparam['sky_type'], freqs=obs.freqs, Nside=skyparam['Nside'],
+                                       ref_chan=skyparam['ref_chan'], sigma=skyparam['sigma'])
+    # If loading a healpix map from disk, use those frequencies instead of ones specified in obsparam
+    if skyparam['sky_type'].lower() not in ['flat_spec', 'gsm']:
+        obs.freqs = sky.freqs
+        obs.Nfreqs = len(obs.freqs)
+    else:
+        # write to disk if requested
+        if skyparam['savepath'] not in [None, 'None', 'none', '']:
+            sky.write_hdf5(os.path.join(filing_params['outdir'], savepath))
+
+    # ---------------------------
     # Primary Beam
     # ---------------------------
     beam_attr = param_dict['beam'].copy()
@@ -207,31 +223,23 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
 
     # if PowerBeam, interpolate to Observatory frequencies
     if isinstance(obs.beam, beam_model.PowerBeam):
-        obs.beam.interp_beam(obs.freqs, inplace=True, kind='cubic')
-
-    # ---------------------------
-    # SkyModel
-    # ---------------------------
-    # construct sky model 
-    sky = sky_model.construct_skymodel(skyparam['sky_type'], freqs=obs.freqs, Nside=skyparam['Nside'],
-                                       ref_chan=skyparam['ref_chan'], sigma=skyparam['sigma'])
-    if not np.isclose(sky.freqs, obs.freqs).all():
-        raise ValueError("SkyModel frequencies do not match observation frequencies")
-    # write to disk if requested
-    if skyparam['savepath'] not in [None, 'None', 'none', ''] and skyparam['sky_type'] not in ['flat_spec', 'gsm']:
-        sky.write_hdf5(os.path.join(filing_params['outdir'], savepath))
+        obs.beam.interp_freq(obs.freqs, inplace=True, kind='cubic')
 
     # ---------------------------
     # Run simulation
     # ---------------------------
     print("Running simulation")
     sys.stdout.flush()
-    visibs, time_array, baseline_inds = obs.make_visibilities(sky, Nprocs=Nprocs)
+    visibility = []
+    beam_sq_int = {}
+    for pol in param_dict['pols']:
+        # calculate visibility
+        visibs, time_array, baseline_inds = obs.make_visibilities(sky, Nprocs=Nprocs, beam_pol=pol)
+        visibility.append(visibs)
+        # Beam^2 integral
+        beam_sq_int['bm_sq_{}'.format(pol)] = obs.beam_sq_int(freqs, sky.Nside, obs.pointing_centers[0], beam_pol=pol)
 
-    # ---------------------------
-    # Beam^2 integral
-    # ---------------------------
-    beam_sq_int = obs.beam_sq_int(freqs, sky.Nside, obs.pointing_centers[0])
+    visibility = np.moveaxis(visibility, 0, -1)
 
     # ---------------------------
     # Fill in the UVData object and write out.
@@ -242,8 +250,8 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     uv_obj.ant_1_array, uv_obj.ant_2_array = uv_obj.baseline_to_antnums(uv_obj.baseline_array)
 
     uv_obj.spw_array = np.array([0])
-    uv_obj.Npols = 1
-    uv_obj.polarization_array = np.array([1])
+    uv_obj.Npols = len(param_dict['pols'])
+    uv_obj.polarization_array = np.array([uvutils.polstr2num(pol) for pol in param_dict['pols']], np.int)
     uv_obj.Nspws = 1
     uv_obj.set_uvws_from_antenna_positions()
     uv_obj.channel_width = np.diff(freqs)[0]
@@ -259,20 +267,19 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
         sjob_id = ''
 
     uv_obj.extra_keywords = {'nside': sky.Nside, 'slurm_id': sjob_id}
+    uv_obj.extra_keywords.update(beam_sq_int)
     if beam_type == 'gaussian':
         fwhm = beam_attr['sigma'] * 2.355
         uv_obj.extra_keywords['bm_fwhm'] = fwhm
-        uv_obj.extra_keywords['bsq_int'] = beam_sq_int[0]
     elif beam_type == 'airy':
         uv_obj.extra_keywords['bm_diam'] = beam_attr['diameter']
-        uv_obj.extra_keywords['bsq_int'] = beam_sq_int[0]
 
     if sky.pspec_amp is not None:
         uv_obj.extra_keywords['skysig'] = sky.pspec_amp   # Flat spectrum sources
 
-    for sky_i in range(Nskies):
-        data_arr = visibs[:, sky_i, :]  # (Nblts, Nskies, Nfreqs)
-        data_arr = data_arr[:, np.newaxis, :, np.newaxis]  # (Nblts, Nspws, Nfreqs, Npol)
+    for si in range(Nskies):
+        sky_i = slice(si, si+1)
+        data_arr = visibility[:, sky_i, :, :]  # (Nblts, Nspws, Nfreqs, Npols)
         uv_obj.data_array = data_arr
 
         uv_obj.flag_array = np.zeros(uv_obj.data_array.shape).astype(bool)

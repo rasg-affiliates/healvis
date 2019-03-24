@@ -14,6 +14,7 @@ from astropy.cosmology import Planck15 as cosmo
 import healpy as hp
 
 from .utils import mparray, comoving_voxel_volume, comoving_distance
+from .version import history_string
 
 try:
     import pygsm
@@ -29,25 +30,35 @@ class SkyModel(object):
     """
     SkyModel class
     """
-    Npix = None
-    Nside = None
-    Nskies = 1
-    Nfreqs = None
-    indices = None
-    ref_chan = None
-    pspec_amp = None
-    freqs = None
-    pix_area_sr = None
-    Z_array = None
-    data = None
+    valid_params = ['Npix', 'Nside', 'Nskies', 'Nfreqs', 'indices', 'Z_array', 'ref_chan',
+                    'pspec_amp', 'freqs', 'data', 'history']
     _updated = []
+    # keys give HDF5 datasets, value give their dtype
+    dsets = {'data': np.float64, 'indices': np.int32, 'freqs': np.float64,
+             'history':h5py.special_dtype(vlen=unicode)}
+
+    def _defaults(self):
+        """
+        Set valid parameters to default None value if they do not exist
+        """
+        self._update()
+        for k in self.valid_params:
+            if not hasattr(self, k):
+                if k == 'history':
+                    setattr(self, k, '')
+                else:
+                    setattr(self, k, None)
+        self._updated = []
 
     def __init__(self, **kwargs):
         """
         Instantiate a SkyModel object.
+        See SkyModel.valid_params for viable kwargs.
         """
-        self.valid_params = ['Npix', 'Nside', 'Nskies', 'Nfreqs', 'indices', 'Z_array', 'ref_chan', 'pspec_amp', 'freqs', 'data']
-        self._updated = []
+        # defaults
+        self._defaults()
+
+        # populate kwargs
         for k, v in kwargs.items():
             if k in self.valid_params:
                 setattr(self, k, v)
@@ -112,7 +123,6 @@ class SkyModel(object):
         sigma = Spectrum amplitude
         shared_mem = put data in a multiprocessing shared memory block
         """
-
         self._update()
         required = ['freqs', 'ref_chan', 'Nside', 'Npix', 'Nfreqs']
         missing = []
@@ -127,51 +137,81 @@ class SkyModel(object):
         self.pspec_amp = sigma
         self._update()
 
-    def read_hdf5(self, filename, chan_range=None, load_data=True, shared_mem=False):
+    def read_hdf5(self, filename, chan_range=None, shared_mem=False):
+        """
+        Read HDF5 HEALpix map(s)
+
+        Args:
+            filename : str
+                Path to HDF5 file with HEALpix maps in SkyModel format
+            chan_range : len-2 tuple
+                Frequency channel index range to read
+            shared_mem : bool
+                If True, share memory across processes
+        """
         if not os.path.exists(filename):
             raise ValueError("File {} not found.".format(filename))
-        print('Reading: ', filename)
-        with h5py.File(filename) as infile:
-            for k in infile.keys():
-                if chan_range is not None:
-                    c0, c1 = chan_range
-                if k == 'freqs':
-                    if chan_range is not None:
-                        self.freqs = infile[k][c0:c1]
-                    else:
-                        self.freqs = infile[k][()]
-                elif k == 'data':
-                    if not load_data:
-                        self.data = infile[k]   # Keep on disk until needed.
-                        continue
-                    dat = infile[k]
-                    if shared_mem:
-                        self.data = mparray(dat.shape, dtype=float)
-                        if chan_range:
-                            self.data = dat[:, :, c0:c1]
-                        else:
-                            self.data[()] = dat[()]
-                    else:
-                        if chan_range:
-                            self.data = dat[:, :, c0:c1]
-                        else:
-                            self.data = dat[()]
-                elif k in self.valid_params:
-                    dat = infile[k][()]
-                    setattr(self, k, dat)
-        self._update()
 
-    def write_hdf5(self, filename):
+        if chan_range is None:
+            freq_slice = slice(None)
+        else:
+            freq_slice = slice(chan_range[0], chan_range[1])
+
+        print('...reading {}'.format(filename))
+        with h5py.File(filename) as infile:
+            # load lightweight attributes
+            for k in infile.attrs:
+                setattr(self, k, infile.attrs[k])
+
+            # load heavier datasets
+            for k in self.dsets:
+                if k in infile:
+                    if k == 'data':
+                        if shared_mem:
+                            setattr(self, k, mparray(infile[k].shape, dtype=np.float))
+                        # load the data via slice
+                        setattr(self, k, infile[k][:, :, freq_slice])
+                    elif k == 'freqs':
+                        setattr(self, k, infile[k][freq_slice])
+                    elif k == 'history':
+                        setattr(self, k, infile[k].value)
+                    else:
+                        setattr(self, k, infile[k][:])
+
+            # make sure Nfreq agrees
+            self.Nfreqs = len(self.freqs)
+
+        self._update()
+        self._defaults()
+
+    def write_hdf5(self, filename, clobber=False):
+        """
+        Write a SkyModel HEALpix map in celestial coordinates to HDF5.
+
+        Args:
+            filename : str
+                Path to output HDF5 file
+            clobber : bool
+                If True, overwrite output file if it exists
+        """
+        if os.path.exists(filename) and clobber is False:
+            print("...{} exists and clobber == False, skipping".format(filename))
+            return
+        print("...writing {}".format(filename))
         with h5py.File(filename, 'w') as fileobj:
             for k in self.valid_params:
-                d = getattr(self, k)
-                if k.startswith('N'):
-                    fileobj.attrs
-                if d is not None:
+                d = getattr(self, k, None)
+                if d is None:
+                    continue
+                if k == 'history':
+                    d += history_string()
+                if k in self.dsets:
                     if np.isscalar(d):
-                        dset = fileobj.create_dataset(k, data=d)
+                        dset = fileobj.create_dataset(k, data=d, dtype=self.dsets[k])
                     else:
-                        dset = fileobj.create_dataset(k, data=d, compression='gzip', compression_opts=9)
+                        dset = fileobj.create_dataset(k, data=d, dtype=self.dsets[k], compression='gzip', compression_opts=9)
+                else:
+                    fileobj.attrs[k] = d
 
 
 def flat_spectrum_noise_shell(sigma, freqs, Nside, Nskies, ref_chan=0, shared_mem=False):
@@ -274,17 +314,17 @@ def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, sigma=None,
     sky.ref_chan = ref_chan
 
     # make a flat-spectrum noise shell
-    if sky_type == 'flat_spec':
+    if sky_type.lower() == 'flat_spec':
         sky.make_flat_spectrum_shell(sigma, shared_mem=True)
 
     # make a GSM shell
-    elif sky_type == 'gsm':
+    elif sky_type.lower() == 'gsm':
         sky.data = gsm_shell(Nside, freqs)
         sky._update()
 
     # load healpix map from disk
     else:
-        sky.read_hdf5(sky__type, shared_mem=True)
+        sky.read_hdf5(sky_type, shared_mem=True)
         sky._update()
 
     return sky

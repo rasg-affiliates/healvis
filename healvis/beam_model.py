@@ -82,7 +82,7 @@ class PowerBeam(UVBeam):
         interp_data, interp_bp = super(PowerBeam, self)._interp_freq(freqs, kind=kind)
         new_beam.data_array = interp_data
         new_beam.Nfreqs = interp_data.shape[3]
-        new_beam.freqs = freqs.reshape(1, -1)
+        new_beam.freq_array = freqs.reshape(1, -1)
         new_beam.bandpass_array = interp_bp
         if hasattr(new_beam, 'saved_interp_functions'):
             delattr(new_beam, 'saved_interp_functions')
@@ -127,28 +127,28 @@ class PowerBeam(UVBeam):
             self.interpolation_function = 'healpix_simple'
 
         if freqs is None:
-            freqs = self.freqs[0]
+            freqs = self.freq_array[0]
         else:
             # get nearest neighbor of each reqeuested frequency
             if isinstance(freqs, (float, np.float, int, np.int)):
                 freqs = np.array([freqs])
             freqs = np.asarray(freqs)
             assert freqs.ndim == 1, "input freqs array must be 1-dimensional"
-            freq_dists = np.abs(self.freqs - freqs.reshape(-1, 1))
+            freq_dists = np.abs(self.freq_array - freqs.reshape(-1, 1))
             nearest_dist = np.min(freq_dists, axis=1)
             nearest_inds = np.argmin(freq_dists, axis=1)
-            freqs = self.freqs[0, nearest_inds]
+            freqs = self.freq_array[0, nearest_inds]
 
         assert isinstance(pol, str), "requested polarization must be a single string"
 
         # interpolate
         if self.pixel_coordinate_system == 'az_za':
             # azimuth - zenith angle interpolation
-            interp_beam, interp_basis = self._interp_az_za_rect_spline(az_array=az, za_array=za, freqs=freqs, reuse_spline=True, polarizations=[pol])
+            interp_beam, interp_basis = self._interp_az_za_rect_spline(az_array=az, za_array=za, freq_array=freqs, reuse_spline=True, polarizations=[pol])
 
         elif self.pixel_coordinate_system == 'healpix':
             # healpix interpolation
-            interp_beam, interp_basis = self._interp_healpix_bilinear(az_array=az, za_array=za, freqs=freqs, polarizations=[pol])
+            interp_beam, interp_basis = self._interp_healpix_bilinear(az_array=az, za_array=za, freq_array=freqs, polarizations=[pol])
 
         return interp_beam[0, 0, 0].T
 
