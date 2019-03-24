@@ -5,89 +5,124 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import yaml
 import sys
+import six
+from six.moves import map, range, zip
+import os
 
 from pyuvdata import UVData
 from pyuvdata import utils as uvutils
 import pyuvsim
 
-from . import observatory, version
-from .sky_model import SkyModel
+from . import observatory, version, beam_model, sky_model
 
 
-def parse_skyparam(param_dict):
+def _parse_layout_csv(layout_csv):
+    """ Interpret the layout csv file """
+
+    with open(layout_csv, 'r') as fhandle:
+        header = fhandle.readline()
+
+    header = [h.strip() for h in header.split()]
+    if six.PY2:
+        str_format_code = 'a'
+    else:
+        str_format_code = 'U'
+    dt = np.format_parser([str_format_code + '10', 'i4', 'i4', 'f8', 'f8', 'f8'],
+                          ['name', 'number', 'beamid', 'e', 'n', 'u'], header)
+
+    return np.genfromtxt(layout_csv, autostrip=True, skip_header=1,
+                         dtype=dt.dtype)
+
+
+def parse_telescope_params(tele_params):
     """
-    Either load a sky model from file or construct one and
-    return a SkyModel object
+    Parse the "telescope" section of a healvis obsparam.
+
+    Args:
+        tele_params: Dictionary of telescope parameters
+
+    Returns:
+        dict of array properties:
+            |  Nants_data: Number of antennas
+            |  Nants_telescope: Number of antennas
+            |  antenna_names: list of antenna names
+            |  antenna_numbers: corresponding list of antenna numbers
+            |  antenna_positions: Array of ECEF antenna positions
+            |  telescope_location: ECEF array center location
+            |  telescope_config_file: Path to configuration yaml file
+            |  antenna_location_file: Path to csv layout file
+            |  telescope_name: observatory name
     """
+    telescope_config_name = tele_params['telescope_config_name']
+    layout_csv = tele_params['array_layout']
+    config_path = tele_params['config_dir']
+    if not os.path.isdir(config_path):
+        config_path = os.path.dirname(config_path)
+        if not os.path.isdir(config_path):
+            raise ValueError('config_path from yaml is not a directory')
+    if not os.path.exists(telescope_config_name):
+        telescope_config_name = os.path.join(config_path, telescope_config_name)
+        if not os.path.exists(telescope_config_name):
+            raise ValueError('telescope_config_name file from yaml does not exist')
+    if not os.path.exists(layout_csv):
+        layout_csv = os.path.join(config_path, layout_csv)
+        if not os.path.exists(layout_csv):
+            raise ValueError('layout_csv file from yaml does not exist')
 
-    sky = SkyModel()
-    if 'filepath' in param_dict:
-        sky.read_hdf5(param_dict['filepath'], shared_mem=True)
-        return sky
+    ant_layout = _parse_layout_csv(layout_csv)
+    with open(telescope_config_name, 'r') as yf:
+        telconfig = yaml.safe_load(yf)
+        tloc = telconfig['telescope_location'][1:-1]  # drop parens
+        tloc = list(map(float, tloc.split(",")))
+        tloc[0] *= np.pi / 180.
+        tloc[1] *= np.pi / 180.   # Convert to radians
+        tele_params['telescope_location'] = uvutils.XYZ_from_LatLonAlt(*tloc)
 
-    # Construct a flat spectrum shell.
-    required = ['freq_array', 'ref_chan', 'Nside', 'sigma']
-    missing = [p for p in required if p not in param_dict.keys()]
-    if len(missing) > 0:
-        raise KeyError("Missing required parameters for shell construction: " + ", ".join(missing))
-    sky.Nside = param_dict['Nside']
-    sky.freq_array = param_dict['freq_array'].squeeze()     # Remove spw axis
-    sky.ref_chan = param_dict['ref_chan']
-    sky.make_flat_spectrum_shell(param_dict['sigma'], shared_mem=True)
+    E, N, U = ant_layout['e'], ant_layout['n'], ant_layout['u']
+    antnames = ant_layout['name']
+    return_dict = {}
 
-    if 'savepath' in param_dict.keys():
-        sky.write_hdf5(param_dict['savepath'])
-    return sky
+    return_dict['Nants_data'] = antnames.size
+    return_dict['Nants_telescope'] = antnames.size
+    return_dict['antenna_names'] = np.array(antnames.tolist())
+    return_dict['antenna_numbers'] = np.array(ant_layout['number'])
+    antpos_enu = np.vstack((E, N, U)).T
+    return_dict['antenna_positions'] = uvutils.ECEF_from_ENU(antpos_enu, *tloc) - tele_params['telescope_location']
+    return_dict['telescope_config_name'] = telescope_config_name
+    return_dict['array_layout'] = layout_csv
+    return_dict['telescope_location'] = tele_params['telescope_location']
+    return_dict['telescope_name'] = telconfig['telescope_name']
+
+    return return_dict
 
 
-def run_simulation(param_file, Nprocs=None, sjob_id=None, add_to_history=''):
+def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     """
     Parse input parameter file, construct UVData and SkyModel objects, and run simulation.
 
     (Moved code from wrapper to here)
     """
-
+    # parse parameter dictionary
     with open(param_file, 'r') as yfile:
         param_dict = yaml.safe_load(yfile)
 
-    param_dict['config_path'] = '.'
-
     print("Making uvdata object")
     sys.stdout.flush()
-    tele_dict, beam_list, beam_dict = pyuvsim.simsetup.parse_telescope_params(param_dict['telescope'], param_dict['config_path'])
-    freq_dict = pyuvsim.simsetup.parse_frequency_params(param_dict['freq'])
-    time_dict = pyuvsim.simsetup.parse_time_params(param_dict['time'])
-
+    tele_dict = parse_telescope_params(param_dict['telescope'].copy())
+    freq_dict = pyuvsim.simsetup.parse_frequency_params(param_dict['freq'].copy())
+    time_dict = pyuvsim.simsetup.parse_time_params(param_dict['time'].copy())
     filing_params = param_dict['filing']
-
-    beam_list = [pyuvsim.simsetup.beam_string_to_object(b) for b in beam_list]
 
     # ---------------------------
     # Extra parameters required for healvis
     # ---------------------------
-
     fov = param_dict['fov']  # Deg
-    skyparam = param_dict['skymodel']
-    skyparam['freq_array'] = freq_dict['freq_array']
+    skyparam = param_dict['skyparam'].copy()
+    skyparam['freqs'] = freq_dict['freq_array']
     Nskies = 1 if 'Nskies' not in param_dict else int(param_dict['Nskies'])
-    try:
-        beam_select = int(param_dict['beam_select'])
-    except KeyError:
-        beam_select = 0
-
-    beam = beam_list[beam_select]
-    beam_type = beam.type
-    if beam_type == 'gaussian':
-        beam_attr = {'sigma': np.degrees(beam.sigma)}
-    elif beam_type == 'airy':
-        beam_attr = {'diameter': beam.diameter}
-    elif beam_type == 'uniform':
-        beam_attr = {}
-    else:
-        raise ValueError("UVBeam is not yet supported")
-
     print("Nprocs: ", Nprocs)
     sys.stdout.flush()
+
     # ---------------------------
     # Observatory
     # ---------------------------
@@ -160,26 +195,35 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None, add_to_history=''):
     # ---------------------------
     time_arr = time_dict['time_array']
     obs.set_pointings(time_arr)
-
     print("Pointings set.")
     sys.stdout.flush()
 
     # ---------------------------
-    # Primary beam
+    # Primary Beam
     # ---------------------------
+    beam_attr = param_dict['beam'].copy()
+    beam_type = beam_attr.pop("beam_type")
     obs.set_beam(beam_type, **beam_attr)
+
+    # if PowerBeam, interpolate to Observatory frequencies
+    if isinstance(obs.beam, beam_model.PowerBeam):
+        obs.beam.interp_beam(obs.freqs, inplace=True, kind='cubic')
 
     # ---------------------------
     # SkyModel
     # ---------------------------
-    sky = parse_skyparam(skyparam)
-    if not np.all(sky.freq_array == obs.freqs):      # Make sure frequencies match
+    # construct sky model 
+    sky = sky_model.construct_skymodel(skyparam['sky_type'], freqs=obs.freqs, Nside=skyparam['Nside'],
+                                       ref_chan=skyparam['ref_chan'], sigma=skyparam['sigma'])
+    if not np.isclose(sky.freqs, obs.freqs).all():
         raise ValueError("SkyModel frequencies do not match observation frequencies")
+    # write to disk if requested
+    if skyparam['savepath'] not in [None, 'None', 'none', ''] and skyparam['sky_type'] not in ['flat_spec', 'gsm']:
+        sky.write_hdf5(os.path.join(filing_params['outdir'], savepath))
 
     # ---------------------------
     # Run simulation
     # ---------------------------
-
     print("Running simulation")
     sys.stdout.flush()
     visibs, time_array, baseline_inds = obs.make_visibilities(sky, Nprocs=Nprocs)
@@ -187,15 +231,11 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None, add_to_history=''):
     # ---------------------------
     # Beam^2 integral
     # ---------------------------
-    za, az = obs.calc_azza(sky.Nside, obs.pointing_centers[0])
-    beam_sq_int = np.sum(obs.beam.beam_val(az, za, freqs)**2, axis=1)
-    om = 4 * np.pi / (12 * sky.Nside)
-    beam_sq_int = beam_sq_int * om
+    beam_sq_int = obs.beam_sq_int(freqs, sky.Nside, obs.pointing_centers[0])
 
     # ---------------------------
     # Fill in the UVData object and write out.
     # ---------------------------
-
     uv_obj.time_array = time_array
     uv_obj.set_lsts_from_time_array()
     uv_obj.baseline_array = bl_array[baseline_inds]
@@ -208,7 +248,7 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None, add_to_history=''):
     uv_obj.set_uvws_from_antenna_positions()
     uv_obj.channel_width = np.diff(freqs)[0]
     uv_obj.integration_time = np.ones(uv_obj.Nblts) * np.diff(time_arr)[0] * 24 * 3600.  # Seconds
-    uv_obj.history = version.history_string(notes=add_to_history)
+    uv_obj.history = version.history_string(notes=add_to_history + "\n" + yaml.safe_dump(param_dict))
     uv_obj.set_drift()
     uv_obj.telescope_name = 'healvis'
     uv_obj.instrument = 'simulator'
@@ -256,9 +296,9 @@ def run_simulation(param_file, Nprocs=None, sjob_id=None, add_to_history=''):
                     'healvis_{:.2f}hours_Nside{}'.format(Ntimes / (3600. / 11.0), sky.Nside)
 
             if beam_type == 'gaussian':
-                filing_params['outfile_prefix'] += '_fwhm{:.3f}'.format(fwhm)
+                filing_params['outfile_prefix'] += '_fwhm{:.3f}'.format(beam_attr['gauss_width'])
             if beam_type == 'airy':
-                filing_params['outfile_prefix'] += '_diam{:.2f}'.format(beam.diameter)
+                filing_params['outfile_prefix'] += '_diam{:.2f}'.format(beam_attr['diameter'])
 
         while True:
             try:

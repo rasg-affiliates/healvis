@@ -183,6 +183,26 @@ class Observatory:
         else:
             self.beam = PowerBeam(beam)
 
+    def beam_sq_int(self, freqs, Nside, pointing):
+        """
+        Get the integral of the squared antenna primary beam power across the sky.
+
+        Args:
+            freqs : 1D ndarray
+                Frequencies [Hz]
+            Nside : int
+                Nside of healpix map to use in integral
+            pointing : len-2 list
+                Pointing center [Dec, RA] in J2000 degrees
+        """
+        za, az = self.calc_azza(Nside, pointing)
+        beam_sq_int = np.sum(self.beam.beam_val(az, za, freqs)**2, axis=1)
+        om = 4 * np.pi / (12.0 * Nside)
+        beam_sq_int = beam_sq_int * om
+
+        return beam_sq_int
+
+
     def get_observed_region(self, Nside):
         """
         Just as a check, get the pixels sampled by each snapshot.
