@@ -375,6 +375,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
         visibs, time_array, baseline_inds = obs.make_visibilities(sky, Nprocs=Nprocs, beam_pol=pol)
         visibility.append(visibs)
         # Average Beam^2 integral across frequency
+        # 
         beam_sq_int['bm_sq_{}'.format(pol)] = np.mean(obs.beam_sq_int(obs.freqs, sky.Nside, obs.pointing_centers[0], beam_pol=pol))
 
     visibility = np.moveaxis(visibility, 0, -1)
