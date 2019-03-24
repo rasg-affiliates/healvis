@@ -69,5 +69,4 @@ def test_pspec_amp():
     tolerance = (amp_theor / float(Ntimes))   # assuming independent fields
     print(amp_theor, np.mean(dspec_I))
     print(tolerance)
-    nt.assert_true(np.isclose(amp_theor, np.mean(dspec_I), atol=2*tolerance))   # Close to within twice the sample variance
-
+    nt.assert_true(np.isclose(amp_theor, np.mean(dspec_I), atol=2 * tolerance))   # Close to within twice the sample variance
