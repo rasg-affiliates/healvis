@@ -66,8 +66,8 @@ def test_pspec_amp():
     Z_sel = sky.Z_array[sky.ref_chan]
     amp_theor = skysig**2 * utils.comoving_voxel_volume(Z_sel, dnu, sky.pix_area_sr)
 
-    tolerance = np.sqrt(amp_theor) / np.sqrt(float(Ntimes))   # Number of independent fields
-    nt.assert_true(np.isclose(amp_theor, np.mean(dspec_I), atol=1.0))   # Close to within 1 K^2 Mpc^3
+    tolerance = (amp_theor / float(Ntimes))   # assuming independent fields
+    print(amp_theor, np.mean(dspec_I))
+    print(tolerance)
+    nt.assert_true(np.isclose(amp_theor, np.mean(dspec_I), atol=2*tolerance))   # Close to within twice the sample variance
 
-
-test_pspec_amp()
