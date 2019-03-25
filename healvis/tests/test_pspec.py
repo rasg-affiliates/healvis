@@ -37,7 +37,7 @@ def test_pspec_amp():
 
     skysig = 0.031
 
-    sky = sky_model.SkyModel(Nside=nside, freq_array=freqs, ref_chan=Nfreqs / 2)
+    sky = sky_model.SkyModel(Nside=nside, freqs=freqs, ref_chan=Nfreqs / 2)
     sky.make_flat_spectrum_shell(skysig, shared_mem=True)
     pix_area = sky.pix_area_sr
 
