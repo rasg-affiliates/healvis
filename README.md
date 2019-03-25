@@ -10,7 +10,7 @@ Python dependencies for `healvis` include
 * numpy >= 1.14
 * astropy >= 2.0
 * scipy
-* healpy
+* healpy >= 1.12.9
 * h5py
 * pyyaml
 * numba
