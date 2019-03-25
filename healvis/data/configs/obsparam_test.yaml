@@ -3,7 +3,8 @@
 # --- IO Parameters ---
 filing:
   outdir: "./test_out"
-  outfile_prefix: 'healvis'
+  outfile_name: "test_sim"
+  format: 'uvh5'
   clobber: True
 
 # -- Simulation Parameters ---

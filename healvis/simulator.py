@@ -183,8 +183,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     uv_obj.Nblts = Nbls * Ntimes
 
     bl_array = np.array(bl_array)
-    freqs = freq_dict['freq_array'][0]  # Hz
-    obs = observatory.Observatory(np.degrees(lat), np.degrees(lon), array=array, freqs=freqs)
+    obs = observatory.Observatory(np.degrees(lat), np.degrees(lon), array=array, freqs=freq_dict['freq_array'][0])
     obs.set_fov(fov)
     print("Observatory built.")
     print("Nbls: ", Nbls)
@@ -236,14 +235,16 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
         # calculate visibility
         visibs, time_array, baseline_inds = obs.make_visibilities(sky, Nprocs=Nprocs, beam_pol=pol)
         visibility.append(visibs)
-        # Beam^2 integral
-        beam_sq_int['bm_sq_{}'.format(pol)] = obs.beam_sq_int(freqs, sky.Nside, obs.pointing_centers[0], beam_pol=pol)
+        # Average Beam^2 integral across frequency
+        beam_sq_int['bm_sq_{}'.format(pol)] = np.mean(obs.beam_sq_int(obs.freqs, sky.Nside, obs.pointing_centers[0], beam_pol=pol))
 
     visibility = np.moveaxis(visibility, 0, -1)
 
     # ---------------------------
     # Fill in the UVData object and write out.
     # ---------------------------
+    uv_obj.freq_array = obs.freqs.reshape(1, -1)
+    uv_obj.Nfreqs = uv_obj.freq_array.shape[1]
     uv_obj.time_array = time_array
     uv_obj.set_lsts_from_time_array()
     uv_obj.baseline_array = bl_array[baseline_inds]
@@ -254,7 +255,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     uv_obj.polarization_array = np.array([uvutils.polstr2num(pol) for pol in param_dict['pols']], np.int)
     uv_obj.Nspws = 1
     uv_obj.set_uvws_from_antenna_positions()
-    uv_obj.channel_width = np.diff(freqs)[0]
+    uv_obj.channel_width = np.diff(obs.freqs)[0]
     uv_obj.integration_time = np.ones(uv_obj.Nblts) * np.diff(time_arr)[0] * 24 * 3600.  # Seconds
     uv_obj.history = version.history_string(notes=add_to_history + "\n" + yaml.safe_dump(param_dict))
     uv_obj.set_drift()
@@ -307,10 +308,4 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
             if beam_type == 'airy':
                 filing_params['outfile_prefix'] += '_diam{:.2f}'.format(beam_attr['diameter'])
 
-        while True:
-            try:
-                pyuvsim.utils.write_uvdata(uv_obj, filing_params, out_format=out_format)  # , run_check=False, run_check_acceptability=False, check_extra=False)
-            except ValueError:
-                pass
-            else:
-                break
+        pyuvsim.utils.write_uvdata(uv_obj, filing_params, out_format=out_format)
