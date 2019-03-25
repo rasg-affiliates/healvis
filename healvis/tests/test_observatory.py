@@ -143,7 +143,7 @@ def test_vis_calc():
     shell = np.zeros((npix, nfreqs))
     pix_area = 4 * np.pi / float(npix)
     shell[ind] = 1  # Jy/pix
-    shell[ind] *= cosmo_funcs.jy2Tsr(freqs[0], bm=pix_area)  # K
+    shell[ind] *= cosmology.jy2Tsr(freqs[0], bm=pix_area)  # K
 
     obs = observatory.Observatory(latitude, longitude, array=[bl], freqs=freqs)
     obs.pointing_centers = centers
@@ -182,7 +182,7 @@ def test_offzenith_vis():
     phi, theta = hp.pix2ang(Nside, ind, lonlat=True)
     ind = hp.ang2pix(Nside, phi, theta - 5, lonlat=True)
     shell[ind] = 1  # Jy/pix
-    shell[ind] *= cosmo_funcs.jy2Tsr(freqs[0], bm=pix_area)  # K
+    shell[ind] *= cosmology.jy2Tsr(freqs[0], bm=pix_area)  # K
 
     obs = observatory.Observatory(latitude, longitude, array=[bl], freqs=freqs)
     obs.pointing_centers = [[phi, theta]]
