@@ -9,7 +9,10 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import os
-import h5py
+import warnings
+with warnings.catch_warnings():  # noqa
+    warnings.simplefilter('ignore', FutureWarning)
+    import h5py
 from astropy.cosmology import Planck15 as cosmo
 import healpy as hp
 
