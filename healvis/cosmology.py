@@ -6,15 +6,16 @@ import numpy as np
 from astropy.cosmology import Planck15 as cosmo
 from astropy.constants import c
 
-#-----------------------
+# -----------------------
 #  Functions and constants related
 #  to conversions between instrument and
 #  cosmological units.
-#-----------------------
+# -----------------------
 
 f21 = 1.420405751e9
 c_ms = c.to('m/s').value
 pi = np.pi
+
 
 def jy2Tsr(f, bm=1.0, mK=False):
     '''Return [K sr] / [Jy] vs. frequency (in Hz)
