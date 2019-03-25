@@ -2,16 +2,16 @@
 
 # --- IO Parameters ---
 filing:
-  outdir: "./test_out"
-  outfile_name: "test_sim"
-  format: 'uvh5'
+  outdir: "./test_out"  # root for output files
+  outfile_name: "test_sim"  # basename for output file
+  format: 'uvh5'  # file format
   clobber: True
 
 # -- Simulation Parameters ---
 telescope:
-  config_dir: "../data/configs"
-  array_layout: HERA65_layout.csv
-  telescope_config_name: HERA65_config.yaml
+  array_layout: ../data/configs/HERA65_layout.csv  # path to antenna layout csv file
+  telescope_location: (-30.72152777777791, 21.428305555555557, 1073.0000000093132)  # LatLonAlt location
+  telescope_name: HERA
 freq:
   Nfreqs: 3
   start_freq: 100000000.0  # Hz
@@ -33,8 +33,6 @@ select:
   bls: '[(0,11),(0,12),(11,12)]'
 fov: 110   # Deg
 Nskies: 1
-sources:
-  catalog: 'gaussian_eor_shell'
 
 # --- SkyModel Parameters ---
 skyparam:

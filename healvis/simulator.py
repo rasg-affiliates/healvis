@@ -9,7 +9,6 @@ import os
 
 from pyuvdata import UVData
 from pyuvdata import utils as uvutils
-import pyuvsim
 
 from . import observatory, version, beam_model, sky_model
 
@@ -51,30 +50,17 @@ def parse_telescope_params(tele_params):
             |  antenna_location_file: Path to csv layout file
             |  telescope_name: observatory name
     """
-    telescope_config_name = tele_params['telescope_config_name']
     layout_csv = tele_params['array_layout']
-    config_path = tele_params['config_dir']
-    if not os.path.isdir(config_path):
-        config_path = os.path.dirname(config_path)
-        if not os.path.isdir(config_path):
-            raise ValueError('config_path from yaml is not a directory')
-    if not os.path.exists(telescope_config_name):
-        telescope_config_name = os.path.join(config_path, telescope_config_name)
-        if not os.path.exists(telescope_config_name):
-            raise ValueError('telescope_config_name file from yaml does not exist')
     if not os.path.exists(layout_csv):
-        layout_csv = os.path.join(config_path, layout_csv)
         if not os.path.exists(layout_csv):
             raise ValueError('layout_csv file from yaml does not exist')
 
     ant_layout = _parse_layout_csv(layout_csv)
-    with open(telescope_config_name, 'r') as yf:
-        telconfig = yaml.safe_load(yf)
-        tloc = telconfig['telescope_location'][1:-1]  # drop parens
-        tloc = list(map(float, tloc.split(",")))
-        tloc[0] *= np.pi / 180.
-        tloc[1] *= np.pi / 180.   # Convert to radians
-        tele_params['telescope_location'] = uvutils.XYZ_from_LatLonAlt(*tloc)
+    tloc = tele_params['telescope_location'][1:-1]  # drop parens
+    tloc = list(map(float, tloc.split(",")))
+    tloc[0] *= np.pi / 180.
+    tloc[1] *= np.pi / 180.   # Convert to radians
+    tele_params['telescope_location'] = uvutils.XYZ_from_LatLonAlt(*tloc)
 
     E, N, U = ant_layout['e'], ant_layout['n'], ant_layout['u']
     antnames = ant_layout['name']
@@ -86,12 +72,61 @@ def parse_telescope_params(tele_params):
     return_dict['antenna_numbers'] = np.array(ant_layout['number'])
     antpos_enu = np.vstack((E, N, U)).T
     return_dict['antenna_positions'] = uvutils.ECEF_from_ENU(antpos_enu, *tloc) - tele_params['telescope_location']
-    return_dict['telescope_config_name'] = telescope_config_name
     return_dict['array_layout'] = layout_csv
     return_dict['telescope_location'] = tele_params['telescope_location']
-    return_dict['telescope_name'] = telconfig['telescope_name']
+    return_dict['telescope_name'] = tele_params['telescope_name']
 
     return return_dict
+
+
+def parse_freq_params(freq_params):
+    """
+    Parse the "freq" section of healvis obsparams
+
+    Args:
+        freq_params : dictionary
+
+    Returns:
+        dictionary
+            | Nfreqs : int
+            | channel_width : float, [Hz]
+            | freq_array : 2D ndarray, shape (1, Nfreqs) [Hz]
+    """
+    # generate frequencies
+    freq_array = np.linspace(freq_params['start_freq'], freq_params['start_freq'] + freq_params['bandwidth'], freq_params['Nfreqs'], endpoint=False).reshape(1, -1)
+
+    # fill return dictionary
+    return_dict = {}
+    return_dict['Nfreqs'] = freq_params['Nfreqs']
+    return_dict['freq_array'] = freq_array
+    return_dict['channel_width'] = np.diff(freq_array[0])[0]
+
+    return return_dict
+
+
+def parse_time_params(time_params):
+    """
+    Parse the "time" section of healvis obsparams
+
+    Args:
+        time_params : dictionary
+
+    Returns:
+        dictionary
+            | Ntimes : int
+            | integration_time : float, [seconds]
+            | time_array : 1D ndarray, shape (Ntimes,) [Julian Date]
+    """
+    # generate times
+    time_arr = time_params['start_time'] + np.arange(time_params['Ntimes']) * time_params['integration_time'] / (24.0 * 3600.0)
+
+    # fill return dictionary
+    return_dictionary = {}
+    return_dictionary['Ntimes'] = time_params['Ntimes']
+    return_dictionary['integration_time'] = np.ones(time_params['Ntimes'], dtype=np.float) * time_params['integration_time']
+    return_dictionary['time_array'] = time_arr
+
+    return return_dictionary
 
 
 def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
@@ -110,8 +145,8 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     print("Making uvdata object")
     sys.stdout.flush()
     tele_dict = parse_telescope_params(param_dict['telescope'].copy())
-    freq_dict = pyuvsim.simsetup.parse_frequency_params(param_dict['freq'].copy())
-    time_dict = pyuvsim.simsetup.parse_time_params(param_dict['time'].copy())
+    freq_dict = parse_freq_params(param_dict['freq'].copy())
+    time_dict = parse_time_params(param_dict['time'].copy())
     filing_params = param_dict['filing']
 
     # ---------------------------
@@ -257,7 +292,10 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     uv_obj.set_uvws_from_antenna_positions()
     uv_obj.channel_width = np.diff(obs.freqs)[0]
     uv_obj.integration_time = np.ones(uv_obj.Nblts) * np.diff(time_arr)[0] * 24 * 3600.  # Seconds
-    uv_obj.history = version.history_string(notes=add_to_history + "\n" + yaml.safe_dump(param_dict))
+    param_history = "\nPARAMETER FILE:\nFILING\n{filing}\nSIMULATION\n{tel}\n{beam}\nfov: {fov}\n" \
+                    "SKYPARAM\n{sky}\n".format(filing=param_dict['filing'], tel=param_dict['telescope'], beam=param_dict['beam'],
+                                               fov=param_dict['fov'], sky=param_dict['skyparam'])
+    uv_obj.history = version.history_string(notes=add_to_history + param_history)
     uv_obj.set_drift()
     uv_obj.telescope_name = 'healvis'
     uv_obj.instrument = 'simulator'
@@ -300,12 +338,27 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
 
         if 'outfile_name' not in filing_params:
             if 'outfile_prefix' not in filing_params:
-                filing_params['outfile_prefix'] = \
-                    'healvis_{:.2f}hours_Nside{}'.format(Ntimes / (3600. / 11.0), sky.Nside)
-
+                outfile_name = "healvis"
+            else:
+                outfile_name = filing_params['outfile_prefix']
             if beam_type == 'gaussian':
-                filing_params['outfile_prefix'] += '_fwhm{:.3f}'.format(beam_attr['gauss_width'])
-            if beam_type == 'airy':
-                filing_params['outfile_prefix'] += '_diam{:.2f}'.format(beam_attr['diameter'])
+                outfile_name += '_fwhm{:.3f}'.format(beam_attr['gauss_width'])
+            elif beam_type == 'airy':
+                outfile_name += '_diam{:.2f}'.format(beam_attr['diameter'])
 
-        pyuvsim.utils.write_uvdata(uv_obj, filing_params, out_format=out_format)
+        else:
+            outfile_name = filing_params['outfile_name']
+        outfile_name = os.path.join(filing_params['outdir'], outfile_name + ".{}".format(out_format))
+
+        # write base directory if is doesn't exist
+        dirname = os.path.dirname(outfile_name)
+        if dirname != '' and not os.path.exists(dirname):
+            os.mkdir(dirname)
+
+        print("...writing {}".format(outfile_name))
+        if out_format == 'uvh5':
+            uv_obj.write_uvh5(outfile_name, clobber=filing_params['clobber'])
+        elif out_format == 'miriad':
+            uv_obj.write_miriad(outfile_name, clobber=filing_params['clobber'])
+        elif out_format == 'uvfits':
+            uv_obj.write_uvfits(outfile_name)

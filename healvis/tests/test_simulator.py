@@ -20,7 +20,7 @@ def test_run_simulation():
         param_dict = yaml.safe_load(_f)
 
     # edit
-    param_dict['telescope']['config_dir'] = os.path.join(DATA_PATH, 'configs')
+    param_dict['telescope']['array_layout'] = os.path.join(DATA_PATH+'/configs', os.path.basename(param_dict['telescope']['array_layout']))
     param_dict['beam']['beam_type'] = os.path.join(DATA_PATH, "HERA_NF_dipole_power.beamfits")
     param_dict['skyparam']['sky_type'] = os.path.join(DATA_PATH, "gsm_nside32.hdf5")
     param_dict['filing']['outdir'] = os.path.join(DATA_PATH, "sim_testing_out")

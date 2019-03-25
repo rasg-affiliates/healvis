@@ -39,9 +39,8 @@ class SkyModel(object):
 
     def _defaults(self):
         """
-        Set valid parameters to default None value if they do not exist
+        Set valid parameters to default value if they do not exist
         """
-        self._update()
         for k in self.valid_params:
             if not hasattr(self, k):
                 if k == 'history':
@@ -91,8 +90,6 @@ class SkyModel(object):
             Assume that whatever parameter was just changed has priority over others.
             If two parameters from the same group change at the same time, confirm that they're consistent.
         """
-        hpx_params = ['Nside', 'Npix', 'data', 'indices']
-        z_params = ['Z_array', 'freqs', 'Nfreqs', 'r_mpc']
         ud = list(np.unique(self._updated))
         if 'freqs' in ud:
             self.Z_array = f21 / self.freqs - 1.
@@ -182,7 +179,6 @@ class SkyModel(object):
             self.Nfreqs = len(self.freqs)
 
         self._update()
-        self._defaults()
 
     def write_hdf5(self, filename, clobber=False):
         """
@@ -287,7 +283,7 @@ def gsm_shell(Nside, freqs):
     return maps.T
 
 
-def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, sigma=None, **kwargs):
+def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, sigma=None):
     """
     Construct a SkyModel object or read from disk
 
