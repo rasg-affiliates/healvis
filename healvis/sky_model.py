@@ -45,6 +45,8 @@ class SkyModel(object):
             if not hasattr(self, k):
                 if k == 'history':
                     setattr(self, k, '')
+                if k == 'Nskies':
+                    setattr(self, k, 1)
                 else:
                     setattr(self, k, None)
         self._updated = []
@@ -61,6 +63,8 @@ class SkyModel(object):
         for k, v in kwargs.items():
             if k in self.valid_params:
                 setattr(self, k, v)
+            else:
+                raise KeyError('Invalid SkyModel parameter: ' + str(k))
         self._update()
 
     def __setattr__(self, name, value):
