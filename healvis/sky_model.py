@@ -283,7 +283,7 @@ def gsm_shell(Nside, freqs):
     return maps.T
 
 
-def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, sigma=None):
+def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, Nskies=1, sigma=None):
     """
     Construct a SkyModel object or read from disk
 
@@ -307,6 +307,7 @@ def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, sigma=None)
     sky = SkyModel()
     sky.Nside = Nside
     sky.freqs = freqs
+    sky.Nskies = Nskies
     sky.ref_chan = ref_chan
 
     # make a flat-spectrum noise shell

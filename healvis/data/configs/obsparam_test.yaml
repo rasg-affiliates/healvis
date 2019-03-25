@@ -18,7 +18,7 @@ freq:
   bandwidth:  100000000.0  # Hz
 time:
   Ntimes: 5
-  integration_time: 100.0  # seconds
+  time_cadence: 100.0  # seconds
   start_time: 2458098.5521759833  # Julian Date
 beam:
   # options are ["airy", "gaussian", "<filepath>"]
@@ -26,13 +26,13 @@ beam:
   # additional params for 'airy' or 'gaussian'
   diameter: 15  # meters
   gauss_width: 5.0  # degrees
-pols:
-  - 'xx'
-  - 'yy'
+  fov: 110  # degrees
+  pols:
+    - 'xx'
+    - 'yy'
 select:
+  no_autos: True
   bls: '[(0,11),(0,12),(11,12)]'
-fov: 110   # Deg
-Nskies: 1
 
 # --- SkyModel Parameters ---
 skyparam:
@@ -42,5 +42,5 @@ skyparam:
   # additional params if sky_type is flat_spec or gsm
   sigma: 0.031      # 31 mK
   Nside: 64
+  Nskies: 1
   savepath: 'flatspectrum.hdf5'  # outdir is root; use None or '' for no file write
-
