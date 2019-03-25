@@ -13,7 +13,8 @@ import h5py
 from astropy.cosmology import Planck15 as cosmo
 import healpy as hp
 
-from .utils import mparray, comoving_voxel_volume, comoving_distance
+from .utils import mparray
+from .cosmology import f21, comoving_voxel_volume, comoving_distance
 from .version import history_string
 
 try:
@@ -21,9 +22,6 @@ try:
     pygsm_import = True
 except ImportError:
     pygsm_import = False
-
-
-f21 = 1.420405751e9
 
 
 class SkyModel(object):

@@ -5,7 +5,7 @@ from . import utils
 from . import sky_model
 from . import beam_model
 from . import simulator
-from . import cosmo_funcs
+from . import cosmology
 
 from . import version
 __version__ = version.version
