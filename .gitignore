@@ -5,4 +5,4 @@ healvis.egg-info/*
 *.out
 build/*
 healvis/GIT_INFO
-
+*ipynb_checkpoints
