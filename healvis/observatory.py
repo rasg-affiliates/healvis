@@ -17,7 +17,7 @@ import time
 import copy
 
 from .beam_model import PowerBeam, AnalyticBeam
-from .utils import jy2Tstr
+from .cosmology import jy2Tsr
 
 # Line profiling
 # from line_profiler import LineProfiler
@@ -265,7 +265,7 @@ class Observatory:
         Nbls = len(self.array)
         self.Nside = Nside
         self.freqs = np.array(self.freqs)
-        conv_fact = jy2Tstr(np.array(self.freqs), bm=pix_area_sr)
+        conv_fact = jy2Tsr(np.array(self.freqs), bm=pix_area_sr)
         self.Ntimes = len(self.pointing_centers)
 
         pcenter_list = np.array_split(self.pointing_centers, Nprocs)
