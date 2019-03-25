@@ -31,7 +31,7 @@ def test_Observatory():
 
     # test Analytic set beam
     for beam in ['uniform', 'gaussian', 'airy', beam_model.airy_disk]:
-        obs.set_beam(beam, sigma=10, diameter=10)
+        obs.set_beam(beam, gauss_width=10, diameter=10)
         nt.assert_true(isinstance(obs.beam, beam_model.AnalyticBeam))
         b = obs.beam.beam_val(az, za, freqs, pol='xx')
         nt.assert_equal(b.shape, (Npix, Nfreqs))
@@ -151,7 +151,7 @@ def test_vis_calc():
     obs.set_fov(fov)
     obs.set_beam('uniform')
 
-    sky = sky_model.SkyModel(Nside=nside, freq_array=freqs, data=shell)
+    sky = sky_model.SkyModel(Nside=nside, freqs=freqs, data=shell[np.newaxis, :, :])
 
     visibs, times, bls = obs.make_visibilities(sky)
     print(visibs)
@@ -191,7 +191,7 @@ def test_offzenith_vis():
     resol = np.sqrt(pix_area)
     obs.set_beam('uniform')
 
-    sky = sky_model.SkyModel(Nside=Nside, freq_array=np.array(freqs), data=shell)
+    sky = sky_model.SkyModel(Nside=Nside, freqs=np.array(freqs), data=shell)
 
     vis_calc, times, bls = obs.make_visibilities(sky)
 
@@ -230,7 +230,7 @@ def test_gsm_pointing():
     obs.set_fov(fov)
     obs.set_beam('airy', diameter=15)
 
-    sky = sky_model.SkyModel(Nside=nside, freq_array=freqs, data=gsm)
+    sky = sky_model.SkyModel(Nside=nside, freqs=freqs, data=gsm)
     visibs, times, bls = obs.make_visibilities(sky)
 
     # make sure peak is at time index 5, centered at transit time

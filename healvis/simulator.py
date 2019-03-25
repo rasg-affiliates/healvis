@@ -236,7 +236,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     # ---------------------------
     # SkyModel
     # ---------------------------
-    # construct sky model 
+    # construct sky model
     sky = sky_model.construct_skymodel(skyparam['sky_type'], freqs=obs.freqs, Nside=skyparam['Nside'],
                                        ref_chan=skyparam['ref_chan'], sigma=skyparam['sigma'])
     # If loading a healpix map from disk, use those frequencies instead of ones specified in obsparam
@@ -317,7 +317,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
         uv_obj.extra_keywords['skysig'] = sky.pspec_amp   # Flat spectrum sources
 
     for si in range(Nskies):
-        sky_i = slice(si, si+1)
+        sky_i = slice(si, si + 1)
         data_arr = visibility[:, sky_i, :, :]  # (Nblts, Nspws, Nfreqs, Npols)
         uv_obj.data_array = data_arr
 

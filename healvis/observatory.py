@@ -202,7 +202,6 @@ class Observatory:
 
         return beam_sq_int
 
-
     def get_observed_region(self, Nside):
         """
         Just as a check, get the pixels sampled by each snapshot.

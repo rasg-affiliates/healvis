@@ -59,7 +59,6 @@ class PowerBeam(UVBeam):
         if self.beam_type == 'efield':
             self.efield_to_power()
 
-
     def interp_freq(self, freqs, inplace=False, kind='linear', run_check=True):
         """
         Interpolate object across frequency.

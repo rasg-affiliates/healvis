@@ -35,7 +35,7 @@ class SkyModel(object):
     _updated = []
     # keys give HDF5 datasets, value give their dtype
     dsets = {'data': np.float64, 'indices': np.int32, 'freqs': np.float64,
-             'history':h5py.special_dtype(vlen=unicode)}
+             'history': h5py.special_dtype(vlen=unicode)}
 
     def _defaults(self):
         """
@@ -300,7 +300,7 @@ def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, sigma=None)
             Frequency reference channel for cosmological conversions
         sigma : float
             If sky_type == 'flat_spec', this is the power spectrum amplitude
-    
+
     Returns:
         SkyModel object
     """

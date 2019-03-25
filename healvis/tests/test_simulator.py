@@ -20,7 +20,7 @@ def test_run_simulation():
         param_dict = yaml.safe_load(_f)
 
     # edit
-    param_dict['telescope']['array_layout'] = os.path.join(DATA_PATH+'/configs', os.path.basename(param_dict['telescope']['array_layout']))
+    param_dict['telescope']['array_layout'] = os.path.join(DATA_PATH + '/configs', os.path.basename(param_dict['telescope']['array_layout']))
     param_dict['beam']['beam_type'] = os.path.join(DATA_PATH, "HERA_NF_dipole_power.beamfits")
     param_dict['skyparam']['sky_type'] = os.path.join(DATA_PATH, "gsm_nside32.hdf5")
     param_dict['filing']['outdir'] = os.path.join(DATA_PATH, "sim_testing_out")
@@ -40,8 +40,7 @@ def test_run_simulation():
     nt.assert_equal(uvd.Nbls, 3)
     nt.assert_equal(uvd.Npols, 2)
     nt.assert_true('foo' in uvd.history)  # check add_to_history was propagated
-    nt.assert_true("skyparam" in uvd.history)  # check param_dict was written to history
+    nt.assert_true("SKYPARAM" in uvd.history)  # check param_dict was written to history
 
     # erase output directory
     shutil.rmtree(param_dict['filing']['outdir'])
-

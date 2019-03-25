@@ -21,8 +21,8 @@ def verify_update(sky_obj):
             nt.assert_true(all(indices == np.arange(Npix)))
         else:
             nt.assert_true(Npix == indices.size)
-    if sky_obj.freq_array is not None:
-        freqs = sky_obj.freq_array
+    if sky_obj.freqs is not None:
+        freqs = sky_obj.freqs
         Nfreq = sky_obj.Nfreqs
         Z = sky_obj.Z_array
         r_mpc = sky_obj.r_mpc
@@ -37,7 +37,7 @@ def verify_update(sky_obj):
 def test_update():
     Nfreqs = 100
     freq_array = np.linspace(167.0, 177.0, Nfreqs)
-    sky = sky_model.SkyModel(Nside=64, freq_array=freq_array)
+    sky = sky_model.SkyModel(Nside=64, Nskies=1, freqs=freq_array)
     verify_update(sky)
     sky.ref_chan = 50
     sky.make_flat_spectrum_shell(sigma=2.0)
@@ -60,16 +60,14 @@ def test_write_read():
     testfilename = 'test_out.hdf5'
     Nfreqs = 10
     freq_array = np.linspace(167.0, 177.0, Nfreqs)
-    sky = sky_model.SkyModel(Nside=64, freq_array=freq_array, ref_chan=5)
+    sky = sky_model.SkyModel(Nside=64, Nskies=1, freqs=freq_array, ref_chan=5)
     sky.make_flat_spectrum_shell(sigma=2.0)
     sky.write_hdf5(testfilename)
     sky2 = sky_model.SkyModel()
     sky3 = sky_model.SkyModel()
     sky2.read_hdf5(testfilename, shared_mem=True)
     sky3.read_hdf5(testfilename)
+    sky.history, sky2.history, sky3.history, = '', '', ''
     nt.assert_equal(sky, sky2)
     nt.assert_equal(sky2, sky3)
     os.remove(testfilename)
-
-
-test_write_read()
