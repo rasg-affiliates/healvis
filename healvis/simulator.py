@@ -271,6 +271,7 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
 
     return uv_obj
 
+
 def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     """
     Parse input parameter file, construct UVData and SkyModel objects, and run simulation.

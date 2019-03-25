@@ -19,7 +19,7 @@ def test_setup_uvdata():
                                  telescope_location=(-30.72152777777791, 21.428305555555557, 1073.0000000093132),
                                  telescope_name="HERA", Nfreqs=10, start_freq=1e8, bandwidth=1e8, Ntimes=60,
                                  time_cadence=100.0, start_time=2458101.0, pols=['xx'], no_autos=True, run_check=True)
-    nt.assert_equal(uvd.Nbls, uvd.Nants_data * (uvd.Nants_data -1) / 2)
+    nt.assert_equal(uvd.Nbls, uvd.Nants_data * (uvd.Nants_data - 1) / 2)
 
     # check selection works
     bls = [(0, 11), (0, 12), (0, 13)]
