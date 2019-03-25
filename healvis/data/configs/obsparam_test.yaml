@@ -1,0 +1,46 @@
+# A healvis observation parameter file
+
+# --- IO Parameters ---
+filing:
+  outdir: "./test_out"  # root for output files
+  outfile_name: "test_sim"  # basename for output file
+  format: 'uvh5'  # file format
+  clobber: True
+
+# -- Simulation Parameters ---
+telescope:
+  array_layout: ../data/configs/HERA65_layout.csv  # path to antenna layout csv file
+  telescope_location: (-30.72152777777791, 21.428305555555557, 1073.0000000093132)  # LatLonAlt location
+  telescope_name: HERA
+freq:
+  Nfreqs: 3
+  start_freq: 100000000.0  # Hz
+  bandwidth:  100000000.0  # Hz
+time:
+  Ntimes: 5
+  time_cadence: 100.0  # seconds
+  start_time: 2458098.5521759833  # Julian Date
+beam:
+  # options are ["airy", "gaussian", "<filepath>"]
+  beam_type: "airy"
+  # additional params for 'airy' or 'gaussian'
+  diameter: 15  # meters
+  gauss_width: 5.0  # degrees
+  fov: 110  # degrees
+  pols:
+    - 'xx'
+    - 'yy'
+select:
+  no_autos: True
+  bls: '[(0,11),(0,12),(11,12)]'  
+
+# --- SkyModel Parameters ---
+skyparam:
+  # options are ['flat_spec', 'gsm', '<filepath>']
+  sky_type: 'gsm'
+  ref_chan: 0
+  # additional params if sky_type is flat_spec or gsm
+  sigma: 0.031      # 31 mK
+  Nside: 64
+  Nskies: 1
+  savepath: 'flatspectrum.hdf5'  # outdir is root; use None or '' for no file write

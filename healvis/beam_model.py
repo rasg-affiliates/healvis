@@ -154,7 +154,7 @@ class PowerBeam(UVBeam):
 
 class AnalyticBeam(object):
 
-    def __init__(self, beam_type, sigma=None, diameter=None):
+    def __init__(self, beam_type, gauss_width=None, diameter=None):
         """
         Instantiate an analytic beam model.
 
@@ -162,7 +162,7 @@ class AnalyticBeam(object):
 
         Args:
             beam_type : str or callable, type of beam to use. options=['uniform', 'gaussian', 'airy', callable]
-            sigma : float, standard deviation [degrees] for gaussian beam
+            gauss_width : float, standard deviation [degrees] for gaussian beam
             diameter : float, dish diameter [meter] used for airy beam
 
         Notes:
@@ -178,9 +178,9 @@ class AnalyticBeam(object):
             raise NotImplementedError("Beam type " + str(beam_type) + " not available yet.")
         self.beam_type = beam_type
         if beam_type == 'gaussian':
-            if sigma is None:
-                raise KeyError("Sigma required for gaussian beam")
-            self.sigma = sigma * np.pi / 180.  # deg -> radians
+            if gauss_width is None:
+                raise KeyError("gauss_width required for gaussian beam")
+            self.gauss_width = gauss_width * np.pi / 180.  # deg -> radians
         elif beam_type == 'airy':
             if diameter is None:
                 raise KeyError("Dish diameter required for airy beam")
@@ -211,7 +211,7 @@ class AnalyticBeam(object):
             else:
                 beam_value = 1.0
         elif self.beam_type == 'gaussian':
-            beam_value = np.exp(-(za**2) / (2 * self.sigma**2))  # Peak normalized
+            beam_value = np.exp(-(za**2) / (2 * self.gauss_width**2))  # Peak normalized
             beam_value = np.repeat(beam_value[:, np.newaxis], len(freqs), axis=1)
         elif self.beam_type == 'airy':
             beam_value = airy_disk(za, freqs, diameter=self.diameter)
