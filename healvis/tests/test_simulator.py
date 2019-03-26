@@ -18,7 +18,7 @@ def test_setup_uvdata():
     uvd = simulator.setup_uvdata(array_layout=os.path.join(DATA_PATH, "configs/HERA65_layout.csv"),
                                  telescope_location=(-30.72152777777791, 21.428305555555557, 1073.0000000093132),
                                  telescope_name="HERA", Nfreqs=10, start_freq=1e8, bandwidth=1e8, Ntimes=60,
-                                 time_cadence=100.0, start_time=2458101.0, pols=['xx'], no_autos=True, run_check=True)
+                                 time_cadence=100.0, start_time=2458101.0, pols=['xx'], no_autos=True, make_full=True, run_check=True)
     nt.assert_equal(uvd.Nbls, uvd.Nants_data * (uvd.Nants_data - 1) / 2)
 
     # check selection works
@@ -26,12 +26,12 @@ def test_setup_uvdata():
     uvd = simulator.setup_uvdata(array_layout=os.path.join(DATA_PATH, "configs/HERA65_layout.csv"),
                                  telescope_location=(-30.72152777777791, 21.428305555555557, 1073.0000000093132),
                                  telescope_name="HERA", Nfreqs=10, start_freq=1e8, bandwidth=1e8, Ntimes=60,
-                                 time_cadence=100.0, start_time=2458101.0, pols=['xx'], bls=bls, run_check=True)
+                                 time_cadence=100.0, start_time=2458101.0, pols=['xx'], bls=bls, make_full=True, run_check=True)
     nt.assert_equal(uvd.Nbls, len(bls))
     uvd = simulator.setup_uvdata(array_layout=os.path.join(DATA_PATH, "configs/HERA65_layout.csv"),
                                  telescope_location=(-30.72152777777791, 21.428305555555557, 1073.0000000093132),
                                  telescope_name="HERA", Nfreqs=10, start_freq=1e8, bandwidth=1e8, Ntimes=60,
-                                 time_cadence=100.0, start_time=2458101.0, pols=['xx'], bls=bls, antenna_nums=[11],
+                                 time_cadence=100.0, start_time=2458101.0, pols=['xx'], bls=bls, make_full=True, antenna_nums=[11],
                                  no_autos=False, run_check=True)
     nt.assert_equal(uvd.Nbls, 1)
 
@@ -83,7 +83,7 @@ def test_run_simulation_partial_freq():
     uvd = simulator.setup_uvdata(array_layout=os.path.join(DATA_PATH, "configs/HERA65_layout.csv"),
                                  telescope_location=(-30.72152777777791, 21.428305555555557, 1073.0000000093132),
                                  telescope_name="HERA", Ntimes=60, time_cadence=100.0, start_time=2458101.0,
-                                 pols=['xx'], bls=bls, run_check=True, freq_array=sky.freqs)
+                                 pols=['xx'], bls=bls, make_full=True, run_check=True, freq_array=sky.freqs)
     test_uvh5 = os.path.join(DATA_PATH, "test_freq_parallel_sim.uvh5")
     uvd.write_uvh5(test_uvh5, clobber=True)
 
