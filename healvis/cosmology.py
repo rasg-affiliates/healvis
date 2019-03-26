@@ -1,7 +1,5 @@
 from __future__ import absolute_import, division, print_function
 
-import os
-import sys
 import numpy as np
 from astropy.cosmology import Planck15 as cosmo
 from astropy.constants import c
@@ -42,7 +40,7 @@ def dL_df(z):
 
     [cMpc]/Hz, from Furlanetto et al. (2006)
     '''
-    c_kms = c_ms/1e3  # km/s
+    c_kms = c_ms / 1e3  # km/s
     return c_kms / (cosmo.H0.value * cosmo.efunc(z)) * (z + 1)**2 / f21
 
 
