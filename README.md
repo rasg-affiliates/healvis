@@ -2,8 +2,6 @@
 
 Radio interferometric visibility simulator based on HEALpix maps.
 
-# Installation
-
 ## Dependencies
 Python dependencies for `healvis` include
 
