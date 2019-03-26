@@ -295,7 +295,6 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
 
     if make_full:
         uv_obj = complete_uvdata(uv_obj, run_check=run_check)
-        setattr(uv_obj, 'incomplete', True)
 
     return uv_obj
 
