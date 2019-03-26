@@ -141,25 +141,23 @@ class SkyModel(object):
         self.pspec_amp = sigma
         self._update()
 
-    def read_hdf5(self, filename, chan_range=None, shared_mem=False):
+    def read_hdf5(self, filename, freq_chans=None, shared_mem=False):
         """
         Read HDF5 HEALpix map(s)
 
         Args:
             filename : str
                 Path to HDF5 file with HEALpix maps in SkyModel format
-            chan_range : len-2 tuple
-                Frequency channel index range to read
+            freq_chans : integer ndarray
+                Frequency channel indices to read in
             shared_mem : bool
                 If True, share memory across processes
         """
         if not os.path.exists(filename):
             raise ValueError("File {} not found.".format(filename))
 
-        if chan_range is None:
-            freq_slice = slice(None)
-        else:
-            freq_slice = slice(chan_range[0], chan_range[1])
+        if freq_chans is None:
+            freq_chans = slice(None)
 
         print('...reading {}'.format(filename))
         with h5py.File(filename) as infile:
@@ -174,9 +172,9 @@ class SkyModel(object):
                         if shared_mem:
                             setattr(self, k, mparray(infile[k].shape, dtype=np.float))
                         # load the data via slice
-                        setattr(self, k, infile[k][:, :, freq_slice])
+                        setattr(self, k, infile[k][:, :, freq_chans])
                     elif k == 'freqs':
-                        setattr(self, k, infile[k][freq_slice])
+                        setattr(self, k, infile[k][:][freq_chans])
                     elif k == 'history':
                         setattr(self, k, infile[k].value)
                     else:

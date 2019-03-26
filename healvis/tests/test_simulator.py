@@ -1,6 +1,6 @@
 from __future__ import absolute_import, division, print_function
 
-from healvis import sky_model, simulator
+from healvis import sky_model, simulator, observatory, beam_model
 from astropy.cosmology import Planck15
 import nose.tools as nt
 import numpy as np
@@ -67,3 +67,38 @@ def test_run_simulation():
 
     # erase output directory
     shutil.rmtree(param_dict['filing']['outdir'])
+
+def test_run_simulation_partial_freq():
+    # read gsm test file
+    skymod_file = os.path.join(DATA_PATH, "gsm_nside32.hdf5")
+    sky = sky_model.SkyModel()
+    sky.read_hdf5(skymod_file)
+
+    # setup uvdata to match freq of gsm test file
+    bls = [(0, 11), (0, 12), (0, 13)]
+    uvd = simulator.setup_uvdata(array_layout=os.path.join(DATA_PATH, "configs/HERA65_layout.csv"),
+                                 telescope_location=(-30.72152777777791, 21.428305555555557, 1073.0000000093132),
+                                 telescope_name="HERA", Ntimes=60, time_cadence=100.0, start_time=2458101.0,
+                                 pols=['xx'], bls=bls, run_check=True, freq_array=sky.freqs)
+    test_uvh5 = os.path.join(DATA_PATH, "test_freq_parallel_sim.uvh5")
+    uvd.write_uvh5(test_uvh5, clobber=True)
+
+    # run simulation
+    beamfile = os.path.join(DATA_PATH, "HERA_NF_dipole_power.beamfits")
+    beam = beam_model.PowerBeam(beamfile)
+    freq_chans = np.arange(3)
+    simulator.run_simulation_partial_freq(freq_chans, test_uvh5, skymod_file, fov=180, beam=beam)
+
+    # test that partial frequency sim worked
+    uvd2 = UVData()
+    uvd2.read_uvh5(test_uvh5)
+    d = uvd2.get_data(0, 11)
+    nt.assert_false(np.isclose(d[:, freq_chans], 0.0).all())
+    nt.assert_true(np.isclose(d[:, freq_chans[-1] + 1:], 0.0).all())
+
+    # clean up
+    os.remove(test_uvh5)
+
+
+
+
