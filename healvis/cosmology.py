@@ -14,22 +14,6 @@ f21 = 1.420405751e9
 c_ms = c.to('m/s').value
 
 
-def jy2Tsr(f, bm=1.0, mK=False):
-    '''Return [K sr] / [Jy] vs. frequency (in Hz)
-        Arguments:
-            f = frequencies (Hz)
-            bm = Reference solid angle in steradians (Defaults to 1)
-            mK = Return in mK sr instead of K sr
-    '''
-    c_cmps = c_ms * 100.   # cm/s
-    k_boltz = 1.380658e-16   # erg/K
-    lam = c_cmps / f  # cm
-    fac = 1.0
-    if mK:
-        fac = 1e3
-    return 1e-23 * lam**2 / (2 * k_boltz * bm) * fac
-
-
 def comoving_distance(z):
     return cosmo.comoving_distance(z).to('Mpc').value
 
