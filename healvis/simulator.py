@@ -136,10 +136,45 @@ def parse_time_params(time_params):
     return return_dictionary
 
 
+def complete_uvdata(uv_obj, run_check=True):
+    """
+    Given a UVData object lacking Nblts-length arrays, fill out the rest.
+
+    Args:
+        uv_obj : UVData object to finish.
+        run_check: Run the standard UVData checks.
+    """
+    anums = uv_obj.antenna_numbers      # (Nants_telescope,)
+    antnames = uv_obj.antenna_names     # (Nants_telescope,)
+    bl_array = uv_obj.baseline_array    # (Nbls,)
+    time_array = uv_obj.time_array      # (Ntimes,)
+
+    uv_obj.baseline_array = np.tile(bl_array, uv_obj.Ntimes)
+    uv_obj.ant_1_array, uv_obj.ant_2_array = uv_obj.baseline_to_antnums(uv_obj.baseline_array)
+    uv_obj.Nbls = np.unique(uv_obj.baseline_array).size
+    uv_obj.Nblts = uv_obj.Nbls * uv_obj.Ntimes
+    uv_obj.time_array = np.repeat(time_array, uv_obj.Nbls)
+    uv_obj.integration_time = np.repeat(np.ones_like(time_array), uv_obj.Nbls)
+    uv_obj.Nants_data = np.unique(uv_obj.ant_1_array.tolist() + uv_obj.ant_2_array.tolist()).size
+    uv_obj.set_lsts_from_time_array()
+
+    # fill in data
+    uv_obj.data_array = np.zeros((uv_obj.Nblts, uv_obj.Nspws, uv_obj.Nfreqs, uv_obj.Npols), dtype=np.complex128)
+    uv_obj.flag_array = np.zeros((uv_obj.Nblts, uv_obj.Nspws, uv_obj.Nfreqs, uv_obj.Npols), dtype=np.bool)
+    uv_obj.nsample_array = np.ones((uv_obj.Nblts, uv_obj.Nspws, uv_obj.Nfreqs, uv_obj.Npols), dtype=np.float64)
+
+    # Other attributes
+    uv_obj.set_uvws_from_antenna_positions()
+    if run_check:
+        uv_obj.check()
+
+    return uv_obj
+
+
 def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None,
                  Nfreqs=None, start_freq=None, bandwidth=None, freq_array=None,
                  Ntimes=None, time_cadence=None, start_time=None, time_array=None,
-                 bls=None, antenna_nums=None, no_autos=True, pols=['xx'], run_check=True, **kwargs):
+                 bls=None, antenna_nums=None, no_autos=True, pols=['xx'], make_full=False, run_check=True):
     """
     Setup a UVData object for simulating.
 
@@ -170,10 +205,14 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
             List of antenna-pair tuples for baseline selection
         antenna_nums : list
             List of antenna numbers to keep in array
+        make_full : Generate the full UVData object, includes arrays of length Nblts.
+                    Default behavior creates an invalid UVData object, where baseline_array has length Nbls, etc.
+                    This is to avoid excessive memory usage up front when it's not necessary.
 
     Returns:
         UVData object with zeroed data_array
     """
+
     # get antenna information
     tele_dict = parse_telescope_params(dict(array_layout=array_layout, telescope_location=telescope_location, telescope_name=telescope_name))
     lat, lon, alt = uvutils.LatLonAlt_from_XYZ(tele_dict['telescope_location'])
@@ -216,7 +255,20 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
     uv_obj.Nfreqs = Nfreqs
     uv_obj.Ntimes = Ntimes
 
-    # setup array info
+    # fill in other attributes
+    uv_obj.spw_array = np.array([0], dtype=np.int)
+    uv_obj.Nspws = 1
+    uv_obj.polarization_array = np.array([uvutils.polstr2num(pol) for pol in pols], dtype=np.int)
+    uv_obj.Npols = uv_obj.polarization_array.size
+    uv_obj.channel_width = np.diff(uv_obj.freq_array[0])[0]
+    uv_obj.set_drift()
+    uv_obj.telescope_name = tele_dict['telescope_name']
+    uv_obj.instrument = 'simulator'
+    uv_obj.object_name = 'zenith'
+    uv_obj.vis_units = 'Jy'
+    uv_obj.history = ''
+
+    # Setup array and implement antenna/baseline selections.
     bl_array = []
     _bls = [(a1, a2) for a1 in anums for a2 in anums if a1 <= a2]
     if bls is not None:
@@ -238,37 +290,13 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
         bl_array.append(uvutils.antnums_to_baseline(a1, a2, 1))
     bl_array = np.asarray(bl_array)
 
-    # fill in Nblts attributes
-    uv_obj.baseline_array = np.tile(bl_array, uv_obj.Ntimes)
-    uv_obj.ant_1_array, uv_obj.ant_2_array = uv_obj.baseline_to_antnums(uv_obj.baseline_array)
-    uv_obj.Nbls = np.unique(uv_obj.baseline_array).size
-    uv_obj.Nblts = uv_obj.Nbls * uv_obj.Ntimes
-    uv_obj.time_array = np.repeat(time_array, uv_obj.Nbls)
-    uv_obj.integration_time = np.repeat(np.ones_like(time_array), uv_obj.Nbls)
-    uv_obj.Nants_data = np.unique(bls).size
-    uv_obj.set_lsts_from_time_array()
+    
+    uv_obj.time_array = time_array  # Keep length Nbls
+    uv_obj.baseline_array = bl_array
 
-    # fill in other attributes
-    uv_obj.spw_array = np.array([0], dtype=np.int)
-    uv_obj.Nspws = 1
-    uv_obj.polarization_array = np.array([uvutils.polstr2num(pol) for pol in pols], dtype=np.int)
-    uv_obj.Npols = uv_obj.polarization_array.size
-    uv_obj.set_uvws_from_antenna_positions()
-    uv_obj.channel_width = np.diff(uv_obj.freq_array[0])[0]
-    uv_obj.set_drift()
-    uv_obj.telescope_name = tele_dict['telescope_name']
-    uv_obj.instrument = 'simulator'
-    uv_obj.object_name = 'zenith'
-    uv_obj.vis_units = 'Jy'
-    uv_obj.history = ''
-
-    # fill in data
-    uv_obj.data_array = np.zeros((uv_obj.Nblts, uv_obj.Nspws, uv_obj.Nfreqs, uv_obj.Npols), dtype=np.complex128)
-    uv_obj.flag_array = np.zeros((uv_obj.Nblts, uv_obj.Nspws, uv_obj.Nfreqs, uv_obj.Npols), dtype=np.bool)
-    uv_obj.nsample_array = np.ones((uv_obj.Nblts, uv_obj.Nspws, uv_obj.Nfreqs, uv_obj.Npols), dtype=np.float64)
-
-    if run_check:
-        uv_obj.check()
+    if make_full:
+        uv_obj = complete_uvdata(uv_obj, run_check=run_check)
+        setattr(uv_obj, 'incomplete', True)
 
     return uv_obj
 
@@ -383,11 +411,16 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     # UVData object
     # ---------------------------
     uvd_dict = {}
+
     uvd_dict.update(param_dict['telescope'])
     uvd_dict.update(param_dict['freq'])
     uvd_dict.update(param_dict['time'])
     uvd_dict.update(param_dict['beam'])
     uvd_dict.update(param_dict['select'])
+
+    if not 'make_full' in uvd_dict:
+        uvd_dict['make_full'] = False
+
     uv_obj = setup_uvdata(**uvd_dict)
 
     # ---------------------------
@@ -424,6 +457,10 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
 
     if sjob_id is None:
         sjob_id = ''
+
+    del sky.data    # Free up memory of sky model.
+
+    uv_obj = complete_uvdata(uv_obj)
 
     uv_obj.extra_keywords = {'nside': sky.Nside, 'slurm_id': sjob_id}
     uv_obj.extra_keywords.update(beam_sq_int)
