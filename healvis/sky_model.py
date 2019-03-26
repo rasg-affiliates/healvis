@@ -160,7 +160,7 @@ class SkyModel(object):
             freq_chans = slice(None)
 
         print('...reading {}'.format(filename))
-        with h5py.File(filename) as infile:
+        with h5py.File(filename, 'r') as infile:
             # load lightweight attributes
             for k in infile.attrs:
                 setattr(self, k, infile.attrs[k])
