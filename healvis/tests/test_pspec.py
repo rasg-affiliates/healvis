@@ -62,7 +62,7 @@ def test_pspec_amp():
     dspec_I = np.mean(dspec_instr * scalar, axis=0)
 
     # Theoretical pspec amp
-    dnu = np.diff(freqs)[0] / 1e6  # MHz
+    dnu = np.diff(freqs)[0]
     Z_sel = sky.Z_array[sky.ref_chan]
     amp_theor = skysig**2 * cosmology.comoving_voxel_volume(Z_sel, dnu, sky.pix_area_sr)
 
