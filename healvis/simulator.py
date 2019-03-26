@@ -290,7 +290,6 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
         bl_array.append(uvutils.antnums_to_baseline(a1, a2, 1))
     bl_array = np.asarray(bl_array)
 
-    
     uv_obj.time_array = time_array  # Keep length Nbls
     uv_obj.baseline_array = bl_array
 
@@ -419,7 +418,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
         uvd_dict['pols'] = param_dict['beam']['pols']
     uvd_dict.update(param_dict['select'])
 
-    if not 'make_full' in uvd_dict:
+    if 'make_full' not in uvd_dict:
         uvd_dict['make_full'] = False
 
     uv_obj = setup_uvdata(**uvd_dict)
