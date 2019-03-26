@@ -102,3 +102,37 @@ def test_run_simulation_partial_freq():
 
     # clean up
     os.remove(test_uvh5)
+
+
+def test_setup_light_uvdata():
+    skymod_file = os.path.join(DATA_PATH, "gsm_nside32.hdf5")
+    sky = sky_model.SkyModel()
+    sky.read_hdf5(skymod_file)
+
+    fov = 30
+    beam_type = 'uniform'
+
+    # setup uvdata to match freq of gsm test file
+    bls = [(0, 11), (0, 12), (0, 13)]
+    uvd = simulator.setup_uvdata(array_layout=os.path.join(DATA_PATH, "configs/HERA65_layout.csv"),
+                                 telescope_location=(-30.72152777777791, 21.428305555555557, 1073.0000000093132),
+                                 telescope_name="HERA", Ntimes=60, time_cadence=100.0, start_time=2458101.0,
+                                 pols=['xx'], bls=bls, make_full=False, freq_array=sky.freqs)
+
+    obs = simulator.setup_observatory_from_uvdata(uvd, fov=30, set_pointings=True, beam=beam_type)
+
+    uvd_full = simulator.setup_uvdata(array_layout=os.path.join(DATA_PATH, "configs/HERA65_layout.csv"),
+                                      telescope_location=(-30.72152777777791, 21.428305555555557, 1073.0000000093132),
+                                      telescope_name="HERA", Ntimes=60, time_cadence=100.0, start_time=2458101.0,
+                                      pols=['xx'], bls=bls, make_full=True, run_check=True, freq_array=sky.freqs)
+
+    obs_full = simulator.setup_observatory_from_uvdata(uvd_full, fov=30, set_pointings=True, beam=beam_type)
+
+    nt.assert_true(len(uvd.baseline_array) == len(bls))
+    nt.assert_true(len(uvd.time_array) == uvd.Ntimes)       # If the "light" weren't enabled, these would be length Nblts
+
+    # Check that baselines, times, and frequencies all match
+    for bi, bl in enumerate(bls):
+        nt.assert_true(np.all(obs_full.array[bi].enu == obs.array[bi].enu))
+
+    nt.assert_true(np.all(obs_full.freqs == obs.freqs))
