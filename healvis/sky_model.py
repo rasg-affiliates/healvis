@@ -262,7 +262,7 @@ def flat_spectrum_noise_shell(sigma, freqs, Nside, Nskies, ref_chan=0, shared_me
 
 def gsm_shell(Nside, freqs):
     """
-    Generate a Global Sky Model shell
+    Generate a Global Sky Model shell in units of Kelvin
 
     Args:
         Nside : int
