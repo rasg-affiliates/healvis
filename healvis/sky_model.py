@@ -48,6 +48,8 @@ class SkyModel(object):
                     setattr(self, k, '')
                 if k == 'Nskies':
                     setattr(self, k, 1)
+                if k == 'ref_chan':
+                    setattr(self, k, 0)
                 else:
                     setattr(self, k, None)
         self._updated = []
