@@ -7,8 +7,10 @@ import six
 from six.moves import map, range, zip
 import os
 import ast
+import multiprocessing
+import copy
 
-from pyuvdata import UVData
+from pyuvdata import UVData, UVBeam
 from pyuvdata import utils as uvutils
 
 from . import observatory, version, beam_model, sky_model
@@ -272,6 +274,69 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
     return uv_obj
 
 
+def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None, beam_kwargs={},
+                                  beam_freq_interp='cubic', freq_chans=None):
+    """
+    Setup an Observatory object from a UVData object.
+
+    Args:
+        uv_obj : UVData object with metadata
+        fov : float
+            Field of View (radius) in degrees
+        set_pointings : bool
+            If True, use time_array to set Observatory pointing centers
+        beam : str or UVBeam or PowerBeam or AnalyticBeam
+            Filepath to beamfits or a UVBeam object to use as primary beam model.
+        beam_kwargs : dictionary
+            Beam keyword arguments to pass to Observatory.set_beam if beam is a viable
+            input to AnalyticBeam
+        beam_freq_interp : str
+            Intepolation method of beam across frequency if PowerBeam, see scipy.interp1d for details
+        freq_chans : integer 1D array
+            Frequency channel indices to use from uv_obj when setting observatory freqs.
+
+    Returns:
+        Observatory object
+    """
+    # setup Baselines
+    antpos, ants = uv_obj.get_ENU_antpos()
+    antpos_d = dict(zip(ants, antpos))
+    bls = []
+    for bl in np.unique(uv_obj.baseline_array):
+        ap = uv_obj.baseline_to_antnums(bl)
+        bls.append(observatory.Baseline(antpos_d[ap[0]], antpos_d[ap[1]]))
+
+    lat, lon, alt = uv_obj.telescope_location_lat_lon_alt
+    if freq_chans is None:
+        freq_chans = slice(None)
+    obs = observatory.Observatory(np.degrees(lat), np.degrees(lon), array=bls, freqs=uv_obj.freq_array[0, freq_chans])
+
+    # set FOV
+    obs.set_fov(fov)
+
+    # set pointings
+    if set_pointings:
+        obs.set_pointings(np.unique(uv_obj.time_array))
+
+    # set beam
+    if beam is not None:
+        if isinstance(beam, UVBeam):
+            obs.beam = copy.deepcopy(beam)
+            obs.beam.__class__ = beam_model.PowerBeam
+            obs.beam.interp_freq(obs.freqs, inplace=True, kind=beam_freq_interp)
+
+        elif isinstance(beam, (str, np.str)) or callable(beam):
+            obs.set_beam(beam, **beam_kwargs)
+
+        elif isinstance(beam, beam_model.PowerBeam):
+            obs.beam = beam.interp_freq(obs.freqs, inplace=False, kind=beam_freq_interp)
+
+        elif isinstance(beam, beam_model.AnalyticBeam):
+            obs.beam = beam
+
+    return obs
+
+
 def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     """
     Parse input parameter file, construct UVData and SkyModel objects, and run simulation.
@@ -329,39 +394,10 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     # ---------------------------
     # Observatory
     # ---------------------------
-    antpos, ants = uv_obj.get_ENU_antpos()
-    antpos_d = dict(zip(ants, antpos))
-    bls = []
-    for bl in np.unique(uv_obj.baseline_array):
-        ap = uv_obj.baseline_to_antnums(bl)
-        bls.append(observatory.Baseline(antpos_d[ap[0]], antpos_d[ap[1]]))
-
-    lat, lon, alt = uv_obj.telescope_location_lat_lon_alt
-    obs = observatory.Observatory(np.degrees(lat), np.degrees(lon), array=bls, freqs=uv_obj.freq_array[0])
-    fov = param_dict['beam'].pop("fov")
-    obs.set_fov(fov)
-    print("Observatory built.")
-    print("Nbls: ", uv_obj.Nbls)
-    print("Ntimes: ", uv_obj.Ntimes)
-    sys.stdout.flush()
-
-    # ---------------------------
-    # Pointings
-    # ---------------------------
-    obs.set_pointings(np.unique(uv_obj.time_array))
-    print("Pointings set.")
-    sys.stdout.flush()
-
-    # ---------------------------
-    # Primary Beam
-    # ---------------------------
     beam_attr = param_dict['beam'].copy()
     beam_type = beam_attr.pop("beam_type")
-    obs.set_beam(beam_type, **beam_attr)
-
-    # if PowerBeam, interpolate to Observatory frequencies
-    if isinstance(obs.beam, beam_model.PowerBeam):
-        obs.beam.interp_freq(obs.freqs, inplace=True, kind='cubic')
+    obs = setup_observatory_from_uvdata(uv_obj, fov=param_dict['beam'].pop("fov"), set_pointings=True,
+                                        beam=beam_type, beam_kwargs=beam_attr, beam_freq_interp='cubic')
 
     # ---------------------------
     # Run simulation
@@ -443,3 +479,59 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
             uv_obj.write_miriad(outfile_name, clobber=filing_params['clobber'])
         elif out_format == 'uvfits':
             uv_obj.write_uvfits(outfile_name)
+
+
+def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, beam=None, beam_kwargs={}, Nprocs=1):
+    """
+    Run a healvis simulation on a selected range of frequency channels.
+
+    Requires a pyuvdata.UVH5 file and SkyModel file (HDF5 format) to exist
+    on disk with matching frequencies.
+
+    Args:
+        freq_chans : integer 1D array
+            Frequency channel indices of uvh5_file to simulate
+        uvh5_file : str
+            Filepath to a UVH5 file
+        skymod_file : str
+            Filepath to a SkyModel file
+        beam : str, UVbeam, PowerBeam or AnalyticBeam
+            Filepath to beamfits, a UVBeam object, or PowerBeam or AnalyticBeam object
+        beam_kwargs : dictionary
+            If beam is a viable input to AnalyticBeam, these are its keyword arguments
+        Nprocs : int
+            Number of processes for this task
+
+    Result:
+        Writes simulation result into uvh5_file
+    """
+    # load UVH5 metadata
+    uvd = UVData()
+    uvd.read_uvh5(uvh5_file, read_data=False)
+    pols = [uvutils.polnum2str(pol) for pol in uvd.polarization_array]
+ 
+    # load SkyModel
+    sky = sky_model.SkyModel()
+    sky.read_hdf5(skymod_file, freq_chans=freq_chans, shared_mem=False)
+
+    assert np.isclose(sky.freqs, uvd.freq_array[0, freq_chans]).all(), "Frequency arrays in UHV5 file {} and SkyModel file {} don't agree".format(uvh5_file, skymod_file)
+
+    # setup observatory
+    obs = setup_observatory_from_uvdata(uvd, fov=fov, set_pointings=True, beam=beam, beam_kwargs=beam_kwargs,
+                                        freq_chans=freq_chans)
+
+    # run simulation
+    visibility = []
+    beam_sq_int = {}
+    for pol in pols:
+        # calculate visibility
+        visibs, time_array, baseline_inds = obs.make_visibilities(sky, Nprocs=Nprocs, beam_pol=pol)
+        visibility.append(visibs)
+
+    visibility = np.moveaxis(visibility, 0, -1)
+    flags = np.zeros_like(visibility, np.bool)
+    nsamples = np.ones_like(visibility, np.float)
+
+    # write to disk
+    print("...writing to {}".format(uvh5_file))
+    uvd.write_uvh5_part(uvh5_file, visibility, flags, nsamples, freq_chans=freq_chans)
