@@ -415,7 +415,8 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     uvd_dict.update(param_dict['telescope'])
     uvd_dict.update(param_dict['freq'])
     uvd_dict.update(param_dict['time'])
-    uvd_dict.update(param_dict['beam'])
+    if 'pols' in param_dict['beam'].keys():
+        uvd_dict['pols'] = param_dict['beam']['pols']
     uvd_dict.update(param_dict['select'])
 
     if not 'make_full' in uvd_dict:
