@@ -1,12 +1,10 @@
-from healvis import observatory, sky_model, beam_model, utils, cosmology
-from astropy.cosmology import WMAP9
+import numpy as np
+import os
+import healpy as hp
 from astropy.time import Time
 import nose.tools as nt
-import numpy as np
-import healpy as hp
+from healvis import observatory, sky_model, beam_model, utils
 from healvis.data import DATA_PATH
-import os
-import copy
 
 # TODO
 # Test a skymodel that isn't a complete-sky shell (ie., use the sky.indices key)
@@ -143,7 +141,7 @@ def test_vis_calc():
     shell = np.zeros((npix, nfreqs))
     pix_area = 4 * np.pi / float(npix)
     shell[ind] = 1  # Jy/pix
-    shell[ind] *= cosmology.jy2Tsr(freqs[0], bm=pix_area)  # K
+    shell[ind] *= utils.jy2Tsr(freqs[0], bm=pix_area)  # K
 
     obs = observatory.Observatory(latitude, longitude, array=[bl], freqs=freqs)
     obs.pointing_centers = centers
@@ -182,7 +180,7 @@ def test_offzenith_vis():
     phi, theta = hp.pix2ang(Nside, ind, lonlat=True)
     ind = hp.ang2pix(Nside, phi, theta - 5, lonlat=True)
     shell[ind] = 1  # Jy/pix
-    shell[ind] *= cosmology.jy2Tsr(freqs[0], bm=pix_area)  # K
+    shell[ind] *= utils.jy2Tsr(freqs[0], bm=pix_area)  # K
 
     obs = observatory.Observatory(latitude, longitude, array=[bl], freqs=freqs)
     obs.pointing_centers = [[phi, theta]]

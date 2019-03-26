@@ -2,7 +2,7 @@ import numpy as np
 from astropy.time import Time
 import nose.tools as nt
 
-from healvis import observatory, sky_model, beam_model, utils, cosmology
+from healvis import observatory, sky_model, utils, cosmology
 
 latitude = -30.7215277777
 longitude = 21.4283055554
@@ -44,7 +44,7 @@ def test_pspec_amp():
     visibs, times, bls = obs.make_visibilities(sky, Nprocs=3)
 
     vis_jy = visibs[:, 0, :]  # (Nblts, Nskies, Nfreqs)
-    vis_Ksr = cosmology.jy2Tsr(freqs) * vis_jy
+    vis_Ksr = utils.jy2Tsr(freqs) * vis_jy
 
     _vis = np.fft.ifft(vis_Ksr, axis=1)
     Nkpar = Nfreqs / 2
