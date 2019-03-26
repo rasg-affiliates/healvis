@@ -7,7 +7,6 @@ import six
 from six.moves import map, range, zip
 import os
 import ast
-import multiprocessing
 import copy
 
 from pyuvdata import UVData, UVBeam
@@ -509,7 +508,7 @@ def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, bea
     uvd = UVData()
     uvd.read_uvh5(uvh5_file, read_data=False)
     pols = [uvutils.polnum2str(pol) for pol in uvd.polarization_array]
- 
+
     # load SkyModel
     sky = sky_model.SkyModel()
     sky.read_hdf5(skymod_file, freq_chans=freq_chans, shared_mem=False)
