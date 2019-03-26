@@ -437,8 +437,9 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
         uv_obj.extra_keywords['skysig'] = sky.pspec_amp   # Flat spectrum sources
 
     for si in range(Nskies):
-        sky_i = slice(si, si + 1)
-        uv_obj.data_array = visibility[:, sky_i, :, :]  # (Nblts, Nspws, Nfreqs, Npols)
+        # get the sky slice
+        vis = visibility[:, si]  # vis = (Nblts, Nfreqs, Npols)
+        uv_obj.data_array = vis[:, np.newaxis, :, :]  # (Nblts, Nspws, Nfreqs, Npols)
 
         uv_obj.check()
 

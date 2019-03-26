@@ -60,10 +60,13 @@ def test_run_simulation():
     # basic checks
     nt.assert_equal(uvd.Nfreqs, 10)
     nt.assert_equal(uvd.Ntimes, 5)
-    nt.assert_equal(uvd.Nbls, 3)
+    nt.assert_equal(uvd.Nbls, 4)
     nt.assert_equal(uvd.Npols, 2)
     nt.assert_true('foo' in uvd.history)  # check add_to_history was propagated
     nt.assert_true("SKYPARAM" in uvd.history)  # check param_dict was written to history
+
+    # test data_array ordering is correct--i.e. Nbls, Ntimes--by asserting that auto-correlation is purely real for all times
+    nt.assert_true(np.isclose(uvd.get_data(0, 0).imag, 0.0).all())
 
     # erase output directory
     shutil.rmtree(param_dict['filing']['outdir'])

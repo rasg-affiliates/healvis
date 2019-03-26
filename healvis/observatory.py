@@ -289,7 +289,7 @@ class Observatory:
             if vis_array.empty():
                 break
 
-        srt = np.lexsort((time_inds, baseline_inds))
+        srt = np.lexsort((baseline_inds, time_inds))
         time_inds = np.array(time_inds)[srt]
         visibilities = np.array(visibilities)[srt]      # Shape (Nblts, Nskies, Nfreqs)
         time_array = self.times_jd[time_inds]
