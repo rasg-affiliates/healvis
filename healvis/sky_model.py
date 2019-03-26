@@ -46,9 +46,9 @@ class SkyModel(object):
             if not hasattr(self, k):
                 if k == 'history':
                     setattr(self, k, '')
-                if k == 'Nskies':
+                elif k == 'Nskies':
                     setattr(self, k, 1)
-                if k == 'ref_chan':
+                elif k == 'ref_chan':
                     setattr(self, k, 0)
                 else:
                     setattr(self, k, None)
