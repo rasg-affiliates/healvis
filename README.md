@@ -15,6 +15,11 @@ Python dependencies for `healvis` include
 * multiprocessing
 * [pyuvdata](https://github.com/HERA-Team/pyuvdata/)
 
+Optional dependencies include
+
+* [pygsm](https://github.com/telegraphic/PyGSM)
+* [scikit-learn](https://scikit-learn.org/stable/)
+
 ## Installation
 Clone this repo and run the installation script as
 ```python setup.py install```

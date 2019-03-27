@@ -274,7 +274,7 @@ def gsm_shell(Nside, freqs):
         data : ndarray, shape (Npix, Nfreqs)
             GSM shell as HEALpix maps
     """
-    assert pygsm_import, "pygsm package not found. This is required to use GSM functionality."
+    assert pygsm_import, "Couldn't import pygsm package. This is required to use GSM functionality."
 
     maps = pygsm.GlobalSkyModel(freq_unit='Hz', basemap='haslam').generate(freqs)  # Units K
 

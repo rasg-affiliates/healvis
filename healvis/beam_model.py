@@ -8,7 +8,12 @@ from astropy.constants import c
 from scipy.special import j1
 import copy
 from pyuvdata import UVBeam
-from sklearn import gaussian_process as gp
+
+try:
+    from sklearn import gaussian_process as gp
+    sklearn_import = True
+except ImportError:
+    sklearn_import = False
 
 
 def airy_disk(za_array, freqs, diameter=15.0, **kwargs):
@@ -54,6 +59,8 @@ def smooth_beam(freqs, beam_array, freq_ls=2.0, noise=1e-10, output_freqs=None):
         smooth_beam : 2D ndarray
             Smoothed beam
     """
+    assert sklearn_import, "Couldn't import sklearn package. This is required to use beam smoothing functionality."
+
     # setup kernel
     kernel = 1**2 * gp.kernels.RBF(freq_ls) + gp.kernels.WhiteKernel(noise)
     GP = gp.GaussianProcessRegressor(kernel=kernel, optimizer=None, copy_X_train=False)
