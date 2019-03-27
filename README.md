@@ -1,5 +1,7 @@
 # healvis
 
+[![Build Status](https://travis-ci.org/RadioAstronomySoftwareGroup/healvis.svg?branch=master)](https://travis-ci.org/RadioAstronomySoftwareGroup/healvis)
+
 Radio interferometric visibility simulator based on HEALpix maps.
 
 ## Dependencies
@@ -23,3 +25,6 @@ Optional dependencies include
 ## Installation
 Clone this repo and run the installation script as
 ```python setup.py install```
+
+## Getting Started
+To get started running `healvis`, see our [tutorial notebooks](https://github.com/RadioAstronomySoftwareGroup/healvis/tree/master/notebooks).
