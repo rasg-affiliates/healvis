@@ -8,6 +8,7 @@ from astropy.constants import c
 from scipy.special import j1
 import copy
 from pyuvdata import UVBeam
+from sklearn import gaussian_process as gp
 
 
 def airy_disk(za_array, freqs, diameter=15.0, **kwargs):
@@ -31,6 +32,49 @@ def airy_disk(za_array, freqs, diameter=15.0, **kwargs):
     beam[zeros] = 1.0
 
     return beam
+
+
+def smooth_beam(freqs, beam_array, freq_ls=2.0, noise=1e-10, output_freqs=None):
+    """
+    Smooth a beam across frequency using a Gaussian Process
+
+    Args:
+        freqs : 1D ndarray
+            Frequency array [Hz]
+        beam_array : 2D ndarray
+            Beam map with shape (Nfreqs, Npixels)
+        freq_ls : float
+            Frequency lengthscale to smooth at [MHz]
+        noise : float
+            Noise level. Ideally a small but nonzero value.
+        output_freqs : 1D ndarray
+            Prediction frequencies [Hz]. Default is training frequencies.
+
+    Returns:
+        smooth_beam : 2D ndarray
+            Smoothed beam
+    """
+    # setup kernel
+    kernel = 1**2 * gp.kernels.RBF(freq_ls) + gp.kernels.WhiteKernel(noise)
+    GP = gp.GaussianProcessRegressor(kernel=kernel, optimizer=None, copy_X_train=False)
+    if output_freqs is None:
+        output_freqs = freqs
+
+    # check for complex
+    if np.iscomplexobj(beam_array):
+        # fit real and imag separately
+        GP.fit(freqs[:, None] / 1e6, beam_array.real)
+        smooth_beam_real = GP.predict(output_freqs[:, None] / 1e6)
+        GP.fit(freqs[:, None] / 1e6, beam_array.imag)
+        smooth_beam_imag = GP.predict(output_freqs[:, None] / 1e6)
+        smooth_beam = smooth_beam_real.astype(np.complex) + 1j * smooth_beam_imag
+
+    else:
+        # fit
+        GP.fit(freqs[:, None] / 1e6, beam_array)
+        smooth_beam = GP.predict(output_freqs[:, None] / 1e6)
+
+    return smooth_beam
 
 
 class PowerBeam(UVBeam):
@@ -65,12 +109,12 @@ class PowerBeam(UVBeam):
 
         Args:
             freqs: 1D frequency array [Hz]
-            inplace: bool, if True edit data in place, otherwise return a new UVBeam
+            inplace: bool, if True edit data in place, otherwise return a new PowerBeam
             kind: str, interpolation method. See scipy.interpolate.interp1d
             run_check: bool, if True run attribute check on output object
 
         Returns:
-            If not inplace, returns UVBeam object with interpolated frequencies
+            If not inplace, returns PowerBeam object with interpolated frequencies
         """
         # make a new object
         if inplace:
@@ -83,6 +127,64 @@ class PowerBeam(UVBeam):
         new_beam.Nfreqs = interp_data.shape[3]
         new_beam.freq_array = freqs.reshape(1, -1)
         new_beam.bandpass_array = interp_bp
+        if hasattr(new_beam, 'saved_interp_functions'):
+            delattr(new_beam, 'saved_interp_functions')
+
+        if run_check:
+            new_beam.check()
+
+        if not inplace:
+            return new_beam
+
+    def smooth_beam(self, freqs, inplace=False, freq_ls=2.0, noise=1e-10, run_check=True):
+        """
+        Smooth the beam across frequency.
+
+        Args:
+            freqs : 1D frequency array to evaluate smoothed model at [Hz]
+            inplace : bool, whether to edit data in place, otherwise return a new PowerBeam
+            freq_ls : float, lengthscale in frequency [MHz] to smooth at
+            noise : float, noise level in fit, ideally a small but non-zero value
+            run-check : bool, if True run UVBeam check
+
+        Returns:
+            If not inplace, returns a smoothed PowerBeam object at desired frequencies
+        """
+        # make a new object
+        if inplace:
+            new_beam = self
+        else:
+            new_beam = copy.deepcopy(self)
+
+        # iterate over polarizations
+        Nfreqs = freqs.size
+        interp_data = []
+        for pi, pol in enumerate(new_beam.polarization_array):
+
+            # get beam data
+            if new_beam.pixel_coordinate_system == 'az_za':
+                data = new_beam.data_array[0, 0, pi].reshape(new_beam.Nfreqs, new_beam.Naxes2 * new_beam.Naxes1)
+            elif new_beam.pixel_coordinate_system == 'healpix':
+                data = new_beam.data_array[0, 0, pi]
+
+            # smooth
+            sdata = smooth_beam(new_beam.freq_array[0], data, freq_ls=freq_ls, noise=noise, output_freqs=freqs)
+
+            # append
+            if new_beam.pixel_coordinate_system == 'az_za':
+                interp_data.append(sdata.reshape(Nfreqs, new_beam.Naxes2, new_beam.Naxes1))
+            elif new_beam.pixel_coordinate_system == 'healpix':
+                interp_data.append(sdata)
+
+        # insert into new_beam
+        new_beam.data_array = np.asarray(interp_data)[np.newaxis, np.newaxis]
+
+        # smooth bandpass array too
+        new_beam.bandpass_array = smooth_beam(new_beam.freq_array[0], new_beam.bandpass_array.T, freq_ls=freq_ls, noise=noise, output_freqs=freqs).T
+
+        # update metadata
+        new_beam.Nfreqs = new_beam.data_array.shape[3]
+        new_beam.freq_array = freqs.reshape(1, -1)
         if hasattr(new_beam, 'saved_interp_functions'):
             delattr(new_beam, 'saved_interp_functions')
 

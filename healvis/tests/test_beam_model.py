@@ -40,6 +40,10 @@ def test_PowerBeam():
     b2 = P.beam_val(az, az, freqs + 1e6, pol='XX')
     np.testing.assert_array_almost_equal(b, b2)
 
+    # smooth the beam
+    SP = P.smooth_beam(freqs, inplace=False, freq_ls=2.0, noise=1e-10)
+    nt.assert_true(SP.Nfreqs, len(freqs))
+
 
 def test_AnalyticBeam():
     freqs = np.arange(120e6, 160e6, 4e6)
