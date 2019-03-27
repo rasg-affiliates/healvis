@@ -24,7 +24,7 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
   # create environment and install dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy astropy nose pip matplotlib coverage h5py six pyyaml numba
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy astropy nose pip matplotlib coverage scikit-learn h5py six pyyaml numba
   - source activate test-environment
   - conda install -c conda-forge healpy pycodestyle mpi4py
   - pip install coveralls

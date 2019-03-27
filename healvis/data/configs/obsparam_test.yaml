@@ -23,7 +23,10 @@ time:
 beam:
   # options are ["airy", "gaussian", "<filepath>"]
   beam_type: "airy"
-  # additional params for 'airy' or 'gaussian'
+  # additional params
+  beam_freq_interp: 'linear'  # for PowerBeam
+  smooth_beam: False  # for PowerBeam
+  smooth_scale: 2.0  # MHz
   diameter: 15  # meters
   gauss_width: 5.0  # degrees
   fov: 110  # degrees

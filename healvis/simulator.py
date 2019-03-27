@@ -300,7 +300,8 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
 
 
 def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None, beam_kwargs={},
-                                  beam_freq_interp='cubic', freq_chans=None):
+                                  beam_freq_interp='cubic', smooth_beam=False, smooth_scale=2.0,
+                                  freq_chans=None):
     """
     Setup an Observatory object from a UVData object.
 
@@ -317,6 +318,10 @@ def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None
             input to AnalyticBeam
         beam_freq_interp : str
             Intepolation method of beam across frequency if PowerBeam, see scipy.interp1d for details
+        smooth_beam : bool
+            If True, and beam is PowerBeam, smooth it across frequency with a Gaussian Process
+        smooth_scale : float
+            If smoothing the beam, smooth it at this frequency scale [MHz]
         freq_chans : integer 1D array
             Frequency channel indices to use from uv_obj when setting observatory freqs.
 
@@ -358,6 +363,10 @@ def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None
 
         elif isinstance(beam, beam_model.AnalyticBeam):
             obs.beam = beam
+
+    # smooth the beam
+    if isinstance(obs.beam, beam_model.PowerBeam) and smooth_beam:
+        obs.beam.smooth_beam(obs.freqs, inplace=True, freq_ls=smooth_scale)
 
     return obs
 
@@ -427,8 +436,13 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     # ---------------------------
     beam_attr = param_dict['beam'].copy()
     beam_type = beam_attr.pop("beam_type")
+    pols = beam_attr.pop("pols")
+    beam_freq_interp = beam_attr.pop("beam_freq_interp")
+    smooth_beam = beam_attr.pop("smooth_beam")
+    smooth_scale = beam_attr.pop("smooth_scale")
     obs = setup_observatory_from_uvdata(uv_obj, fov=param_dict['beam'].pop("fov"), set_pointings=True,
-                                        beam=beam_type, beam_kwargs=beam_attr, beam_freq_interp='cubic')
+                                        beam=beam_type, beam_kwargs=beam_attr, beam_freq_interp=beam_freq_interp,
+                                        smooth_beam=smooth_beam, smooth_scale=smooth_scale)
 
     # ---------------------------
     # Run simulation
@@ -437,7 +451,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     sys.stdout.flush()
     visibility = []
     beam_sq_int = {}
-    for pol in param_dict['beam']['pols']:
+    for pol in pols:
         # calculate visibility
         visibs, time_array, baseline_inds = obs.make_visibilities(sky, Nprocs=Nprocs, beam_pol=pol)
         visibility.append(visibs)
@@ -517,7 +531,8 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
             uv_obj.write_uvfits(outfile_name)
 
 
-def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, beam=None, beam_kwargs={}, Nprocs=1):
+def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, beam=None, beam_kwargs={},
+                                beam_freq_interp='linear', smooth_beam=True, smooth_scale=2.0, Nprocs=1):
     """
     Run a healvis simulation on a selected range of frequency channels.
 
@@ -535,6 +550,12 @@ def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, bea
             Filepath to beamfits, a UVBeam object, or PowerBeam or AnalyticBeam object
         beam_kwargs : dictionary
             If beam is a viable input to AnalyticBeam, these are its keyword arguments
+        beam_freq_interp : str
+            Interpolation method if beam is PowerBeam. See scipy.interpolate.interp1d fro details.
+        smooth_beam : bool
+            If True, and beam is PowerBeam, smooth it across frequency with a Gaussian Process
+        smooth_scale : float
+            If smoothing the beam, smooth it at this frequency scale [MHz]
         Nprocs : int
             Number of processes for this task
 
@@ -554,7 +575,8 @@ def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, bea
 
     # setup observatory
     obs = setup_observatory_from_uvdata(uvd, fov=fov, set_pointings=True, beam=beam, beam_kwargs=beam_kwargs,
-                                        freq_chans=freq_chans)
+                                        freq_chans=freq_chans, beam_freq_interp=beam_freq_interp, smooth_beam=smooth_beam,
+                                        smooth_scale=smooth_scale)
 
     # run simulation
     visibility = []
