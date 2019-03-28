@@ -5,10 +5,7 @@
 from __future__ import absolute_import, division, print_function
 
 from setuptools import setup
-import glob
 import os
-import io
-import numpy as np
 import json
 
 from healvis import version
@@ -44,7 +41,8 @@ setup_args = {
     'version': version.version,
     'include_package_data': True,
     'setup_requires': ['numpy>=1.14', 'six>=1.10'],
-    'install_requires': ['numpy>=1.14', 'six>=1.10', 'scipy', 'astropy>=2.0'],
+    'install_requires': ['numpy>=1.14', 'six>=1.10', 'scipy', 'astropy>=2.0', 'pyuvdata>=1.2.1',
+                         'PyYAML>=5.1', 'numba>=0.43.1'],
     'keywords': 'radio astronomy interferometry'
 }
 
