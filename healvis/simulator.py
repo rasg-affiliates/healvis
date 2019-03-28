@@ -536,7 +536,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
             raise ValueError('Obsparam frequencies do not match loaded frequencies.')
     else:
         # write to disk if requested
-        if skyparam['savepath'] not in [None, 'None', 'none', '']:
+        if savepath is not None:
             sky.write_hdf5(os.path.join(filing_params['outdir'], savepath))
 
     # ---------------------------
@@ -564,11 +564,13 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     # ---------------------------
     beam_attr = param_dict['beam'].copy()
     beam_type = beam_attr.pop("beam_type")
+
     pols = beam_attr.pop("pols", None)
-    beam_freq_interp = beam_attr.pop("beam_freq_interp")
-    smooth_beam = beam_attr.pop("smooth_beam")
-    smooth_scale = beam_attr.pop("smooth_scale")
-    obs = setup_observatory_from_uvdata(uv_obj, fov=param_dict['beam'].pop("fov"), set_pointings=True,
+    beam_freq_interp = beam_attr.pop("beam_freq_interp", 'cubic')
+    smooth_beam = beam_attr.pop("smooth_beam", False)
+    smooth_scale = beam_attr.pop("smooth_scale", 2.0)
+    fov = beam_attr.pop('fov')
+    obs = setup_observatory_from_uvdata(uv_obj, fov=fov, set_pointings=True,
                                         beam=beam_type, beam_kwargs=beam_attr, beam_freq_interp=beam_freq_interp,
                                         smooth_beam=smooth_beam, smooth_scale=smooth_scale)
 
@@ -659,7 +661,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
         elif out_format == 'miriad':
             uv_obj.write_miriad(outfile_name, clobber=filing_params['clobber'])
         elif out_format == 'uvfits':
-            uv_obj.write_uvfits(outfile_name)
+            uv_obj.write_uvfits(outfile_name, force_phase=True, spoof_nonessential=True)
 
 
 def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, beam=None, beam_kwargs={},
