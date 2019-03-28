@@ -270,7 +270,7 @@ def complete_uvdata(uv_obj, run_check=True):
     uv_obj.Nbls = np.unique(uv_obj.baseline_array).size
     uv_obj.Nblts = uv_obj.Nbls * uv_obj.Ntimes
     uv_obj.time_array = np.repeat(time_array, uv_obj.Nbls)
-    uv_obj.integration_time = np.nan * np.ones(uv_obj.Nblts)    # Integration time is not well-defined for simulated data.
+    uv_obj.integration_time = np.zeros(uv_obj.Nblts, dtype=float)
     uv_obj.Nants_data = np.unique(uv_obj.ant_1_array.tolist() + uv_obj.ant_2_array.tolist()).size
     uv_obj.set_lsts_from_time_array()
 

@@ -8,6 +8,7 @@
 - Documented convention that frequency array values refer to channel centers
 
 ### Changed
+- Set integration_time on output UVData object to 0's, to reflect that it's not a meaningful parameter in simulation`
 
 ### Fixed
 
