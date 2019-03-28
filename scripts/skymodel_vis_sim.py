@@ -3,14 +3,14 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 3-clause BSD License
 
-# SBATCH -J healvis
-# SBATCH -t 2-00:00:00
-# SBATCH --cpus-per-task=24
-# SBATCH --mem=100G
-# SBATCH -A jpober-condo
-# SBATCH --qos=jpober-condo
-# SBATCH --mail-type=FAIL
-# SBATCH --mail-user=adam_lanman@brown.edu
+#SBATCH -J healvis
+#SBATCH -t 2-00:00:00
+#SBATCH --cpus-per-task=24
+#SBATCH --mem=100G
+#SBATCH -A jpober-condo
+#SBATCH --qos=jpober-condo
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=adam_lanman@brown.edu
 
 from __future__ import absolute_import, division, print_function
 
