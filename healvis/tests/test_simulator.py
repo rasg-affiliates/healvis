@@ -1,16 +1,21 @@
+# -*- mode: python; coding: utf-8 -*
+# Copyright (c) 2019 Radio Astronomy Software Group
+# Licensed under the 3-clause BSD License
+
 from __future__ import absolute_import, division, print_function
 
-from healvis import sky_model, simulator, observatory, beam_model, utils
-from astropy.cosmology import Planck15
-import nose.tools as nt
 import numpy as np
-import os
 import healpy as hp
-from healvis.data import DATA_PATH
+import os
 import yaml
 import shutil
+import nose.tools as nt
+from astropy.cosmology import Planck15
 
 from pyuvdata import UVData
+
+from healvis import sky_model, simulator, observatory, beam_model, utils
+from healvis.data import DATA_PATH
 
 
 def test_setup_uvdata():

@@ -1,9 +1,16 @@
-from healvis import sky_model
-from astropy.cosmology import Planck15
-import nose.tools as nt
+# -*- mode: python; coding: utf-8 -*
+# Copyright (c) 2019 Radio Astronomy Software Group
+# Licensed under the 3-clause BSD License
+
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import os
 import healpy as hp
+import nose.tools as nt
+from astropy.cosmology import Planck15
+
+from healvis import sky_model
 
 
 def verify_update(sky_obj):

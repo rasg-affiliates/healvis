@@ -1,3 +1,7 @@
+# -*- mode: python; coding: utf-8 -*
+# Copyright (c) 2019 Radio Astronomy Software Group
+# Licensed under the 3-clause BSD License
+
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
@@ -14,6 +18,10 @@ from pyuvdata import UVData, UVBeam
 from pyuvdata import utils as uvutils
 
 from . import observatory, version, beam_model, sky_model
+
+# -----------------------
+# Methods to parse configuration files and setup/run simulation.
+# -----------------------
 
 
 def _parse_layout_csv(layout_csv):

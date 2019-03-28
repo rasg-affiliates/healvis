@@ -1,34 +1,29 @@
-"""
-Generate visibilities from a HEALPix shell.
-"""
+# -*- mode: python; coding: utf-8 -*
+# Copyright (c) 2019 Radio Astronomy Software Group
+# Licensed under the 3-clause BSD License
+
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-from astropy.time import Time
-from astropy.constants import c
-from astropy.coordinates import Angle, AltAz, EarthLocation, ICRS
-from astropy import units
-import healpy as hp
-from numba import jit
 import multiprocessing as mp
+from numba import jit
 import sys
 import resource
 import time
 import copy
+import healpy as hp
+from astropy.time import Time
+from astropy.constants import c
+from astropy.coordinates import Angle, AltAz, EarthLocation, ICRS
+from astropy import units
 
 from .beam_model import PowerBeam, AnalyticBeam
 from .utils import jy2Tsr
 from .cosmology import c_ms
 
-# Line profiling
-# from line_profiler import LineProfiler
-# import atexit
-# import __builtin__ as builtins
-# prof = LineProfiler()
-# builtins.__dict__['profile'] = prof
-# ofile = open('time_profiling.out', 'w')
-# atexit.register(ofile.close)
-# atexit.register(prof.print_stats, stream=ofile)
+# -----------------------
+# Classes and methods to calculate visibilities from HEALPix maps.
+# -----------------------
 
 
 @jit
