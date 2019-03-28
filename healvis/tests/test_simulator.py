@@ -1,6 +1,6 @@
 from __future__ import absolute_import, division, print_function
 
-from healvis import sky_model, simulator, observatory, beam_model
+from healvis import sky_model, simulator, observatory, beam_model, utils
 from astropy.cosmology import Planck15
 import nose.tools as nt
 import numpy as np
@@ -136,3 +136,16 @@ def test_setup_light_uvdata():
         nt.assert_true(np.all(obs_full.array[bi].enu == obs.array[bi].enu))
 
     nt.assert_true(np.all(obs_full.freqs == obs.freqs))
+
+
+def test_freq_time_params():
+    sky = sky_model.SkyModel()
+    sky.read_hdf5(os.path.join(DATA_PATH, 'gsm_nside32.hdf5'))
+    freqs = sky.freqs
+    times = np.linspace(2458570, 2458570 + 0.5, 239)
+    time_dict = utils.time_array_to_params(times)
+    freq_dict = utils.freq_array_to_params(freqs)
+    ftest = simulator.parse_frequency_params(freq_dict)
+    ttest = simulator.parse_time_params(time_dict)
+    nt.assert_true(np.allclose(ftest['freq_array'], freqs))
+    nt.assert_true(np.allclose(ttest['time_array'], times))
