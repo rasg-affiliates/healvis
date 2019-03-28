@@ -21,7 +21,7 @@ time:
   time_cadence: 100.0  # seconds
   start_time: 2458098.5521759833  # Julian Date
 beam:
-  # options are ["airy", "gaussian", "<filepath>"]
+  # options are ["airy", "gaussian", "uniform", "<filepath>"]
   beam_type: "airy"
   # additional params
   beam_freq_interp: 'linear'  # for PowerBeam
