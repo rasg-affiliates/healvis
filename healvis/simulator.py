@@ -84,56 +84,164 @@ def parse_telescope_params(tele_params):
     return return_dict
 
 
-def parse_freq_params(freq_params):
+def parse_frequency_params(freq_params):
     """
-    Parse the "freq" section of healvis obsparams
+    Parse the "freq" section of obsparam.
 
     Args:
-        freq_params : dictionary
+        freq_params: Dictionary of frequency parameters
 
     Returns:
-        dictionary
-            | Nfreqs : int
-            | channel_width : float, [Hz]
-            | freq_array : 2D ndarray, shape (1, Nfreqs) [Hz]
+        dict of array properties:
+            |  channel_width: (float) Frequency channel spacing in Hz
+            |  Nfreqs: (int) Number of frequencies
+            |  freq_array: (dtype float, ndarray, shap=(Nspws, Nfreqs)) Frequency channel centers in Hz
     """
-    # generate frequencies
-    freq_array = np.linspace(freq_params['start_freq'], freq_params['start_freq'] + freq_params['bandwidth'], freq_params['Nfreqs'], endpoint=False).reshape(1, -1)
 
-    # fill return dictionary
+    freq_keywords = ['freq_array', 'start_freq', 'end_freq', 'Nfreqs',
+                     'channel_width', 'bandwidth']
+    fa, sf, ef, nf, cw, bw = [fk in freq_params for fk in freq_keywords]
+    kws_used = ", ".join(freq_params.keys())
+
+    if fa:
+        freq_arr = np.array(freq_params['freq_array'])
+        freq_params['Nfreqs'] = freq_arr.size
+        if freq_params['Nfreqs'] > 1:
+            freq_params['channel_width'] = np.diff(freq_arr)[0]
+            assert np.all(np.diff(freq_arr) == freq_params['channel_width'])
+        elif 'channel_width' not in freq_params:
+            raise ValueError("Channel width must be specified "
+                             "if freq_arr has length 1")
+    else:
+        if not nf:
+            if not cw:
+                raise ValueError("Either channel_width or Nfreqs "
+                                 " must be included in parameters:" + kws_used)
+            if sf and ef:
+                freq_params['bandwidth'] = freq_params['end_freq'] - freq_params['start_freq'] + freq_params['channel_width']
+                bw = True
+            if bw:
+                freq_params['Nfreqs'] = int(np.floor(freq_params['bandwidth']
+                                                     / freq_params['channel_width']))
+            else:
+                raise ValueError("Either bandwidth or band edges "
+                                 "must be specified: " + kws_used)
+
+        if not cw:
+            if not bw:
+                raise ValueError("Either bandwidth or channel width"
+                                 " must be specified: " + kws_used)
+            freq_params['channel_width'] = (freq_params['bandwidth']
+                                            / float(freq_params['Nfreqs']))
+
+        if not bw:
+            freq_params['bandwidth'] = (freq_params['channel_width']
+                                        * freq_params['Nfreqs'])
+            bw = True
+
+        if not sf:
+            if ef and bw:
+                freq_params['start_freq'] = freq_params['end_freq'] - freq_params['bandwidth'] + freq_params['channel_width']
+        if not ef:
+            if sf and bw:
+                freq_params['end_freq'] = freq_params['start_freq'] + freq_params['bandwidth'] - freq_params['channel_width']
+
+        freq_arr = np.linspace(freq_params['start_freq'],
+                               freq_params['end_freq'] + freq_params['channel_width'],
+                               freq_params['Nfreqs'], endpoint=False)
+
+    if freq_params['Nfreqs'] != 1:
+        assert np.allclose(np.diff(freq_arr), freq_params['channel_width'] * np.ones(freq_params["Nfreqs"] - 1))
+
+    Nspws = 1 if 'Nspws' not in freq_params else freq_params['Nspws']
+    freq_arr = np.repeat(freq_arr, Nspws).reshape(Nspws, freq_params['Nfreqs'])
+
     return_dict = {}
     return_dict['Nfreqs'] = freq_params['Nfreqs']
-    return_dict['freq_array'] = freq_array
-    return_dict['channel_width'] = np.diff(freq_array[0])[0]
+    return_dict['freq_array'] = freq_arr
+    return_dict['channel_width'] = freq_params['channel_width']
 
     return return_dict
 
 
 def parse_time_params(time_params):
     """
-    Parse the "time" section of healvis obsparams
+    Parse the "time" section of obsparam.
 
     Args:
-        time_params : dictionary
+        time_params: Dictionary of time parameters
 
     Returns:
-        dictionary
-            | Ntimes : int
-            | integration_time : 1D ndarray, shape (Ntimes,) [seconds] all elements set to 1.0
-            | time_array : 1D ndarray, shape (Ntimes,) [Julian Date]
-            | time_cadence : float, time cadence of integration bins
+        dict of array properties:
+            |  time_cadence: (float) Time step size on seconds
+            |  Ntimes: (int) Number of time steps
+            |  time_array: (dtype float, ndarray, shape=(Ntimes)) Time step centers in JD
     """
-    # generate times
-    time_arr = time_params['start_time'] + np.arange(time_params['Ntimes']) * time_params['time_cadence'] / (24.0 * 3600.0)
 
-    # fill return dictionary
-    return_dictionary = {}
-    return_dictionary['Ntimes'] = time_params['Ntimes']
-    return_dictionary['integration_time'] = np.ones(time_params['Ntimes'], dtype=np.float)
-    return_dictionary['time_cadence'] = time_params['time_cadence']
-    return_dictionary['time_array'] = time_arr
+    return_dict = {}
 
-    return return_dictionary
+    time_keywords = ['start_time', 'end_time', 'Ntimes', 'time_cadence',
+                     'duration_hours', 'duration_days']
+    st, et, nt, it, dh, dd = [tk in time_params for tk in time_keywords]
+    kws_used = ", ".join(time_params.keys())
+    daysperhour = 1 / 24.
+    hourspersec = 1 / 60.**2
+    dayspersec = daysperhour * hourspersec
+
+    if dh and not dd:
+        time_params['duration'] = time_params['duration_hours'] * daysperhour
+        dd = True
+    elif dd:
+        time_params['duration'] = time_params['duration_days']
+
+    if not nt:
+        if not it:
+            raise ValueError("Either time or Ntimes must be "
+                             "included in parameters:" + kws_used)
+        if st and et:
+            time_params['duration'] = time_params['end_time'] - time_params['start_time'] + time_params['time_cadence'] * dayspersec
+            dd = True
+        if dd:
+            time_params['Ntimes'] = int(np.round(time_params['duration']
+                                                 / (time_params['time_cadence'] * dayspersec)))
+        else:
+            raise ValueError("Either duration or time bounds must be specified: "
+                             + kws_used)
+
+    if not it:
+        if not dd:
+            raise ValueError("Either duration or integration time "
+                             "must be specified: " + kws_used)
+        time_params['time_cadence'] = (time_params['duration'] / dayspersec
+                                       / float(time_params['Ntimes']))  # In seconds
+
+    inttime_days = time_params['time_cadence'] * dayspersec
+    if not dd:
+        time_params['duration'] = inttime_days * (time_params['Ntimes'])
+        dd = True
+    if not st:
+        if et and dd:
+            time_params['start_time'] = time_params['end_time'] - time_params['duration'] + inttime_days
+    if not et:
+        if st and dd:
+            time_params['end_time'] = time_params['start_time'] + time_params['duration'] - inttime_days
+    if not (st or et):
+        raise ValueError("Either a start or end time must be specified: " + kws_used)
+
+    time_arr = np.linspace(time_params['start_time'],
+                           time_params['end_time'] + inttime_days,
+                           time_params['Ntimes'], endpoint=False)
+
+    if time_params['Ntimes'] != 1:
+        assert np.allclose(np.diff(time_arr), inttime_days * np.ones(time_params["Ntimes"] - 1), atol=dayspersec)   # To nearest second
+
+    return_dict['time_cadence'] = time_params['time_cadence']
+    return_dict['time_array'] = time_arr
+    return_dict['Ntimes'] = time_params['Ntimes']
+    return_dict['Nspws'] = 1
+    return_dict['Npols'] = 4
+
+    return return_dict
 
 
 def complete_uvdata(uv_obj, run_check=True):
@@ -240,7 +348,7 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
             freq_array = freq_array.reshape(1, -1)
             Nfreqs = freq_array.size
     else:
-        freq_dict = parse_freq_params(dict(Nfreqs=Nfreqs, start_freq=start_freq, bandwidth=bandwidth))
+        freq_dict = parse_frequency_params(dict(Nfreqs=Nfreqs, start_freq=start_freq, bandwidth=bandwidth))
         freq_array = freq_dict['freq_array']
 
     if time_array is not None:
@@ -385,15 +493,18 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
         param_dict = param_file
 
     sys.stdout.flush()
-    freq_dict = parse_freq_params(param_dict['freq'])
+    freq_dict = parse_frequency_params(param_dict['freq'])
     freq_array = freq_dict['freq_array'][0]
+
+    time_dict = parse_time_params(param_dict['time'])
+    time_array = time_dict['time_array']
     filing_params = param_dict['filing']
 
     # ---------------------------
     # Extra parameters required for healvis
     # ---------------------------
     skyparam = param_dict['skyparam'].copy()
-    skyparam['freqs'] = freq_dict['freq_array']
+    skyparam['freqs'] = freq_array
 
     Nskies = 1 if 'Nskies' not in param_dict else int(param_dict['Nskies'])
     print("Nprocs: ", Nprocs)
@@ -420,11 +531,14 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     uvd_dict = {}
 
     uvd_dict.update(param_dict['telescope'])
-    uvd_dict.update(param_dict['freq'])
-    uvd_dict.update(param_dict['time'])
+    uvd_dict['freq_array'] = freq_array
+    uvd_dict['time_array'] = time_array
+
     if 'pols' in param_dict['beam'].keys():
         uvd_dict['pols'] = param_dict['beam']['pols']
-    uvd_dict.update(param_dict['select'])
+
+    if 'select' in param_dict:
+        uvd_dict.update(param_dict['select'])
 
     if 'make_full' not in uvd_dict:
         uvd_dict['make_full'] = False
