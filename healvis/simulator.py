@@ -501,7 +501,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
         with open(param_file, 'r') as yfile:
             param_dict = yaml.safe_load(yfile)
     else:
-        param_dict = param_file
+        param_dict = copy.deepcopy(param_file)
 
     sys.stdout.flush()
     freq_dict = parse_frequency_params(param_dict['freq'])
@@ -537,7 +537,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     # If loading a healpix map from disk, confirm its frequencies match the obsparam frequencies.
     if sky_type.lower() not in ['flat_spec', 'gsm']:
         try:
-            assert np.all(freq_array == sky.freqs)
+            assert np.allclose(freq_array, sky.freqs)
         except AssertionError:
             print(sky.freqs, freq_array)
             raise ValueError('Obsparam frequencies do not match loaded frequencies.')
@@ -575,7 +575,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     pols = beam_attr.pop("pols", None)
     beam_freq_interp = beam_attr.pop("beam_freq_interp", 'cubic')
     smooth_beam = beam_attr.pop("smooth_beam", False)
-    smooth_scale = beam_attr.pop("smooth_scale", 2.0)
+    smooth_scale = beam_attr.pop("smooth_scale", None)
     fov = beam_attr.pop('fov')
     obs = setup_observatory_from_uvdata(uv_obj, fov=fov, set_pointings=True,
                                         beam=beam_type, beam_kwargs=beam_attr, beam_freq_interp=beam_freq_interp,

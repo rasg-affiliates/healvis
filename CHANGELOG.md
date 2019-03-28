@@ -5,6 +5,7 @@
 ### Added
 - Full support for all valid pyuvsim setup parameters.
 - Test for consistency among setup parameters.
+- Documented convention that frequency array values refer to channel centers
 
 ### Changed
 
