@@ -16,6 +16,7 @@ freq:
   bandwidth: 50000000.0    # Total frequency coverage (Nfreqs * channel_width)
   start_freq: 100000000.0   # Center of first frequency channel
   channel_width: 5000000.0  # Separation of frequency channel centers
+  Nfreqs: 10                # Number of frequency channels
 time:
   Ntimes: 5
   time_cadence: 100.0  # seconds
