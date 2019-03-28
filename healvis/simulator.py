@@ -104,7 +104,7 @@ def parse_frequency_params(freq_params):
         dict of array properties:
             |  channel_width: (float) Frequency channel spacing in Hz
             |  Nfreqs: (int) Number of frequencies
-            |  freq_array: (dtype float, ndarray, shap=(Nspws, Nfreqs)) Frequency channel centers in Hz
+            |  freq_array: (dtype float, ndarray, shape=(Nspws, Nfreqs)) Frequency channel centers in Hz
     """
 
     freq_keywords = ['freq_array', 'start_freq', 'end_freq', 'Nfreqs',
@@ -247,8 +247,6 @@ def parse_time_params(time_params):
     return_dict['time_cadence'] = time_params['time_cadence']
     return_dict['time_array'] = time_arr
     return_dict['Ntimes'] = time_params['Ntimes']
-    return_dict['Nspws'] = 1
-    return_dict['Npols'] = 4
 
     return return_dict
 
@@ -272,7 +270,7 @@ def complete_uvdata(uv_obj, run_check=True):
     uv_obj.Nbls = np.unique(uv_obj.baseline_array).size
     uv_obj.Nblts = uv_obj.Nbls * uv_obj.Ntimes
     uv_obj.time_array = np.repeat(time_array, uv_obj.Nbls)
-    uv_obj.integration_time = np.repeat(np.ones_like(time_array), uv_obj.Nbls) * dt * 24 * 3600.    # Seconds
+    uv_obj.integration_time = np.nan * np.ones(uv_obj.Nblts)    # Integration time is not well-defined for simulated data.
     uv_obj.Nants_data = np.unique(uv_obj.ant_1_array.tolist() + uv_obj.ant_2_array.tolist()).size
     uv_obj.set_lsts_from_time_array()
 
