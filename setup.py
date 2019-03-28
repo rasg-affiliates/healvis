@@ -8,12 +8,6 @@ from setuptools import setup
 import os
 import json
 
-from healvis import version
-
-data = [version.git_origin, version.git_hash, version.git_description, version.git_branch]
-with open(os.path.join('healvis', 'GIT_INFO'), 'w') as outfile:
-    json.dump(data, outfile)
-
 def package_files(package_dir, subdirectory):
     # walk the input package_dir/subdirectory
     # return a package_data list
@@ -27,6 +21,10 @@ def package_files(package_dir, subdirectory):
 
 data_files = package_files('healvis', 'data')
 
+version_file = os.path.join('healvis', 'VERSION')
+with open(version_file) as f:
+    version = f.read().strip()
+
 setup_args = {
     'name': 'healvis',
     'author': 'Radio Astronomy Software Group',
@@ -37,14 +35,18 @@ setup_args = {
     'packages': ['healvis', 'healvis.tests'],
     'include_package_data': True,
     'package_data': {'healvis': data_files},
-#    'scripts': glob.glob('scripts/*'),
-    'version': version.version,
+    'scripts': glob.glob('scripts/skymodel_vis_sim.py'),
+    'version': version,
     'include_package_data': True,
     'setup_requires': ['numpy>=1.14', 'six>=1.10'],
-    'install_requires': ['numpy>=1.14', 'six>=1.10', 'scipy', 'astropy>=2.0', 'pyuvdata>=1.2.1',
-                         'PyYAML>=5.1', 'numba>=0.43.1'],
+    'install_requires': ['numpy>=1.14', 'six>=1.10', 'scipy', 'astropy', 'pyuvdata>=1.2.1', 'numba>=0.43.1'],
     'keywords': 'radio astronomy interferometry'
 }
 
 if __name__ == '__main__':
     setup(**setup_args)
+
+    from healvis import version  # noqa
+    data = [version.git_origin, version.git_hash, version.git_description, version.git_branch]
+    with open(os.path.join('healvis', 'GIT_INFO'), 'w') as outfile:
+        json.dump(data, outfile)
