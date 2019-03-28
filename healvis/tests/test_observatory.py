@@ -1,8 +1,15 @@
+# -*- mode: python; coding: utf-8 -*
+# Copyright (c) 2019 Radio Astronomy Software Group
+# Licensed under the 3-clause BSD License
+
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import os
 import healpy as hp
-from astropy.time import Time
 import nose.tools as nt
+from astropy.time import Time
+
 from healvis import observatory, sky_model, beam_model, utils
 from healvis.data import DATA_PATH
 

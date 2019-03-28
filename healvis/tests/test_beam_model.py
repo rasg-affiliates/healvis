@@ -1,11 +1,18 @@
-from healvis import beam_model
-from healvis.data import DATA_PATH
-from astropy.cosmology import WMAP9
-import nose.tools as nt
+# -*- mode: python; coding: utf-8 -*
+# Copyright (c) 2019 Radio Astronomy Software Group
+# Licensed under the 3-clause BSD License
+
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import healpy as hp
 import os
 import copy
+import nose.tools as nt
+from astropy.cosmology import WMAP9
+
+from healvis import beam_model
+from healvis.data import DATA_PATH
 
 
 def test_PowerBeam():

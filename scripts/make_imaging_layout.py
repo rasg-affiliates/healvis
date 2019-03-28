@@ -1,7 +1,10 @@
-# coding: utf-8
+# -*- mode: python; coding: utf-8 -*
+# Copyright (c) 2019 Radio Astronomy Software Group
+# Licensed under the 3-clause BSD License
+
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
-
 
 layout_csv_name = 'imaging_layout.csv'
 Nants = 50
@@ -9,15 +12,15 @@ freq = 100e6
 c = 3e8
 Nside = 128
 
-res = np.sqrt(4*np.pi/(12*Nside**2))
-lam = c/freq
-maxbl = 1.22*(lam/res)      # Resolution ~ 1.22 * lambda/maxbl.
-                            # Want to overresolve pixels (treating them as point sources)
-minbl = 5 # m
-E,N = np.random.uniform(minbl, maxbl, (2,Nants))
+res = np.sqrt(4 * np.pi / (12 * Nside**2))
+lam = c / freq
+maxbl = 1.22 * (lam / res)      # Resolution ~ 1.22 * lambda/maxbl.
+# Want to overresolve pixels (treating them as point sources)
+minbl = 5  # m
+E, N = np.random.uniform(minbl, maxbl, (2, Nants))
 U = np.zeros(Nants)
 
-enu = np.vstack((E,N,U)).T
+enu = np.vstack((E, N, U)).T
 antnames = ["ant{}".format(i) for i in range(Nants)]
 antnums = range(Nants)
 col_width = max([len(name) for name in antnames])
@@ -27,9 +30,9 @@ beam_ids = np.zeros(Nants).astype(int)
 with open(layout_csv_name, 'w') as lfile:
     lfile.write(header + '\n')
     for i in range(Nants):
-        e,n,u = enu[i]
+        e, n, u = enu[i]
         beam_id = beam_ids[i]
-        name= antnames[i]
+        name = antnames[i]
         num = antnums[i]
         line = ("{:" + str(col_width) + "} {:8d} {:8d} {:10.4f} {:10.4f} {:10.4f}\n").format(name, num, beam_id, e, n, u)
         lfile.write(line)

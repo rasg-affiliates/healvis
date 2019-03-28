@@ -1,12 +1,14 @@
-"""
-Handles antenna beam models
-"""
+# -*- mode: python; coding: utf-8 -*
+# Copyright (c) 2019 Radio Astronomy Software Group
+# Licensed under the 3-clause BSD License
+
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+import copy
 from astropy.constants import c
 from scipy.special import j1
-import copy
+
 from pyuvdata import UVBeam
 
 try:
@@ -15,6 +17,10 @@ try:
 except ImportError:
     sklearn_import = False
 
+
+# -----------------------
+# Handles antenna beam models.
+# -----------------------
 
 def airy_disk(za_array, freqs, diameter=15.0, **kwargs):
     """

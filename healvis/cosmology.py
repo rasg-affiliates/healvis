@@ -1,8 +1,13 @@
+# -*- mode: python; coding: utf-8 -*
+# Copyright (c) 2019 Radio Astronomy Software Group
+# Licensed under the 3-clause BSD License
+
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
 from astropy.cosmology import Planck15 as cosmo
 from astropy.constants import c
+
 
 # -----------------------
 #  Functions and constants related

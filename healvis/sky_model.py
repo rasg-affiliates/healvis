@@ -1,20 +1,17 @@
-
-# Code for making, reading, and writing sky models
-# skymodel = Npix, Nside, Nfreqs, and data arrays
-#            data = either a shared array or numpy array shape (Npix, Nfreqs)
-#            (optionally) pixels = (Npix,) array of pixel numbers (for incomplete maps)
-#
+# -*- mode: python; coding: utf-8 -*
+# Copyright (c) 2019 Radio Astronomy Software Group
+# Licensed under the 3-clause BSD License
 
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import os
 import warnings
+import healpy as hp
 with warnings.catch_warnings():  # noqa
     warnings.simplefilter('ignore', FutureWarning)
     import h5py
 from astropy.cosmology import Planck15 as cosmo
-import healpy as hp
 
 from .utils import mparray
 from .cosmology import f21, comoving_voxel_volume, comoving_distance
@@ -26,6 +23,12 @@ try:
 except ImportError:
     pygsm_import = False
 
+
+# -----------------------
+# Code for making, reading, and writing sky models.
+#   A sky model holds a set of HEALPix maps corresponding with a set of frequencies.
+#   Includes methods to automatically ensure consistency among variables.
+# -----------------------
 
 class SkyModel(object):
     """

@@ -1,4 +1,8 @@
-#!/bin/env python
+# -*- mode: python; coding: utf-8 -*
+# Copyright (c) 2019 Radio Astronomy Software Group
+# Licensed under the 3-clause BSD License
+
+from __future__ import absolute_import, division, print_function
 
 
 import numpy as np
@@ -16,10 +20,11 @@ import pyuvsim
 
 from healvis import sky_model
 
-
-"""
-For a parameter file, generate a skymodel 
-"""
+# -----------------------
+# Generate a SkyModel object
+# of the Global Sky Model (GSM), for a set of frequencies
+# specified in a configuration obsparam file.
+# -----------------------
 
 parser = argparse.ArgumentParser()
 parser.add_argument(dest='param', help='obsparam yaml file')
@@ -46,4 +51,4 @@ sky.Nside = args.nside
 data = sky_model.gsm_shell(sky.Nside, freq_array)
 sky.set_data(data)
 
-sky.write_hdf5('gsm_{:.2f}-{:.2f}MHz_nside{}.hdf5'.format(freq_array[0]/1e6, freq_array[-1]/1e6, args.nside))
+sky.write_hdf5('gsm_{:.2f}-{:.2f}MHz_nside{}.hdf5'.format(freq_array[0] / 1e6, freq_array[-1] / 1e6, args.nside))
