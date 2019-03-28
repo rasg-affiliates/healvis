@@ -8,6 +8,7 @@ from six.moves import map, range, zip
 import os
 import ast
 import copy
+import warnings
 
 from pyuvdata import UVData, UVBeam
 from pyuvdata import utils as uvutils
@@ -550,7 +551,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     # ---------------------------
     beam_attr = param_dict['beam'].copy()
     beam_type = beam_attr.pop("beam_type")
-    pols = beam_attr.pop("pols")
+    pols = beam_attr.pop("pols", None)
     beam_freq_interp = beam_attr.pop("beam_freq_interp")
     smooth_beam = beam_attr.pop("smooth_beam")
     smooth_scale = beam_attr.pop("smooth_scale")
@@ -565,6 +566,9 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     sys.stdout.flush()
     visibility = []
     beam_sq_int = {}
+    if pols is None:
+        warnings.warn("No polarization specified. Defaulting to pI")
+        pols = ['pI']
     for pol in pols:
         # calculate visibility
         visibs, time_array, baseline_inds = obs.make_visibilities(sky, Nprocs=Nprocs, beam_pol=pol)
