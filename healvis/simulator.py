@@ -265,13 +265,14 @@ def complete_uvdata(uv_obj, run_check=True):
     antnames = uv_obj.antenna_names     # (Nants_telescope,)
     bl_array = uv_obj.baseline_array    # (Nbls,)
     time_array = uv_obj.time_array      # (Ntimes,)
+    dt = np.diff(np.unique(time_array))[0]
 
     uv_obj.baseline_array = np.tile(bl_array, uv_obj.Ntimes)
     uv_obj.ant_1_array, uv_obj.ant_2_array = uv_obj.baseline_to_antnums(uv_obj.baseline_array)
     uv_obj.Nbls = np.unique(uv_obj.baseline_array).size
     uv_obj.Nblts = uv_obj.Nbls * uv_obj.Ntimes
     uv_obj.time_array = np.repeat(time_array, uv_obj.Nbls)
-    uv_obj.integration_time = np.repeat(np.ones_like(time_array), uv_obj.Nbls)
+    uv_obj.integration_time = np.repeat(np.ones_like(time_array), uv_obj.Nbls) * dt * 24 * 3600.    # Seconds
     uv_obj.Nants_data = np.unique(uv_obj.ant_1_array.tolist() + uv_obj.ant_2_array.tolist()).size
     uv_obj.set_lsts_from_time_array()
 
