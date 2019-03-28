@@ -316,6 +316,8 @@ class AnalyticBeam(object):
         """
         if self.beam_type == 'uniform':
             if isinstance(az, np.ndarray):
+                if np.isscalar(freqs):
+                    freqs = [freqs]
                 beam_value = np.ones((len(za), len(freqs)), dtype=np.float)
             else:
                 beam_value = 1.0
