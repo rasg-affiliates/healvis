@@ -13,8 +13,9 @@ telescope:
   telescope_location: (-30.72152777777791, 21.428305555555557, 1073.0000000093132)  # LatLonAlt location
   telescope_name: HERA
 freq:
-  freq_array: [1.00e+08, 1.05e+08, 1.10e+08, 1.15e+08, 1.20e+08,
-                1.25e+08, 1.30e+08, 1.35e+08, 1.40e+08, 1.45e+08]
+  bandwidth: 50000000.0    # Total frequency coverage (Nfreqs * channel_width)
+  start_freq: 100000000.0   # Center of first frequency channel
+  channel_width: 5000000.0  # Separation of frequency channel centers
 time:
   Ntimes: 5
   time_cadence: 100.0  # seconds
