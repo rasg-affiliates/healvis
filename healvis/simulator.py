@@ -369,7 +369,10 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
     uv_obj.Nspws = 1
     uv_obj.polarization_array = np.array([uvutils.polstr2num(pol) for pol in pols], dtype=np.int)
     uv_obj.Npols = uv_obj.polarization_array.size
-    uv_obj.channel_width = np.diff(uv_obj.freq_array[0])[0]
+    if uv_obj.Nfreqs > 1:
+        uv_obj.channel_width = np.diff(uv_obj.freq_array[0])[0]
+    else:
+        uv_obj.channel_width = 1.0
     uv_obj.set_drift()
     uv_obj.telescope_name = tele_dict['telescope_name']
     uv_obj.instrument = 'simulator'
@@ -515,12 +518,22 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     # SkyModel
     # ---------------------------
     # construct sky model
-    sky = sky_model.construct_skymodel(skyparam['sky_type'], freqs=freq_array, Nside=skyparam['Nside'],
-                                       ref_chan=skyparam['ref_chan'], sigma=skyparam['sigma'], Nskies=Nskies)
+    if 'Nskies' not in skyparam:
+        skyparam['Nskies'] = Nskies
+    sky_type = skyparam.pop('sky_type')
+    savepath = None
+    if 'savepath' in skyparam:
+        savepath = skyparam.pop('savepath')
 
-    # If loading a healpix map from disk, use those frequencies instead of ones specified in obsparam
-    if skyparam['sky_type'].lower() not in ['flat_spec', 'gsm']:
-        param_dict['freq'] = {'freq_array': sky.freqs}
+    sky = sky_model.construct_skymodel(sky_type, **skyparam)
+
+    # If loading a healpix map from disk, confirm its frequencies match the obsparam frequencies.
+    if sky_type.lower() not in ['flat_spec', 'gsm']:
+        try:
+            assert np.all(freq_array == sky.freqs)
+        except AssertionError:
+            print(sky.freqs, freq_array)
+            raise ValueError('Obsparam frequencies do not match loaded frequencies.')
     else:
         # write to disk if requested
         if skyparam['savepath'] not in [None, 'None', 'none', '']:
