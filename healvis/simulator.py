@@ -419,7 +419,7 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
     bl_array = np.asarray(bl_array)
 
     uv_obj.time_array = time_array  # Keep length Ntimes
-    uv_obj.baseline_array = bl_array # Length Nbls
+    uv_obj.baseline_array = bl_array  # Length Nbls
 
     if make_full:
         uv_obj = complete_uvdata(uv_obj, run_check=run_check)
