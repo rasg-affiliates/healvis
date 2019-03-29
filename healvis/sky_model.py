@@ -125,10 +125,10 @@ class SkyModel(object):
                     self.data = self.data.reshape((1,) + s)
         self._updated = []
 
-    def make_flat_spectrum_shell(self, sigma, shared_mem=False):
+    def make_flat_spectrum_shell(self, sigma, shared_memory=False):
         """
         sigma = Spectrum amplitude
-        shared_mem = put data in a multiprocessing shared memory block
+        shared_memory = put data in a multiprocessing shared memory block
         """
         self._update()
         required = ['freqs', 'ref_chan', 'Nside', 'Npix', 'Nfreqs']
@@ -140,11 +140,11 @@ class SkyModel(object):
             raise ValueError("Missing required parameters: " + ', '.join(missing))
 
         self.data = flat_spectrum_noise_shell(sigma, self.freqs, self.Nside, self.Nskies,
-                                              ref_chan=self.ref_chan, shared_mem=shared_mem)
+                                              ref_chan=self.ref_chan, shared_memory=shared_memory)
         self.pspec_amp = sigma
         self._update()
 
-    def read_hdf5(self, filename, freq_chans=None, shared_mem=False):
+    def read_hdf5(self, filename, freq_chans=None, shared_memory=False):
         """
         Read HDF5 HEALpix map(s)
 
@@ -153,7 +153,7 @@ class SkyModel(object):
                 Path to HDF5 file with HEALpix maps in SkyModel format
             freq_chans : integer ndarray
                 Frequency channel indices to read in
-            shared_mem : bool
+            shared_memory : bool
                 If True, share memory across processes
         """
         if not os.path.exists(filename):
@@ -161,6 +161,9 @@ class SkyModel(object):
 
         if freq_chans is None:
             freq_chans = slice(None)
+            Nfreqs_load = None
+        else:
+            Nfreqs_load = freq_chans.size
 
         print('...reading {}'.format(filename))
         with h5py.File(filename, 'r') as infile:
@@ -172,10 +175,16 @@ class SkyModel(object):
             for k in self.dsets:
                 if k in infile:
                     if k == 'data':
-                        if shared_mem:
-                            setattr(self, k, mparray(infile[k].shape, dtype=np.float))
-                        # load the data via slice
-                        setattr(self, k, infile[k][:, :, freq_chans])
+                        if shared_memory:
+                            s = list(infile[k].shape)   # Shape of infile data array
+                            if Nfreqs_load is not None:
+                                s[-1] = Nfreqs_load
+                            s = tuple(s)
+                            self.data = mparray(s, dtype=np.float)
+                            self.data[()] = infile[k][:, :, freq_chans]   # Transfer data from infile.
+                        else:
+                            # load the data via slice
+                            setattr(self, k, infile[k][:, :, freq_chans])
                     elif k == 'freqs':
                         setattr(self, k, infile[k][:][freq_chans])
                     elif k == 'history':
@@ -218,7 +227,7 @@ class SkyModel(object):
                     fileobj.attrs[k] = d
 
 
-def flat_spectrum_noise_shell(sigma, freqs, Nside, Nskies, ref_chan=0, shared_mem=False):
+def flat_spectrum_noise_shell(sigma, freqs, Nside, Nskies, ref_chan=0, shared_memory=False):
     """
     Make a flat-spectrum noise-like shell.
 
@@ -233,7 +242,7 @@ def flat_spectrum_noise_shell(sigma, freqs, Nside, Nskies, ref_chan=0, shared_me
             Number of indepenent skies to simulate
         ref_chan : int
             freqs reference channel index for comoving volume factor
-        shared_mem : bool
+        shared_memory : bool
             If True use mparray to generate data
 
     Returns:
@@ -243,7 +252,7 @@ def flat_spectrum_noise_shell(sigma, freqs, Nside, Nskies, ref_chan=0, shared_me
     # generate empty array
     Nfreqs = len(freqs)
     Npix = hp.nside2npix(Nside)
-    if shared_mem:
+    if shared_memory:
         data = mparray((Nskies, Npix, Nfreqs), dtype=float)
     else:
         data = np.zeros((Nskies, Npix, Nfreqs), dtype=float)
@@ -320,7 +329,7 @@ def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, Nskies=1, s
 
     # make a flat-spectrum noise shell
     if sky_type.lower() == 'flat_spec':
-        sky.make_flat_spectrum_shell(sigma, shared_mem=True)
+        sky.make_flat_spectrum_shell(sigma, shared_memory=True)
 
     # make a GSM shell
     elif sky_type.lower() == 'gsm':
@@ -329,7 +338,7 @@ def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, Nskies=1, s
 
     # load healpix map from disk
     else:
-        sky.read_hdf5(sky_type, shared_mem=True)
+        sky.read_hdf5(sky_type, shared_memory=True)
         sky._update()
 
     return sky

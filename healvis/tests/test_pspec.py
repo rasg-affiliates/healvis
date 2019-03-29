@@ -44,7 +44,7 @@ def test_pspec_amp():
     skysig = 0.031
 
     sky = sky_model.SkyModel(Nside=nside, freqs=freqs, ref_chan=Nfreqs // 2)
-    sky.make_flat_spectrum_shell(skysig, shared_mem=True)
+    sky.make_flat_spectrum_shell(skysig, shared_memory=True)
     pix_area = sky.pix_area_sr
 
     visibs, times, bls = obs.make_visibilities(sky, Nprocs=3)
