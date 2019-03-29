@@ -713,7 +713,8 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
 
 
 def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, beam=None, beam_kwargs={},
-                                beam_freq_interp='linear', smooth_beam=True, smooth_scale=2.0, Nprocs=1):
+                                beam_freq_interp='linear', smooth_beam=True, smooth_scale=2.0, Nprocs=1,
+                                add_to_history=None):
     """
     Run a healvis simulation on a selected range of frequency channels.
 
@@ -739,6 +740,8 @@ def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, bea
             If smoothing the beam, smooth it at this frequency scale [MHz]
         Nprocs : int
             Number of processes for this task
+        add_to_history : str
+            History string to append to file history. Default is no append to history.
 
     Result:
         Writes simulation result into uvh5_file
@@ -773,4 +776,4 @@ def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, bea
 
     # write to disk
     print("...writing to {}".format(uvh5_file))
-    uvd.write_uvh5_part(uvh5_file, visibility, flags, nsamples, freq_chans=freq_chans)
+    uvd.write_uvh5_part(uvh5_file, visibility, flags, nsamples, freq_chans=freq_chans, add_to_history=add_to_history)
