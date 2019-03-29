@@ -207,9 +207,6 @@ class Observatory:
         except AssertionError:
             raise AssertionError("Pointing centers and FoV must be set.")
 
-#        Npix, Nfreqs = shell.shape
-#        Nside = np.sqrt(Npix/12)
-
         pixels = []
         for cent in self.pointing_centers:
             cent = hp.ang2vec(cent[0], cent[1], lonlat=True)
@@ -231,11 +228,12 @@ class Observatory:
                 vis_array.put((tinds[count], bi, vis.tolist()))
             with Nfin.get_lock():
                 Nfin.value += 1
-            if mp.current_process().name == 1:
+            if mp.current_process().name == 0:
                 #        print('Mem: {}GB'.format(memory_usage_GB))
                 #        sys.stdout.flush()
-                print('Finished {:d}, Elapsed {:.2f}sec, MaxRSS {}GB '.format(Nfin.value, time.time() - self.time0, memory_usage_GB))
-                sys.stdout.flush()
+                if Nfin.value > 0:
+                    print('Finished: {:d}, Elapsed {:.2f}min, Remain {:.3f}hour, MaxRSS {}GB'.format(Nfin.value, dt/60., (1/3600.)*(dt/float(Nfin.value))*(self.Ntimes - Nfin.value), memory_usage_GB))
+                    sys.stdout.flush()
 
     def make_visibilities(self, shell, Nprocs=1, beam_pol='pI'):
         """

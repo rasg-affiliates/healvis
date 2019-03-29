@@ -290,7 +290,8 @@ def complete_uvdata(uv_obj, run_check=True):
 def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None,
                  Nfreqs=None, start_freq=None, bandwidth=None, freq_array=None,
                  Ntimes=None, time_cadence=None, start_time=None, time_array=None,
-                 bls=None, antenna_nums=None, no_autos=True, pols=['xx'], make_full=False, run_check=True):
+                 bls=None, antenna_nums=None, no_autos=True, pols=['xx'], make_full=False,
+                 redundancy=None, run_check=True):
     """
     Setup a UVData object for simulating.
 
@@ -319,6 +320,8 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
             time array [Julian Date], cannot be specified if start_time, Ntimes and time_cadence is specified
         bls : list
             List of antenna-pair tuples for baseline selection
+        redundancy: float
+            Redundant baseline selection tolerance for selection
         antenna_nums : list
             List of antenna numbers to keep in array
         make_full : Generate the full UVData object, includes arrays of length Nblts.
@@ -387,6 +390,12 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
     uv_obj.vis_units = 'Jy'
     uv_obj.history = ''
 
+    if redundancy is not None:
+        red_tol = redundancy
+        reds, vec_bin_centers, lengths = uvutils.get_antenna_redundancies(anums, enu, tol=red_tol, include_autos=not bool(no_autos))
+        bls = [r[0] for r in reds]
+        bls = [uvutils.baseline_to_antnums(bl_ind, Nants) for bl_ind in bls]
+
     # Setup array and implement antenna/baseline selections.
     bl_array = []
     _bls = [(a1, a2) for a1 in anums for a2 in anums if a1 <= a2]
@@ -409,8 +418,8 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
         bl_array.append(uvutils.antnums_to_baseline(a1, a2, 1))
     bl_array = np.asarray(bl_array)
 
-    uv_obj.time_array = time_array  # Keep length Nbls
-    uv_obj.baseline_array = bl_array
+    uv_obj.time_array = time_array  # Keep length Ntimes
+    uv_obj.baseline_array = bl_array # Length Nbls
 
     if make_full:
         uv_obj = complete_uvdata(uv_obj, run_check=run_check)
