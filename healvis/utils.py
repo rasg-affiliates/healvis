@@ -52,11 +52,11 @@ def time_array_to_params(time_array):
     if time_array.size < 2:
         raise ValueError("Time array must be longer than 1 to give meaningful results.")
 
-    fdict['time_cadence'] = np.diff(time_array)[0] * (24. * 3600.)
-    fdict['Ntimes'] = time_array.size
-    fdict['duration'] = fdict['time_cadence'] * fdict['Ntimes'] / (24. * 3600.)
-    fdict['start_time'] = time_array[0]
-    fdict['end_time'] = time_array[-1]
+    tdict['time_cadence'] = np.diff(time_array)[0] * (24. * 3600.)
+    tdict['Ntimes'] = time_array.size
+    tdict['duration'] = tdict['time_cadence'] * tdict['Ntimes'] / (24. * 3600.)
+    tdict['start_time'] = time_array[0]
+    tdict['end_time'] = time_array[-1]
 
     return tdict
 
