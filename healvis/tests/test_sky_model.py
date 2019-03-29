@@ -10,7 +10,8 @@ import healpy as hp
 import nose.tools as nt
 from astropy.cosmology import Planck15
 
-from healvis import sky_model
+from healvis import sky_model, utils
+from healvis.data import DATA_PATH
 
 
 def verify_update(sky_obj):
@@ -72,9 +73,20 @@ def test_write_read():
     sky.write_hdf5(testfilename)
     sky2 = sky_model.SkyModel()
     sky3 = sky_model.SkyModel()
-    sky2.read_hdf5(testfilename, shared_mem=True)
+    sky2.read_hdf5(testfilename, shared_memory=True)
+    nt.assert_true(isinstance(sky2.data, utils.mparray))
     sky3.read_hdf5(testfilename)
     sky.history, sky2.history, sky3.history, = '', '', ''
     nt.assert_equal(sky, sky2)
     nt.assert_equal(sky2, sky3)
     os.remove(testfilename)
+
+
+def test_fewchannel_read():
+    sky = sky_model.SkyModel()
+    chans = np.arange(4)
+    sky.read_hdf5(os.path.join(DATA_PATH, "gsm_nside32.hdf5"), freq_chans=chans)
+    nt.assert_true(sky.freqs.size == 4)
+    sky = sky_model.SkyModel()
+    sky.read_hdf5(os.path.join(DATA_PATH, "gsm_nside32.hdf5"), freq_chans=chans, shared_memory=True)
+    nt.assert_true(sky.freqs.size == 4)

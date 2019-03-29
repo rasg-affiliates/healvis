@@ -709,7 +709,7 @@ def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, bea
 
     # load SkyModel
     sky = sky_model.SkyModel()
-    sky.read_hdf5(skymod_file, freq_chans=freq_chans, shared_mem=False)
+    sky.read_hdf5(skymod_file, freq_chans=freq_chans, shared_memory=False)
 
     assert np.isclose(sky.freqs, uvd.freq_array[0, freq_chans]).all(), "Frequency arrays in UHV5 file {} and SkyModel file {} don't agree".format(uvh5_file, skymod_file)
 
