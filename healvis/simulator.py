@@ -169,8 +169,11 @@ def parse_frequency_params(freq_params):
         else:
             raise KeyError("Couldn't find any proper combination of keys in freq_params")
 
-        # Only supports Nspw = 1 b/c pyuvdata only supports this
+        # Only supports Nspw = 1 because pyuvdata only supports this
         freq_arr = np.linspace(start_freq, start_freq + bandwidth, Nfreqs, endpoint=False).reshape(1, -1)
+
+        # Check that the freq_array is consistent with channel_width
+        assert np.allclose(np.diff(freq_arr), np.ones(Nfreqs - 1) * channel_width)
 
     return_dict = {}
     return_dict['Nfreqs'] = Nfreqs
@@ -273,6 +276,9 @@ def parse_time_params(time_params):
             raise KeyError("Couldn't find any proper combination of keys in time_params.")
 
         time_array = np.linspace(start_time, start_time + duration, Ntimes, endpoint=False)
+
+        # Check that the time_array is consistent with time_cadence
+        assert np.allclose(np.diff(time_array_arr), np.ones(Ntimes - 1) * time_cadence)
 
     return_dict = {}
     return_dict['time_array'] = time_array
