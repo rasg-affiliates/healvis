@@ -191,7 +191,7 @@ def test_parse_time_params():
     start_time = 2458101.0
     time_cadence = 100.0
     Ntimes = 10
-    duration = Ntimes * time_cadence / (24. * 3600.) 
+    duration = Ntimes * time_cadence / (24. * 3600.)
     time_array = np.linspace(start_time, start_time + duration, Ntimes, endpoint=False)
     end_time = time_array[-1]
     master_tdict = dict(time_array=time_array, Ntimes=Ntimes, duration=duration, time_cadence=time_cadence)
@@ -227,4 +227,3 @@ def test_parse_time_params():
 
     # test improper combination KeyError
     nt.assert_raises(KeyError, simulator.parse_time_params, dict(start_time=100.0))
-

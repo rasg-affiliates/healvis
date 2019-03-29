@@ -15,7 +15,7 @@ telescope:
 # see healvis.simulator.parse_frequency_params for allowable keys
 freq:
   start_freq: 100000000.0  # Center of first frequency channel [Hz]
-  bandwidth: 50000000.0.   # Total frequency coverage (Nfreqs * channel_width) [Hz]
+  bandwidth: 50000000.0   # Total frequency coverage (Nfreqs * channel_width) [Hz]
   Nfreqs: 10               # Number of frequency channels
 # see healvis.simulator.parse_time_params for allowable keys
 time:
