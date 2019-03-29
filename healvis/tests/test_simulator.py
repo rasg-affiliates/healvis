@@ -227,3 +227,37 @@ def test_parse_time_params():
 
     # test improper combination KeyError
     nt.assert_raises(KeyError, simulator.parse_time_params, dict(start_time=100.0))
+
+
+def test_redundant_setup():
+    # Test selecting redundant baselines.
+
+    redtol = 0.5    # m
+
+    start_time = 2458101.0
+    time_cadence = 100.0
+    Ntimes = 10
+
+    start_freq = 1.0
+    channel_width = 1.0
+    Nfreqs = 10
+
+    time_array = np.linspace(start_time, start_time + Ntimes * time_cadence, Ntimes, endpoint=False)
+    freq_array = np.linspace(start_freq, start_freq + Nfreqs * channel_width, Nfreqs, endpoint=False)
+
+    telescope_location = (-30.72152777777791, 21.428305555555557, 1073.0000000093132)
+
+    uvd = simulator.setup_uvdata(array_layout=os.path.join(DATA_PATH, "perfect_hex37_14.6m.csv"),
+                                 telescope_location=telescope_location, telescope_name='hera',
+                                 freq_array=freq_array, time_array=time_array, redundancy=redtol)
+
+    uvd = simulator.complete_uvdata(uvd)
+
+    uvd0 = simulator.setup_uvdata(array_layout=os.path.join(DATA_PATH, "perfect_hex37_14.6m.csv"),
+                                  telescope_location=telescope_location, telescope_name='hera',
+                                  freq_array=freq_array, time_array=time_array, redundancy=redtol, no_autos=False)
+
+    uvd0 = simulator.complete_uvdata(uvd0)
+
+    nt.assert_true(uvd0.Nbls == 66)
+    nt.assert_true(uvd.Nbls == 65)
