@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 layout_csv_name = 'imaging_layout.csv'
-Nants = 50
+Nants = 80
 freq = 100e6
 c = 3e8
 Nside = 128
@@ -15,9 +15,13 @@ Nside = 128
 res = np.sqrt(4 * np.pi / (12 * Nside**2))
 lam = c / freq
 maxbl = 1.22 * (lam / res)      # Resolution ~ 1.22 * lambda/maxbl.
+
+core_width = maxbl/2.
+sigma = core_width/2.355
+
 # Want to overresolve pixels (treating them as point sources)
 minbl = 5  # m
-E, N = np.random.uniform(minbl, maxbl, (2, Nants))
+E, N = np.random.normal(0, sigma, (2, Nants))
 U = np.zeros(Nants)
 
 enu = np.vstack((E, N, U)).T
