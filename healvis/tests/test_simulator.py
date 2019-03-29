@@ -143,14 +143,88 @@ def test_setup_light_uvdata():
     nt.assert_true(np.all(obs_full.freqs == obs.freqs))
 
 
-def test_freq_time_params():
-    sky = sky_model.SkyModel()
-    sky.read_hdf5(os.path.join(DATA_PATH, 'gsm_nside32.hdf5'))
-    freqs = sky.freqs
-    times = np.linspace(2458570, 2458570 + 0.5, 239)
-    time_dict = utils.time_array_to_params(times)
-    freq_dict = utils.freq_array_to_params(freqs)
-    ftest = simulator.parse_frequency_params(freq_dict)
-    ttest = simulator.parse_time_params(time_dict)
-    nt.assert_true(np.allclose(ftest['freq_array'], freqs))
-    nt.assert_true(np.allclose(ttest['time_array'], times))
+def test_parse_freq_params():
+    # define global set of keys that all agree
+    start_freq = 1.0
+    channel_width = 1.0
+    end_freq = 10.0
+    bandwidth = 10.0
+    Nfreqs = 10
+    freq_array = np.linspace(start_freq, start_freq + bandwidth, Nfreqs, endpoint=False)
+    master_fdict = dict(freq_array=freq_array, Nfreqs=Nfreqs, bandwidth=bandwidth, channel_width=channel_width)
+
+    # now test that parsing of various key combinations all agree
+    # case i
+    fdict = simulator.parse_frequency_params(dict(start_freq=start_freq, Nfreqs=Nfreqs, channel_width=channel_width))
+    for k in master_fdict:
+        nt.assert_true(np.all(np.isclose(master_fdict[k], fdict[k])))
+    # case ii
+    fdict = simulator.parse_frequency_params(dict(start_freq=start_freq, Nfreqs=Nfreqs, bandwidth=bandwidth))
+    for k in master_fdict:
+        nt.assert_true(np.all(np.isclose(master_fdict[k], fdict[k])))
+    # case iii
+    fdict = simulator.parse_frequency_params(dict(start_freq=start_freq, Nfreqs=Nfreqs, end_freq=end_freq))
+    for k in master_fdict:
+        nt.assert_true(np.all(np.isclose(master_fdict[k], fdict[k])))
+    # case iv
+    fdict = simulator.parse_frequency_params(dict(start_freq=start_freq, end_freq=end_freq, channel_width=channel_width))
+    for k in master_fdict:
+        nt.assert_true(np.all(np.isclose(master_fdict[k], fdict[k])))
+
+    # test that if freq_array is present, it supercedes!
+    _farray = np.linspace(100, 200, 10, endpoint=False)
+    fdict = simulator.parse_frequency_params(dict(start_freq=start_freq, end_freq=end_freq, channel_width=channel_width, freq_array=_farray))
+    nt.assert_true(np.all(np.isclose(_farray, fdict['freq_array'])))
+
+    # test Nfreqs = 1 exception
+    nt.assert_raises(ValueError, simulator.parse_frequency_params, dict(freq_array=np.array([100.0])))
+
+    # test evenly divisible exception
+    nt.assert_raises(ValueError, simulator.parse_frequency_params, dict(start_freq=100, end_freq=101, channel_width=0.33))
+
+    # test improper combination KeyError
+    nt.assert_raises(KeyError, simulator.parse_frequency_params, dict(start_freq=100.0))
+
+
+def test_parse_time_params():
+    # define global set of keys that all agree
+    start_time = 2458101.0
+    time_cadence = 100.0
+    Ntimes = 10
+    duration = Ntimes * time_cadence / (24. * 3600.) 
+    time_array = np.linspace(start_time, start_time + duration, Ntimes, endpoint=False)
+    end_time = time_array[-1]
+    master_tdict = dict(time_array=time_array, Ntimes=Ntimes, duration=duration, time_cadence=time_cadence)
+
+    # now test that parsing of various key combinations all agree
+    # case i
+    tdict = simulator.parse_time_params(dict(start_time=start_time, Ntimes=Ntimes, time_cadence=time_cadence))
+    for k in master_tdict:
+        nt.assert_true(np.all(np.isclose(master_tdict[k], tdict[k])))
+    # case ii
+    tdict = simulator.parse_time_params(dict(start_time=start_time, Ntimes=Ntimes, duration=duration))
+    for k in master_tdict:
+        nt.assert_true(np.all(np.isclose(master_tdict[k], tdict[k])))
+    # case iii
+    tdict = simulator.parse_time_params(dict(start_time=start_time, Ntimes=Ntimes, end_time=end_time))
+    for k in master_tdict:
+        nt.assert_true(np.all(np.isclose(master_tdict[k], tdict[k])))
+    # case iv
+    tdict = simulator.parse_time_params(dict(start_time=start_time, end_time=end_time, time_cadence=time_cadence))
+    for k in master_tdict:
+        nt.assert_true(np.all(np.isclose(master_tdict[k], tdict[k])))
+
+    # test that if time_array is present, it supercedes!
+    _tarray = np.linspace(2458201, 2458201.10, 10, endpoint=False)
+    tdict = simulator.parse_time_params(dict(start_time=start_time, end_time=end_time, time_cadence=time_cadence, time_array=_tarray))
+    nt.assert_true(np.all(np.isclose(_tarray, tdict['time_array'])))
+
+    # test Ntimes = 1 exception
+    nt.assert_raises(ValueError, simulator.parse_time_params, dict(time_array=np.array([100.0])))
+
+    # test evenly divisible exception
+    nt.assert_raises(ValueError, simulator.parse_time_params, dict(start_time=100, end_time=101, time_cadence=0.33))
+
+    # test improper combination KeyError
+    nt.assert_raises(KeyError, simulator.parse_time_params, dict(start_time=100.0))
+

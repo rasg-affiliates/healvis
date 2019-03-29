@@ -11,55 +11,52 @@ from astropy.constants import c
 
 def freq_array_to_params(freq_array):
     """
-
     Give the channel width, bandwidth, start, and end frequencies corresponding
     to a given frequency array.
 
     Args:
         freq_array : (ndarray, shape = (Nfreqs,)) of frequencies.
+
     Returns:
         Dictionary of frequency parameters.
-
     """
-    if not isinstance(freq_array, np.ndarray):
-        freq_array = np.array(freq_array)
+    freq_array = np.asarray(freq_array).ravel()
 
     fdict = {}
     if freq_array.size < 2:
         raise ValueError("Frequency array must be longer than 1 to give meaningful results.")
 
     fdict['channel_width'] = np.diff(freq_array)[0]
-    f0, f1 = freq_array[[0, -1]]
-    fdict['bandwidth'] = (f1 - f0) + fdict['channel_width']
-    fdict['start_freq'] = f0
-    fdict['end_freq'] = f1
+    fdict['Nfreqs'] = freq_array.size
+    fdict['bandwidth'] = fdict['channel_width'] * fdict['Nfreqs']
+    fdict['start_freq'] = freq_array[0]
+    fdict['end_freq'] = freq_array[-1]
 
     return fdict
 
 
 def time_array_to_params(time_array):
     """
-
-    Give the time cadence, duration, and start and end times corresponding to a given frequency array.
+    Give the time cadence, duration, and start and end times corresponding to a given time array.
 
     Args:
         time_array : (ndarray) of julian dates
+
     Returns:
-        Dictionary of frequency parameters.
+        Dictionary of time parameters.
 
     """
-    if not isinstance(time_array, np.ndarray):
-        time_array = np.array(time_array)
+    time_array = np.asarray(time_array)
 
     tdict = {}
     if time_array.size < 2:
         raise ValueError("Time array must be longer than 1 to give meaningful results.")
 
-    tdict['time_cadence'] = np.diff(time_array)[0] * 24 * 3600
-    t0, t1 = time_array[[0, -1]]
-    tdict['duration_days'] = (t1 - t0)
-    tdict['start_time'] = t0
-    tdict['end_time'] = t1
+    fdict['time_cadence'] = np.diff(time_array)[0] * (24. * 3600.)
+    fdict['Ntimes'] = time_array.size
+    fdict['duration'] = fdict['time_cadence'] * fdict['Ntimes'] / (24. * 3600.)
+    fdict['start_time'] = time_array[0]
+    fdict['end_time'] = time_array[-1]
 
     return tdict
 

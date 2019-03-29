@@ -97,78 +97,86 @@ def parse_frequency_params(freq_params):
     """
     Parse the "freq" section of obsparam.
 
+    Frequency arrays are defined to be reflective of channel center.
+
+    If the 'freq_array' key is present in freq_params, it supercedes all
+    other keys. Otherwise, freq_params must contain one of the following
+          i) start_freq, Nfreqs & channel_width
+         ii) start_freq, Nfreqs & bandwidth
+        iii) start_freq, Nfreqs & end_freq
+         iv) start_freq, channel_width & end_freq
+
+    This function will look for the key combinations in that order, and take
+    the first combination with all keys present.
+
     Args:
         freq_params: Dictionary of frequency parameters
 
     Returns:
         dict of array properties:
             |  channel_width: (float) Frequency channel spacing in Hz
-            |  Nfreqs: (int) Number of frequencies
+            |  Nfreqs: (int) Number of frequency channels
             |  freq_array: (dtype float, ndarray, shape=(Nspws, Nfreqs)) Frequency channel centers in Hz
+            |  bandwidth : (float) Full "observers" bandwidth of the data: i.e. channel_width * Nfreqs
     """
-
     freq_keywords = ['freq_array', 'start_freq', 'end_freq', 'Nfreqs',
                      'channel_width', 'bandwidth']
     fa, sf, ef, nf, cw, bw = [fk in freq_params for fk in freq_keywords]
     kws_used = ", ".join(freq_params.keys())
 
+    # look for freq_array
     if fa:
         freq_arr = np.array(freq_params['freq_array'])
-        freq_params['Nfreqs'] = freq_arr.size
-        if freq_params['Nfreqs'] > 1:
-            freq_params['channel_width'] = np.diff(freq_arr)[0]
-            assert np.all(np.diff(freq_arr) == freq_params['channel_width'])
+        Nfreqs = freq_arr.size
+        if Nfreqs > 1:
+            channel_width = np.diff(freq_arr)[0]
         elif 'channel_width' not in freq_params:
             raise ValueError("Channel width must be specified "
-                             "if freq_arr has length 1")
+                             "if passed freq_arr has length 1")
+        bandwidth = channel_width * Nfreqs
+
+    # look for other key combinations in the order described above
     else:
-        if not nf:
-            if not cw:
-                raise ValueError("Either channel_width or Nfreqs "
-                                 " must be included in parameters:" + kws_used)
-            if sf and ef:
-                freq_params['bandwidth'] = freq_params['end_freq'] - freq_params['start_freq'] + freq_params['channel_width']
-                bw = True
-            if bw:
-                freq_params['Nfreqs'] = int(np.floor(freq_params['bandwidth']
-                                                     / freq_params['channel_width']))
-            else:
-                raise ValueError("Either bandwidth or band edges "
-                                 "must be specified: " + kws_used)
+        if nf and cw and sf:
+            Nfreqs = freq_params['Nfreqs']
+            channel_width = freq_params['channel_width']
+            start_freq = freq_params['start_freq']
+            bandwidth = Nfreqs * channel_width
 
-        if not cw:
-            if not bw:
-                raise ValueError("Either bandwidth or channel width"
-                                 " must be specified: " + kws_used)
-            freq_params['channel_width'] = (freq_params['bandwidth']
-                                            / float(freq_params['Nfreqs']))
+        elif nf and bw and sf:
+            Nfreqs = freq_params['Nfreqs']
+            bandwidth = freq_params['bandwidth']
+            start_freq = freq_params['start_freq']
+            channel_width = float(bandwidth / Nfreqs)
 
-        if not bw:
-            freq_params['bandwidth'] = (freq_params['channel_width']
-                                        * freq_params['Nfreqs'])
-            bw = True
+        elif nf and sf and ef:
+            start_freq = freq_params['start_freq']
+            end_freq = freq_params['end_freq']
+            Nfreqs = freq_params['Nfreqs']
+            channel_width = float(end_freq - start_freq) / np.clip(Nfreqs - 1, 1, np.inf)
+            bandwidth = Nfreqs * channel_width
 
-        if not sf:
-            if ef and bw:
-                freq_params['start_freq'] = freq_params['end_freq'] - freq_params['bandwidth'] + freq_params['channel_width']
-        if not ef:
-            if sf and bw:
-                freq_params['end_freq'] = freq_params['start_freq'] + freq_params['bandwidth'] - freq_params['channel_width']
+        elif cw and sf and ef:
+            start_freq = freq_params['start_freq']
+            end_freq = freq_params['end_freq']
+            channel_width = freq_params['channel_width']
+            Nfreqs = float(end_freq - start_freq) / channel_width + 1
+            if not np.isclose(Nfreqs % 1, 0.0):
+                raise ValueError("end_freq - start_freq must be evenly divisible by channel_width")
+            Nfreqs = int(Nfreqs)
+            bandwidth = channel_width * Nfreqs
 
-        freq_arr = np.linspace(freq_params['start_freq'],
-                               freq_params['end_freq'] + freq_params['channel_width'],
-                               freq_params['Nfreqs'], endpoint=False)
+        else:
+            raise KeyError("Couldn't find any proper combination of keys in freq_params")
 
-    if freq_params['Nfreqs'] != 1:
-        assert np.allclose(np.diff(freq_arr), freq_params['channel_width'] * np.ones(freq_params["Nfreqs"] - 1))
-
-    Nspws = 1 if 'Nspws' not in freq_params else freq_params['Nspws']
-    freq_arr = np.repeat(freq_arr, Nspws).reshape(Nspws, freq_params['Nfreqs'])
+        # Only supports Nspw = 1 b/c pyuvdata only supports this
+        freq_arr = np.linspace(start_freq, start_freq + bandwidth, Nfreqs, endpoint=False).reshape(1, -1)
 
     return_dict = {}
-    return_dict['Nfreqs'] = freq_params['Nfreqs']
+    return_dict['Nfreqs'] = Nfreqs
     return_dict['freq_array'] = freq_arr
-    return_dict['channel_width'] = freq_params['channel_width']
+    return_dict['channel_width'] = channel_width
+    return_dict['bandwidth'] = bandwidth
 
     return return_dict
 
@@ -177,6 +185,18 @@ def parse_time_params(time_params):
     """
     Parse the "time" section of obsparam.
 
+    Time arrays are defined to be reflective of bin center.
+
+    If 'time_array' key is present in time_params, it supercedes all other keys.
+    Otherwise, the following key combinations will be searched for in this order:
+          i) start_time, Ntimes & time_cadence
+         ii) start_time, Ntimes & duration
+        iii) start_time, Ntimes & end_time
+         iv) start_time, end_time & time_cadence
+
+    This function will look for the key combinations in that order, and take
+    the first combination with all keys present.
+
     Args:
         time_params: Dictionary of time parameters
 
@@ -184,69 +204,81 @@ def parse_time_params(time_params):
         dict of array properties:
             |  time_cadence: (float) Time step size on seconds
             |  Ntimes: (int) Number of time steps
-            |  time_array: (dtype float, ndarray, shape=(Ntimes)) Time step centers in JD
+            |  time_array: (dtype float, ndarray, shape=(Ntimes)) Time step centers in Julian Date.
+            |  duration: (float) Time duration in Julian Date.
     """
-
-    return_dict = {}
-
     time_keywords = ['start_time', 'end_time', 'Ntimes', 'time_cadence',
-                     'duration_hours', 'duration_days']
-    st, et, nt, it, dh, dd = [tk in time_params for tk in time_keywords]
+                     'duration', 'duration_hours', 'duration_days', 'time_array']
+    st, et, nt, tc, du, dh, dd, ta = [tk in time_params for tk in time_keywords]
     kws_used = ", ".join(time_params.keys())
     daysperhour = 1 / 24.
     hourspersec = 1 / 60.**2
     dayspersec = daysperhour * hourspersec
 
-    if dh and not dd:
-        time_params['duration'] = time_params['duration_hours'] * daysperhour
-        dd = True
-    elif dd:
-        time_params['duration'] = time_params['duration_days']
+    # parse possible keys related to duration
+    if du:
+        duration = time_params['duration']
+    else:
+        if dh:
+            assert not dd, "Cannot feed duration_hours and duration_days"
+            duration = time_params['duration_hours'] * daysperhour
+            du = True
+        elif dd:
+            assert not du, "Cannot feed duration_hours and duration_days"
+            duration = time_params['duration_days']
+            du = True
 
-    if not nt:
-        if not it:
-            raise ValueError("Either time or Ntimes must be "
-                             "included in parameters:" + kws_used)
-        if st and et:
-            time_params['duration'] = time_params['end_time'] - time_params['start_time'] + time_params['time_cadence'] * dayspersec
-            dd = True
-        if dd:
-            time_params['Ntimes'] = int(np.round(time_params['duration']
-                                                 / (time_params['time_cadence'] * dayspersec)))
+    # look for time_array
+    if ta:
+        time_array = time_params['time_array']
+        Ntimes = time_array.size
+        if Ntimes > 1:
+            time_cadence = np.diff(time_array)[0]
+        elif 'time_cadence' not in time_params:
+            raise ValueError("time_cadence must be specified"
+                             "if Ntimes == 1.")
+        duration = time_cadence * Ntimes
+
+    # look for other key combinations in the order described above
+    else:
+        if st and nt and tc:
+            start_time = time_params['start_time']
+            Ntimes = time_params['Ntimes']
+            time_cadence = time_params['time_cadence']
+            duration = time_cadence * Ntimes * dayspersec
+
+        elif st and nt and du:
+            start_time = time_params['start_time']
+            Ntimes = time_params['Ntimes']
+            time_cadence = float(duration) / Ntimes / dayspersec
+
+        elif st and nt and et:
+            start_time = time_params['start_time']
+            end_time = time_params['end_time']
+            Ntimes = time_params['Ntimes']
+            time_cadence = float(end_time - start_time) / np.clip(Ntimes - 1, 1, np.inf) / dayspersec
+            duration = time_cadence * Ntimes * dayspersec
+
+        elif st and et and tc:
+            start_time = time_params['start_time']
+            end_time = time_params['end_time']
+            time_cadence = time_params['time_cadence'] 
+            Ntimes = float(end_time - start_time) / (time_cadence * dayspersec) + 1
+            if not np.isclose(Ntimes % 1, 0.0, atol=1e-4):
+                raise ValueError("end_time - start_time must be evenly divisible by time_cadence")
+            Ntimes = int(Ntimes)
+            duration = time_cadence * Ntimes * dayspersec
+
         else:
-            raise ValueError("Either duration or time bounds must be specified: "
-                             + kws_used)
+            raise KeyError("Couldn't find any proper combination of keys in time_params.")
 
-    if not it:
-        if not dd:
-            raise ValueError("Either duration or integration time "
-                             "must be specified: " + kws_used)
-        time_params['time_cadence'] = (time_params['duration'] / dayspersec
-                                       / float(time_params['Ntimes']))  # In seconds
+        time_array = np.linspace(start_time, start_time + duration, Ntimes, endpoint=False)
 
-    inttime_days = time_params['time_cadence'] * dayspersec
-    if not dd:
-        time_params['duration'] = inttime_days * (time_params['Ntimes'])
-        dd = True
-    if not st:
-        if et and dd:
-            time_params['start_time'] = time_params['end_time'] - time_params['duration'] + inttime_days
-    if not et:
-        if st and dd:
-            time_params['end_time'] = time_params['start_time'] + time_params['duration'] - inttime_days
-    if not (st or et):
-        raise ValueError("Either a start or end time must be specified: " + kws_used)
-
-    time_arr = np.linspace(time_params['start_time'],
-                           time_params['end_time'] + inttime_days,
-                           time_params['Ntimes'], endpoint=False)
-
-    if time_params['Ntimes'] != 1:
-        assert np.allclose(np.diff(time_arr), inttime_days * np.ones(time_params["Ntimes"] - 1), atol=dayspersec)   # To nearest second
-
-    return_dict['time_cadence'] = time_params['time_cadence']
-    return_dict['time_array'] = time_arr
-    return_dict['Ntimes'] = time_params['Ntimes']
+    return_dict = {}
+    return_dict['time_array'] = time_array
+    return_dict['duration'] = duration
+    return_dict['time_cadence'] = time_cadence
+    return_dict['Ntimes'] = Ntimes
 
     return return_dict
 
