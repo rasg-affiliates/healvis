@@ -278,7 +278,7 @@ def parse_time_params(time_params):
         time_array = np.linspace(start_time, start_time + duration, Ntimes, endpoint=False)
 
         # Check that the time_array is consistent with time_cadence
-        assert np.allclose(np.diff(time_array_arr), np.ones(Ntimes - 1) * time_cadence)
+        assert np.allclose(np.diff(time_array), np.ones(Ntimes - 1) * time_cadence * dayspersec)
 
     return_dict = {}
     return_dict['time_array'] = time_array
