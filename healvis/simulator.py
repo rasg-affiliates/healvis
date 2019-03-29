@@ -262,7 +262,7 @@ def parse_time_params(time_params):
         elif st and et and tc:
             start_time = time_params['start_time']
             end_time = time_params['end_time']
-            time_cadence = time_params['time_cadence'] 
+            time_cadence = time_params['time_cadence']
             Ntimes = float(end_time - start_time) / (time_cadence * dayspersec) + 1
             if not np.isclose(Ntimes % 1, 0.0, atol=1e-4):
                 raise ValueError("end_time - start_time must be evenly divisible by time_cadence")
