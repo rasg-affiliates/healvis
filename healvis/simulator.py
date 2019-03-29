@@ -64,7 +64,7 @@ def parse_telescope_params(tele_params):
     layout_csv = tele_params['array_layout']
     if not os.path.exists(layout_csv):
         if not os.path.exists(layout_csv):
-            raise ValueError('layout_csv file from yaml does not exist')
+            raise ValueError('layout_csv file from yaml does not exist: {}'.format(layout_csv))
 
     ant_layout = _parse_layout_csv(layout_csv)
     if isinstance(tele_params['telescope_location'], (str, np.str)):
