@@ -721,8 +721,8 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
 
 
 def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, beam=None, beam_kwargs={},
-                                beam_freq_interp='linear', smooth_beam=True, smooth_scale=2.0, Nprocs=1,
-                                add_to_history=None):
+                                beam_freq_interp='linear', smooth_beam=True, smooth_scale=2.0,
+                                smooth_noise=1e-10, Nprocs=1, add_to_history=None):
     """
     Run a healvis simulation on a selected range of frequency channels.
 
