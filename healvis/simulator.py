@@ -467,7 +467,7 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
 
 def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None, beam_kwargs={},
                                   beam_freq_interp='cubic', smooth_beam=False, smooth_scale=2.0,
-                                  freq_chans=None):
+                                  smooth_noise=1e-10, freq_chans=None):
     """
     Setup an Observatory object from a UVData object.
 
@@ -488,6 +488,8 @@ def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None
             If True, and beam is PowerBeam, smooth it across frequency with a Gaussian Process
         smooth_scale : float
             If smoothing the beam, smooth it at this frequency scale [MHz]
+        smooth_noise : float
+            If smoothing the beam, this is the noise level to adopt in GP fit
         freq_chans : integer 1D array
             Frequency channel indices to use from uv_obj when setting observatory freqs.
 
@@ -532,7 +534,7 @@ def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None
 
     # smooth the beam
     if isinstance(obs.beam, beam_model.PowerBeam) and smooth_beam:
-        obs.beam.smooth_beam(obs.freqs, inplace=True, freq_ls=smooth_scale)
+        obs.beam.smooth_beam(obs.freqs, inplace=True, freq_ls=smooth_scale, noise=smooth_noise)
 
     return obs
 
@@ -744,6 +746,8 @@ def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, bea
             If True, and beam is PowerBeam, smooth it across frequency with a Gaussian Process
         smooth_scale : float
             If smoothing the beam, smooth it at this frequency scale [MHz]
+        smooth_noise : float
+            If smoothing the beam, this is the noise level to adopt in GP fit
         Nprocs : int
             Number of processes for this task
         add_to_history : str
@@ -766,7 +770,7 @@ def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, bea
     # setup observatory
     obs = setup_observatory_from_uvdata(uvd, fov=fov, set_pointings=True, beam=beam, beam_kwargs=beam_kwargs,
                                         freq_chans=freq_chans, beam_freq_interp=beam_freq_interp, smooth_beam=smooth_beam,
-                                        smooth_scale=smooth_scale)
+                                        smooth_scale=smooth_scale, smooth_noise=smooth_noise)
 
     # run simulation
     visibility = []
