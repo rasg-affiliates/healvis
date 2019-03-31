@@ -1,9 +1,10 @@
 # Changelog
 
-## [1.0.0] - 2019-3-29
+## Unreleased
 
 ### Added
 
+- Frequency selections in obsparam to apply to loading skymodels
 - Documented convention that frequency array values refer to channel centers
 - Test for consistency among setup parameters.
 - Full support for all valid pyuvsim setup parameters.

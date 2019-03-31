@@ -144,7 +144,7 @@ class SkyModel(object):
         self.pspec_amp = sigma
         self._update()
 
-    def read_hdf5(self, filename, freq_chans=None, shared_memory=False):
+    def read_hdf5(self, filename, freq_chans=None, shared_memory=False, do_not_overwrite_freqs=False):
         """
         Read HDF5 HEALpix map(s)
 
@@ -155,6 +155,9 @@ class SkyModel(object):
                 Frequency channel indices to read in
             shared_memory : bool
                 If True, share memory across processes
+            do_not_overwrite_freqs : bool
+                If true and self.freqs is not None, this will attempt to read a subset of the file
+                corresponding with the current self.freqs. If it cannot find a good match it will error.
         """
         if not os.path.exists(filename):
             raise ValueError("File {} not found.".format(filename))
@@ -167,6 +170,15 @@ class SkyModel(object):
 
         print('...reading {}'.format(filename))
         with h5py.File(filename, 'r') as infile:
+
+            if do_not_overwrite_freqs:
+                sky_freqs_full = infile['freqs'][()]
+                freq_chans = np.where(np.in1d(sky_freqs_full, self.freqs))[0]
+                sky_freqs_part = sky_freqs_full[freq_chans]
+                if not np.allclose(self.freqs, sky_freqs_part):
+                    raise ValueError("Currently set frequencies do not match any subset of file's frequencies.")
+                Nfreqs_load = freq_chans.size
+
             # load lightweight attributes
             for k in infile.attrs:
                 setattr(self, k, infile.attrs[k])
@@ -338,7 +350,7 @@ def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, Nskies=1, s
 
     # load healpix map from disk
     else:
-        sky.read_hdf5(sky_type, shared_memory=True)
+        sky.read_hdf5(sky_type, shared_memory=True, do_not_overwrite_freqs=True)
         sky._update()
 
     return sky
