@@ -17,7 +17,7 @@ import warnings
 from pyuvdata import UVData, UVBeam
 from pyuvdata import utils as uvutils
 
-from . import observatory, version, beam_model, sky_model
+from . import observatory, version, beam_model, sky_model, utils
 
 # -----------------------
 # Methods to parse configuration files and setup/run simulation.
@@ -591,6 +591,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     else:
         # write to disk if requested
         if savepath is not None:
+
             sky.write_hdf5(os.path.join(filing_params['outdir'], savepath))
 
     # ---------------------------
@@ -627,7 +628,6 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     obs = setup_observatory_from_uvdata(uv_obj, fov=fov, set_pointings=True,
                                         beam=beam_type, beam_kwargs=beam_attr, beam_freq_interp=beam_freq_interp,
                                         smooth_beam=smooth_beam, smooth_scale=smooth_scale)
-
     # ---------------------------
     # Run simulation
     # ---------------------------
@@ -665,7 +665,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     uv_obj.extra_keywords = {'nside': sky.Nside, 'slurm_id': sjob_id}
     uv_obj.extra_keywords.update(beam_sq_int)
     if beam_type == 'gaussian':
-        fwhm = beam_attr['sigma'] * 2.355
+        fwhm = beam_attr['gauss_width'] * 2.355
         uv_obj.extra_keywords['bm_fwhm'] = fwhm
     elif beam_type == 'airy':
         uv_obj.extra_keywords['bm_diam'] = beam_attr['diameter']
@@ -760,6 +760,8 @@ def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, bea
     # load SkyModel
     sky = sky_model.SkyModel()
     sky.read_hdf5(skymod_file, freq_chans=freq_chans, shared_memory=False)
+
+    # Check that chosen freqs are a subset of the skymodel frequencies.
 
     assert np.isclose(sky.freqs, uvd.freq_array[0, freq_chans]).all(), "Frequency arrays in UHV5 file {} and SkyModel file {} don't agree".format(uvh5_file, skymod_file)
 
