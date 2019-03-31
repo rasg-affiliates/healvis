@@ -90,3 +90,14 @@ def test_fewchannel_read():
     sky = sky_model.SkyModel()
     sky.read_hdf5(os.path.join(DATA_PATH, "gsm_nside32.hdf5"), freq_chans=chans, shared_memory=True)
     nt.assert_true(sky.freqs.size == 4)
+
+
+def test_freqselect_read():
+    # Using existing frequencies as selection on read
+    sky = sky_model.SkyModel()
+    sky.read_hdf5(os.path.join(DATA_PATH, "gsm_nside32.hdf5"))
+    subfreqs = sky.freqs[::2]
+    sky = sky_model.SkyModel()
+    sky.freqs = subfreqs
+    sky.read_hdf5(os.path.join(DATA_PATH, "gsm_nside32.hdf5"), do_not_overwrite_freqs=True)
+    nt.assert_true(sky.freqs.size == subfreqs.size)
