@@ -65,6 +65,12 @@ def test_AnalyticBeam():
     nt.assert_equal(b.shape, (Npix, Nfreqs))  # assert array shape
     nt.assert_true(np.isclose(b[0, :], 1.0).all())  # assert peak normalized
 
+    # Chromatic Gaussian
+    A = beam_model.AnalyticBeam('gaussian', gauss_width=15.0, ref_freq=freqs[0], spectral_index=-1.0)
+    b = A.beam_val(az, za, freqs)
+    nt.assert_equal(b.shape, (Npix, Nfreqs))  # assert array shape
+    nt.assert_true(np.isclose(b[0, :], 1.0).all())  # assert peak normalized
+
     # Uniform
     A = beam_model.AnalyticBeam('uniform')
     b = A.beam_val(az, za, freqs)

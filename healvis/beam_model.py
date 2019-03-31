@@ -272,7 +272,7 @@ class PowerBeam(UVBeam):
 
 class AnalyticBeam(object):
 
-    def __init__(self, beam_type, gauss_width=None, diameter=None):
+    def __init__(self, beam_type, gauss_width=None, diameter=None, spectral_index=0.0, ref_freq=None):
         """
         Instantiate an analytic beam model.
 
@@ -281,6 +281,8 @@ class AnalyticBeam(object):
         Args:
             beam_type : str or callable, type of beam to use. options=['uniform', 'gaussian', 'airy', callable]
             gauss_width : float, standard deviation [degrees] for gaussian beam
+            spectral_index: (float, optional) Scale gaussian beam width as a power law with frequency.
+                                               With this, gauss_width indicates the width at the lowest frequency.
             diameter : float, dish diameter [meter] used for airy beam
 
         Notes:
@@ -299,6 +301,12 @@ class AnalyticBeam(object):
             if gauss_width is None:
                 raise KeyError("gauss_width required for gaussian beam")
             self.gauss_width = gauss_width * np.pi / 180.  # deg -> radians
+            self.spectral_index = spectral_index
+            self.ref_freq = ref_freq
+            if (not spectral_index == 0.0) and (ref_freq is None):
+                raise ValueError("ref_freq must be set for nonzero gaussian beam spectral index")
+            elif ref_freq is None:
+                self.ref_freq = 1.0 # Flat spectrum anyway
         elif beam_type == 'airy':
             if diameter is None:
                 raise KeyError("Dish diameter required for airy beam")
@@ -341,8 +349,8 @@ class AnalyticBeam(object):
             else:
                 beam_value = 1.0
         elif self.beam_type == 'gaussian':
-            beam_value = np.exp(-(za**2) / (2 * self.gauss_width**2))  # Peak normalized
-            beam_value = np.repeat(beam_value[:, np.newaxis], len(freqs), axis=1)
+            sigmas = self.gauss_width * (freqs/self.ref_freq)**(self.spectral_index)
+            beam_value = np.exp(-(za[...,np.newaxis]**2) / (2 * sigmas**2))  # Peak normalized
         elif self.beam_type == 'airy':
             beam_value = airy_disk(za, freqs, diameter=self.diameter)
         elif callable(self.beam_type):
