@@ -9,6 +9,7 @@ import multiprocessing as mp
 from numba import jit
 import sys
 import resource
+import warnings
 import time
 import copy
 import healpy as hp
@@ -18,7 +19,7 @@ from astropy.coordinates import Angle, AltAz, EarthLocation, ICRS
 from astropy import units
 
 from .beam_model import PowerBeam, AnalyticBeam
-from .utils import jy2Tsr
+from .utils import jy2Tsr, mparray
 from .cosmology import c_ms
 
 # -----------------------
@@ -86,7 +87,7 @@ class Baseline(object):
             pl.show()
 
 
-class Observatory:
+class Observatory(object):
     """
     Baseline, time, frequency, location (lat/lon), beam
     Assumes the shell lat/lon are ra/dec.
@@ -232,7 +233,8 @@ class Observatory:
                 #        print('Mem: {}GB'.format(memory_usage_GB))
                 #        sys.stdout.flush()
                 if Nfin.value > 0:
-                    print('Finished: {:d}, Elapsed {:.2f}min, Remain {:.3f}hour, MaxRSS {}GB'.format(Nfin.value, dt / 60., (1 / 3600.) * (dt / float(Nfin.value)) * (self.Ntimes - Nfin.value), memory_usage_GB))
+                    sys.stdout.write('Finished: {:d}, Elapsed {:.2f}min, Remain {:.3f}hour, MaxRSS {}GB\n'.format(
+                        Nfin.value, dt / 60., (1 / 3600.) * (dt / float(Nfin.value)) * (self.Ntimes - Nfin.value), memory_usage_GB))
                     sys.stdout.flush()
 
     def make_visibilities(self, shell, Nprocs=1, beam_pol='pI'):
@@ -265,6 +267,10 @@ class Observatory:
         man = mp.Manager()
         vis_array = man.Queue()
         Nfin = mp.Value('i', 0)
+
+        if Nprocs > 1 and not isinstance(shell.data, mparray):
+            warnings.warn("Caution: SkyModel data array is not in shared memory. With Nprocs > 1, this will cause duplication")
+
         for pi in range(Nprocs):
             p = mp.Process(name=pi, target=self.vis_calc, args=(pcenter_list[pi], time_inds[pi], shell.data, vis_array, Nfin), kwargs=dict(beam_pol=beam_pol))
             p.start()
