@@ -232,8 +232,11 @@ class PowerBeam(UVBeam):
             az = np.array([az])
         if isinstance(za, (float, np.float, int, np.int)):
             za = np.array([za])
+        if isinstance(freqs, (float, np.float, int, np.int)):
+            freqs = np.array([freqs])
         az = np.asarray(az)
         za = np.asarray(za)
+        freqs = np.asarray(freqs)
 
         if self.pixel_coordinate_system == 'az_za':
             self.interpolation_function = 'az_za_simple'
@@ -320,6 +323,16 @@ class AnalyticBeam(object):
         Returns:
             beam_value : ndarray of beam power, with shape (Npix, Nfreqs) where Npix = len(za)
         """
+        if isinstance(az, (float, np.float, int, np.int)):
+            az = np.array([az])
+        if isinstance(za, (float, np.float, int, np.int)):
+            za = np.array([za])
+        if isinstance(freqs, (float, np.float, int, np.int)):
+            freqs = np.array([freqs])
+        az = np.asarray(az)
+        za = np.asarray(za)
+        freqs = np.asarray(freqs)
+
         if self.beam_type == 'uniform':
             if isinstance(az, np.ndarray):
                 if np.isscalar(freqs):
