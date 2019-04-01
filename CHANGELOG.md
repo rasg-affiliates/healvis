@@ -4,6 +4,7 @@
 
 ### Added
 
+- Chromatic gaussian beam with power law width scaling with frequency.
 - Frequency selections in obsparam to apply to loading skymodels
 - Documented convention that frequency array values refer to channel centers
 - Test for consistency among setup parameters.
