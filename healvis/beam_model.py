@@ -306,7 +306,7 @@ class AnalyticBeam(object):
             if (not spectral_index == 0.0) and (ref_freq is None):
                 raise ValueError("ref_freq must be set for nonzero gaussian beam spectral index")
             elif ref_freq is None:
-                self.ref_freq = 1.0 # Flat spectrum anyway
+                self.ref_freq = 1.0  # Flat spectrum anyway
         elif beam_type == 'airy':
             if diameter is None:
                 raise KeyError("Dish diameter required for airy beam")
@@ -349,8 +349,8 @@ class AnalyticBeam(object):
             else:
                 beam_value = 1.0
         elif self.beam_type == 'gaussian':
-            sigmas = self.gauss_width * (freqs/self.ref_freq)**(self.spectral_index)
-            beam_value = np.exp(-(za[...,np.newaxis]**2) / (2 * sigmas**2))  # Peak normalized
+            sigmas = self.gauss_width * (freqs / self.ref_freq)**(self.spectral_index)
+            beam_value = np.exp(-(za[..., np.newaxis]**2) / (2 * sigmas**2))  # Peak normalized
         elif self.beam_type == 'airy':
             beam_value = airy_disk(za, freqs, diameter=self.diameter)
         elif callable(self.beam_type):
