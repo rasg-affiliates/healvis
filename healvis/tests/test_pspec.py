@@ -39,7 +39,7 @@ def test_pspec_amp():
     obs.set_pointings(obs.times_jd)
 
     obs.set_fov(fov)
-    obs.set_beam('uniform')
+    obs.set_beam('gaussian', gauss_width=7.37)
 
     skysig = 0.031
 
@@ -59,8 +59,7 @@ def test_pspec_amp():
     dspec_instr = np.abs(_vis)**2
 
     za, az = obs.calc_azza(sky.Nside, obs.pointing_centers[0])
-    beam_sq_int = np.sum(obs.beam.beam_val(az, za, freqs)**2, axis=0) * pix_area
-    beam_sq_int = beam_sq_int[0]    # Constant across frequencies
+    beam_sq_int = np.mean(obs.beam_sq_int(freqs, nside, obs.pointing_centers[0]))
 
     Bandwidth = freqs[-1] - freqs[0]
     scalar = cosmology.X2Y(sky.Z_array[sky.ref_chan]) * (Bandwidth / beam_sq_int)

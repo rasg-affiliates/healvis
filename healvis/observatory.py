@@ -191,7 +191,7 @@ class Observatory(object):
         """
         za, az = self.calc_azza(Nside, pointing)
         beam_sq_int = np.sum(self.beam.beam_val(az, za, freqs, pol=beam_pol)**2, axis=0)
-        om = 4 * np.pi / (12.0 * Nside)
+        om = 4 * np.pi / (12.0 * Nside**2)
         beam_sq_int = beam_sq_int * om
 
         return beam_sq_int
