@@ -279,11 +279,17 @@ class AnalyticBeam(object):
         Currently this class only supports single-polarization beam models.
 
         Args:
-            beam_type : str or callable, type of beam to use. options=['uniform', 'gaussian', 'airy', callable]
-            gauss_width : float, standard deviation [degrees] for gaussian beam
-            spectral_index: (float, optional) Scale gaussian beam width as a power law with frequency.
-                                               With this, gauss_width indicates the width at the lowest frequency.
-            diameter : float, dish diameter [meter] used for airy beam
+            beam_type : str or callable
+                type of beam to use. options=['uniform', 'gaussian', 'airy', callable]
+            gauss_width : float
+                standard deviation [degrees] for gaussian beam
+                When spectral index is set, this represents the FWHM at the ref_freq
+            spectral_index : (float, optional)
+                Scale gaussian beam width as a power law with frequency.
+            ref_freq : (float, optional)
+                If set, this sets the reference frequency for the beam width power law.
+            diameter : float
+                dish diameter [meter] used for airy beam
 
         Notes:
             Uniform beam is a flat-top beam across the entire sky.
