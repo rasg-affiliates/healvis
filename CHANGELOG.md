@@ -16,6 +16,7 @@
 
 ### Fixed
 
+- Bug fix in Observatory.beam_sq_int (missing square on Nside)
 - Restored support for redundancy selection.
 - Loading from hdf5 files into shared memory was not actually using the mparray.
 - Single-frequency simulations can be run.
