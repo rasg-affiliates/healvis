@@ -762,7 +762,6 @@ def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, bea
     sky.read_hdf5(skymod_file, freq_chans=freq_chans, shared_memory=False)
 
     # Check that chosen freqs are a subset of the skymodel frequencies.
-
     assert np.isclose(sky.freqs, uvd.freq_array[0, freq_chans]).all(), "Frequency arrays in UHV5 file {} and SkyModel file {} don't agree".format(uvh5_file, skymod_file)
 
     # setup observatory
