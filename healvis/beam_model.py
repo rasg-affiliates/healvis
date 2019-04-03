@@ -318,12 +318,6 @@ class AnalyticBeam(object):
                 raise KeyError("Dish diameter required for airy beam")
             self.diameter = diameter
 
-    def plot_beam(self, az, za, freqs, **kwargs):
-        # TODO: needs development, and testing coverage?
-        fig = pl.figure()
-        pl.imshow(self.beam_val(az, za, freqs, **kwargs))
-        pl.show()
-
     def beam_val(self, az, za, freqs, **kwargs):
         """
         Evaluation of an analytic beam model.
