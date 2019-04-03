@@ -662,7 +662,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
 
     uv_obj = complete_uvdata(uv_obj)
 
-    uv_obj.extra_keywords = {'nside': sky.Nside, 'slurm_id': sjob_id}
+    uv_obj.extra_keywords = {'nside': sky.Nside, 'slurm_id': sjob_id, 'fov': obs.fov }
     uv_obj.extra_keywords.update(beam_sq_int)
     if beam_type == 'gaussian':
         fwhm = beam_attr['gauss_width'] * 2.355
