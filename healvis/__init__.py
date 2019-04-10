@@ -10,6 +10,7 @@ from . import sky_model
 from . import beam_model
 from . import simulator
 from . import cosmology
+from . import pspec_tools
 
 from . import version
 __version__ = version.version
