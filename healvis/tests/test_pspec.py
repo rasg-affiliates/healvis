@@ -8,13 +8,17 @@ import numpy as np
 from astropy.time import Time
 import nose.tools as nt
 
-from healvis import observatory, sky_model, utils, cosmology
+from healvis import observatory, sky_model, utils, cosmology, pspec_tools
+
+f21 = cosmology.f21
 
 latitude = -30.7215277777
 longitude = 21.4283055554
 
+# TODO Test estimator on non-flat power spectrum
 
-def test_pspec_amp():
+
+def test_sim_pspec_amp():
     # Construct a flat-spectrum shell, simulate visibilities,
     #  confirm power spectrum amplitude.
 
@@ -75,3 +79,80 @@ def test_pspec_amp():
     print(amp_theor, np.mean(dspec_I))
     print(tolerance)
     nt.assert_true(np.isclose(amp_theor, np.mean(dspec_I), atol=2 * tolerance))   # Close to within twice the sample variance
+
+
+def test_gaussian_box_fft():
+    """
+    Check the power spectrum of a gaussian box.
+    """
+
+    N = 256  # Vox per side
+    L = 300.  # Mpc
+    sig = 2.0
+    mu = 0.0
+    box = np.random.normal(mu, sig, (N, N, N))
+
+    kbins, pk = pspec_tools.box_dft_pspec(box, L, use_cosmo=True)
+
+    dV = (L / float(N))**3
+
+    tol = np.sqrt(np.var(pk))
+
+    nt.assert_true(np.allclose(np.mean(pk), sig**2 * dV, atol=tol))
+
+
+def test_single_projected_dft():
+    Nside = 128
+    Npix = 12 * Nside**2
+    Omega = 4 * np.pi / float(Npix)
+
+    Nfreq = 100
+    freqs = np.linspace(167.0, 177.0, Nfreq)
+    dnu = np.diff(freqs)[0]
+    Z = f21 / freqs - 1.
+
+    sig = 0.031
+    mu = 0.0
+    shell = np.random.normal(mu, sig, (Npix, Nfreq))
+    center = [np.sqrt(2) / 2., np.sqrt(2) / 2., 0]
+
+    box = pspec_tools.cartesian_project(shell, center, 20, degrees=True)
+    Nx, Ny, Nz = box.shape
+    Lx = cosmology.dL_dth(Z[Nfreq // 2]) * np.sqrt(Omega) * Nx
+    Ly = Lx
+    Lz = cosmology.dL_df(Z[Nfreq // 2]) * dnu * Nz
+
+    dV = cosmology.comoving_voxel_volume(Z[Nfreq // 2], dnu, Omega)
+
+    r_mpc = cosmology.comoving_distance(Z)
+    kbins, pk = pspec_tools.box_dft_pspec(box, [Lx, Ly, Lz], r_mpc=r_mpc, use_cosmo=True)
+
+    tol = np.sqrt(np.var(pk))
+    theor_amp = sig**2 * dV
+    print(tol / theor_amp, theor_amp)
+    nt.assert_true(np.allclose(np.mean(pk), sig**2 * dV, atol=tol))
+
+
+# The power spectrum from cartesian projected patches is still of by about 10%.
+@nt.nottest
+def test_shell_pspec_dft():
+    sky = sky_model.SkyModel()
+    skysig = 0.031
+
+    fov = 50  # deg
+    Npatches = 5
+
+    Nfreqs = 308
+    sky.Nside = 128
+    freqs = np.linspace(100e6, 130e6, Nfreqs)
+    sky.freqs = freqs
+    sky.ref_chan = Nfreqs // 2
+
+    sky.make_flat_spectrum_shell(skysig)
+
+    kbins, pk = pspec_tools.shell_pspec(sky, Npatches=Npatches, radius=fov // 2)
+    Z_sel = sky.Z_array[sky.ref_chan]
+    dnu = sky.freqs[1] - sky.freqs[0]
+    amp_theor = skysig**2 * cosmology.comoving_voxel_volume(Z_sel, dnu, sky.pix_area_sr)
+
+    print(np.mean(pk / amp_theor))
