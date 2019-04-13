@@ -133,26 +133,31 @@ def test_single_projected_dft():
     nt.assert_true(np.allclose(np.mean(pk), sig**2 * dV, atol=tol))
 
 
-# The power spectrum from cartesian projected patches is still of by about 10%.
-@nt.nottest
 def test_shell_pspec_dft():
     sky = sky_model.SkyModel()
     skysig = 0.031
 
-    fov = 50  # deg
-    Npatches = 5
+    fov = 5  # deg
+    Npatches = 20
 
-    Nfreqs = 308
-    sky.Nside = 128
+    Nfreqs = 308//2
+    sky.Nside = 512
+    Npix = 256**2 * 12 // 2
     freqs = np.linspace(100e6, 130e6, Nfreqs)
     sky.freqs = freqs
     sky.ref_chan = Nfreqs // 2
 
-    sky.make_flat_spectrum_shell(skysig)
+    sky.make_flat_spectrum_shell(skysig, Npix = Npix)
 
-    kbins, pk = pspec_tools.shell_pspec(sky, Npatches=Npatches, radius=fov // 2)
+    # Centers = along a latitude of 90 - 2*fov, covering longitudes spaced by 360/Npatches
+    lats = np.ones(Npatches) * (90.0 - 2*fov)
+    lons = np.linspace(0, 360, Npatches)
+    centers = np.column_stack((lats, lons))
+    hpx_inds = np.arange(Npix)
+    kbins, pk = pspec_tools.shell_pspec(sky, Npatches=Npatches, radius=fov // 2, hpx_inds=hpx_inds, centers=centers)
     Z_sel = sky.Z_array[sky.ref_chan]
     dnu = sky.freqs[1] - sky.freqs[0]
     amp_theor = skysig**2 * cosmology.comoving_voxel_volume(Z_sel, dnu, sky.pix_area_sr)
 
     print(np.mean(pk / amp_theor))
+    nt.assert_true(np.isclose(np.mean(pk), amp_theor, rtol=0.05))   # Within 5%
