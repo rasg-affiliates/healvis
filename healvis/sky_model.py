@@ -125,7 +125,7 @@ class SkyModel(object):
                     self.data = self.data.reshape((1,) + s)
         self._updated = []
 
-    def make_flat_spectrum_shell(self, sigma, shared_memory=False):
+    def make_flat_spectrum_shell(self, sigma, Npix=None, shared_memory=False):
         """
         sigma = Spectrum amplitude
         shared_memory = put data in a multiprocessing shared memory block
@@ -140,7 +140,7 @@ class SkyModel(object):
             raise ValueError("Missing required parameters: " + ', '.join(missing))
 
         self.data = flat_spectrum_noise_shell(sigma, self.freqs, self.Nside, self.Nskies,
-                                              ref_chan=self.ref_chan, shared_memory=shared_memory)
+                                              ref_chan=self.ref_chan, Npix=Npix, shared_memory=shared_memory)
         self.pspec_amp = sigma
         self._update()
 
@@ -239,7 +239,7 @@ class SkyModel(object):
                     fileobj.attrs[k] = d
 
 
-def flat_spectrum_noise_shell(sigma, freqs, Nside, Nskies, ref_chan=0, shared_memory=False):
+def flat_spectrum_noise_shell(sigma, freqs, Nside, Nskies, ref_chan=0, Npix=None, shared_memory=False):
     """
     Make a flat-spectrum noise-like shell.
 
@@ -254,6 +254,8 @@ def flat_spectrum_noise_shell(sigma, freqs, Nside, Nskies, ref_chan=0, shared_me
             Number of indepenent skies to simulate
         ref_chan : int
             freqs reference channel index for comoving volume factor
+        Npix : int
+            If not None, only make this many pixels.
         shared_memory : bool
             If True use mparray to generate data
 
@@ -263,7 +265,8 @@ def flat_spectrum_noise_shell(sigma, freqs, Nside, Nskies, ref_chan=0, shared_me
     """
     # generate empty array
     Nfreqs = len(freqs)
-    Npix = hp.nside2npix(Nside)
+    if Npix is None:
+        Npix = hp.nside2npix(Nside)
     if shared_memory:
         data = mparray((Nskies, Npix, Nfreqs), dtype=float)
     else:
