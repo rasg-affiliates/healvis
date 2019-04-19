@@ -4,6 +4,8 @@
 
 Radio interferometric visibility simulator based on HEALpix maps.
 
+**Note** This is a tool developed for specific research uses, and is not yet at the development standards of other RASG projects. Use at your own risk.
+
 ## Dependencies
 Python dependencies for `healvis` include
 
