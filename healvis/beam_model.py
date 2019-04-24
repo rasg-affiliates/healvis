@@ -115,6 +115,8 @@ class PowerBeam(UVBeam):
         # convert to power if efield
         if self.beam_type == 'efield':
             self.efield_to_power()
+        self.peak_normalize()
+
 
     def interp_freq(self, freqs, inplace=False, kind='linear', run_check=True):
         """
@@ -134,7 +136,6 @@ class PowerBeam(UVBeam):
             new_beam = self
         else:
             new_beam = copy.deepcopy(self)
-
         interp_data, interp_bp = super(PowerBeam, self)._interp_freq(freqs, kind=kind)
         new_beam.data_array = interp_data
         new_beam.Nfreqs = interp_data.shape[3]
@@ -142,7 +143,7 @@ class PowerBeam(UVBeam):
         new_beam.bandpass_array = interp_bp
         if hasattr(new_beam, 'saved_interp_functions'):
             delattr(new_beam, 'saved_interp_functions')
-
+        print("Doing frequency interpolation: "+kind)
         if run_check:
             new_beam.check()
 
@@ -229,11 +230,11 @@ class PowerBeam(UVBeam):
         # type checks
         assert self.beam_type == 'power', "beam_type must be power. See efield_to_power()"
         if isinstance(az, (float, np.float, int, np.int)):
-            az = np.array([az])
+            az = np.array([az]).astype(np.float)
         if isinstance(za, (float, np.float, int, np.int)):
-            za = np.array([za])
+            za = np.array([za]).astype(np.float)
         if isinstance(freqs, (float, np.float, int, np.int)):
-            freqs = np.array([freqs])
+            freqs = np.array([freqs]).astype(np.float)
         az = np.asarray(az)
         za = np.asarray(za)
         freqs = np.asarray(freqs)
