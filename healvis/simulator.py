@@ -522,7 +522,7 @@ def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None
             obs.beam.interp_freq(obs.freqs, inplace=True, kind=beam_freq_interp)
 
         elif isinstance(beam, (str, np.str)) or callable(beam):
-            obs.set_beam(beam, **beam_kwargs)
+            obs.set_beam(beam, freq_interp_kind=beam_freq_interp, **beam_kwargs)
 
         elif isinstance(beam, beam_model.PowerBeam):
             obs.beam = beam.interp_freq(obs.freqs, inplace=False, kind=beam_freq_interp)
