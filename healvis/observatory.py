@@ -157,7 +157,7 @@ class Observatory(object):
         """
         self.fov = fov
 
-    def set_beam(self, beam='uniform', **kwargs):
+    def set_beam(self, beam='uniform', freq_interp_kind=None, **kwargs):
         """
         Set the beam of the array.
 
@@ -167,6 +167,8 @@ class Observatory(object):
                 a viable input to AnalyticBeam, then instantiates
                 an AnalyticBeam, otherwise assumes beam is a filepath
                 to a beamfits and instantiates a PowerBeam.
+            freq_interp_kind : str
+                For PowerBeam, frequency interpolation option.
 
             kwargs : keyword arguments
                 kwargs to pass to AnalyticBeam instantiation.
@@ -176,6 +178,8 @@ class Observatory(object):
 
         else:
             self.beam = PowerBeam(beam)
+            self.beam.interp_freq(self.freqs, inplace=True, kind=freq_interp_kind)
+            self.beam.freq_interp_kind = freq_interp_kind
 
     def beam_sq_int(self, freqs, Nside, pointing, beam_pol='pI'):
         """
