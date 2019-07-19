@@ -9,6 +9,7 @@ import os
 import healpy as hp
 import nose.tools as nt
 from astropy.time import Time
+from astropy.coordinates import EarthLocation, AltAz, ICRS, Angle
 
 from healvis import observatory, sky_model, beam_model, utils
 from healvis.data import DATA_PATH
@@ -121,8 +122,9 @@ def test_az_za():
     ind = np.where(pix == ind0)
     print(np.degrees(za[ind]), np.degrees(az[ind]))
     print(lon, lat)
+    # lon = longitude of the source, which is set to 5deg off zenith (hence, zenith angle)
     nt.assert_true(np.isclose(np.degrees(za[ind]), lon))
-    nt.assert_true(np.isclose(np.degrees(az[ind]), (lat - 90) % 360))
+    nt.assert_true(np.isclose(np.degrees(az[ind]), 90.))
 
 
 def test_vis_calc():
@@ -240,3 +242,33 @@ def test_gsm_pointing():
 
     # make sure peak is at time index 5, centered at transit time
     nt.assert_equal(np.argmax(np.abs(visibs[:, 0, 0])), 5)
+
+
+def test_az_za_astropy():
+    """
+    Check the calculated azimuth and zenith angle for a selection of HEALPix pixels against the corresponding astropy calculation.
+    """
+    Nside = 128
+
+    altitude=0.0
+    loc = EarthLocation.from_geodetic(latitude, longitude, altitude)
+
+    obs = observatory.Observatory(latitude, longitude)
+
+    t0 = Time.now()
+    obs.set_fov(50)
+
+    zen = AltAz(alt=Angle('90d'), az=Angle('0d'), obstime=t0, location=loc)
+
+    zen_radec = zen.transform_to(ICRS)
+    center = [zen_radec.ra.deg, zen_radec.dec.deg]
+    za, az, inds = obs.calc_azza(Nside, center, return_inds=True)
+
+    ra, dec = hp.pix2ang(Nside, inds, lonlat=True)
+
+    altaz_astropy = ICRS(ra=Angle(ra, unit='deg'), dec=Angle(dec, unit='deg')).transform_to(AltAz(obstime=t0, location=loc))
+
+    za0 = altaz_astropy.zen.rad
+    az0 = altaz_astropy.az.rad
+    nt.assert_true(np.allclose(za0, za, atol=1e-4))
+    nt.assert_true(np.allclose((az0 - az)%np.pi, np.pi, atol=4e-4))
