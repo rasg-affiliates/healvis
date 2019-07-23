@@ -50,7 +50,7 @@ class Baseline(object):
         if not isinstance(ant1_enu, np.ndarray):
             ant1_enu = np.array(ant1_enu)
             ant2_enu = np.array(ant2_enu)
-        self.enu = ant1_enu - ant2_enu
+        self.enu = ant2_enu - ant1_enu
         assert(self.enu.size == 3)
 
     def get_uvw(self, freq_Hz):
@@ -113,40 +113,66 @@ class Observatory(object):
         """
         Set the pointing centers (in ra/dec) based on array location and times.
             Dec = self.lat
+        Also sets the north pole positions in ICRS.
         RA  = What RA is at zenith at a given JD?
         """
         telescope_location = EarthLocation.from_geodetic(self.lon * units.degree, self.lat * units.degree)
+        self.telescope_location = telescope_location
         self.times_jd = time_arr
         centers = []
+        north_poles = []
         for t in Time(time_arr, scale='utc', format='jd'):
             zen = AltAz(alt=Angle('90d'), az=Angle('0d'), obstime=t, location=telescope_location)
+            north = AltAz(alt=Angle('0d'), az=Angle('0d'), obstime=t, location=telescope_location)
             zen_radec = zen.transform_to(ICRS)
+            north_radec = north.transform_to(ICRS)
             centers.append([zen_radec.ra.deg, zen_radec.dec.deg])
+            north_poles.append([north_radec.ra.deg, north_radec.dec.deg])
         self.pointing_centers = centers
+        self.north_poles = north_poles
 
-    def calc_azza(self, Nside, center, return_inds=False):
+    def calc_azza(self, Nside, center, north=None, return_inds=False):
         """
-        Set the az/za arrays.
+
+        Calculate azimuth/altitude of sources given the pointing center.
+
+        Parameters:
             Center = lon/lat in degrees
             radius = selection radius in degrees
             return_inds = Return the healpix indices too
+            north = The direction of North in the ICRS frame (ra,dec)
+                    Defines the origin of azimuth.
+                    By default, assumes North is at ra/dec of 0, 90.
+
+                    NB -- This is a bad assumption, in general, and will affect the
+                    azimuth angles returned. Providing the north position fixes
+                    this.
+
+        Returns:
+            zenith angles (radians)
+            azimuth angles (radians)
+            indices (if return_inds)
         """
         if self.fov is None:
             raise AttributeError("Need to set a field of view in degrees")
         radius = self.fov * np.pi / 180. * 1 / 2.
         cvec = hp.ang2vec(center[0], center[1], lonlat=True)
+
+        if north is None:
+            north = np.array([0, 90.])
+        nvec = hp.ang2vec(north[0], north[1], lonlat=True)
         pix = hp.query_disc(Nside, cvec, radius)
         vecs = hp.pix2vec(Nside, pix)
-        vecs = np.array(vecs).T  # Shape (Npix_use, 3)
+        vecs = np.array(vecs).T  # Shape (Npix, 3)
 
-        colat = np.radians(90. - center[1])  # Colatitude, radians.
-        xvec = [-cvec[1], cvec[0], 0] * 1 / np.sin(colat)  # From cross product
+        colat = np.arccos(np.dot(cvec, nvec))  # Should be close to 90d
+        xvec = np.cross(nvec, cvec) * 1 / np.sin(colat)
         yvec = np.cross(cvec, xvec)
         sdotx = np.tensordot(vecs, xvec, 1)
         sdotz = np.tensordot(vecs, cvec, 1)
         sdoty = np.tensordot(vecs, yvec, 1)
         za_arr = np.arccos(sdotz)
-        az_arr = (np.arctan2(sdotx, sdoty) + np.pi) % (2 * np.pi)  # xy plane is tangent. Increasing azimuthal angle eastward, zero at North (y axis)
+        az_arr = (np.arctan2(sdotx, sdoty)) % (2 * np.pi)  # xy plane is tangent. Increasing azimuthal angle eastward, zero at North (y axis). x is East.
         if return_inds:
             return za_arr, az_arr, pix
         return za_arr, az_arr
@@ -157,7 +183,7 @@ class Observatory(object):
         """
         self.fov = fov
 
-    def set_beam(self, beam='uniform', freq_interp_kind=None, **kwargs):
+    def set_beam(self, beam='uniform', freq_interp_kind='linear', **kwargs):
         """
         Set the beam of the array.
 
@@ -223,9 +249,19 @@ class Observatory(object):
     def vis_calc(self, pcents, tinds, shell, vis_array, Nfin, beam_pol='pI'):
         if len(pcents) == 0:
             return
+
+        haspoles = True
+        if not hasattr(self, 'north_poles'):
+            warnings.warn('North pole positions not set. Azimuths will be off.')
+            haspoles = False
+
         for count, c in enumerate(pcents):
             memory_usage_GB = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6
-            za_arr, az_arr, pix = self.calc_azza(self.Nside, c, return_inds=True)
+            if haspoles:
+                north = self.north_poles[tinds[count]]
+            else:
+                north = None
+            za_arr, az_arr, pix = self.calc_azza(self.Nside, c, north, return_inds=True)
             beam_cube = self.beam.beam_val(az_arr, za_arr, self.freqs, pol=beam_pol)
             for bi, bl in enumerate(self.array):
                 fringe_cube = bl.get_fringe(az_arr, za_arr, self.freqs)
@@ -234,9 +270,8 @@ class Observatory(object):
             with Nfin.get_lock():
                 Nfin.value += 1
             if mp.current_process().name == 0:
-                #        print('Mem: {}GB'.format(memory_usage_GB))
-                #        sys.stdout.flush()
                 if Nfin.value > 0:
+                    dt = (time.time() - self.time0)
                     sys.stdout.write('Finished: {:d}, Elapsed {:.2f}min, Remain {:.3f}hour, MaxRSS {}GB\n'.format(
                         Nfin.value, dt / 60., (1 / 3600.) * (dt / float(Nfin.value)) * (self.Ntimes - Nfin.value), memory_usage_GB))
                     sys.stdout.flush()
@@ -265,6 +300,9 @@ class Observatory(object):
         conv_fact = jy2Tsr(np.array(self.freqs), bm=pix_area_sr)
         self.Ntimes = len(self.pointing_centers)
 
+        if self.pointing_centers is None:
+            raise ValueError("Observatory.pointing_centers must be set using set_pointings() before simulation can begin.")
+
         pcenter_list = np.array_split(self.pointing_centers, Nprocs)
         time_inds = np.array_split(range(self.Ntimes), Nprocs)
         procs = []
@@ -273,7 +311,7 @@ class Observatory(object):
         Nfin = mp.Value('i', 0)
 
         if Nprocs > 1 and not isinstance(shell.data, mparray):
-            warnings.warn("Caution: SkyModel data array is not in shared memory. With Nprocs > 1, this will cause duplication")
+            warnings.warn("Caution: SkyModel data array is not in shared memory. With Nprocs > 1, this will cause duplication.")
 
         for pi in range(Nprocs):
             p = mp.Process(name=pi, target=self.vis_calc, args=(pcenter_list[pi], time_inds[pi], shell.data, vis_array, Nfin), kwargs=dict(beam_pol=beam_pol))
