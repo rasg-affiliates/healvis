@@ -172,38 +172,38 @@ def test_offzenith_vis():
     freqs = [1.0e8]
     Nfreqs = 1
     fov = 60
-    ant1_enu = np.array([0, 0, 0])
+    ant1_enu = np.array([10.0, 0, 0])
     ant2_enu = np.array([0.0, 140.6, 0])
 
     bl = observatory.Baseline(ant1_enu, ant2_enu)
 
-    Nside = 128
-    ind = 9081
-    center = list(hp.pix2ang(Nside, ind, lonlat=True))
-    centers = [center]
-    Npix = Nside**2 * 12
-    pix_area = 4 * np.pi / float(Npix)
-    shell = np.zeros((Npix, Nfreqs))
+    # Set pointing center to ra/dec = 0/0
+    center = [0,0]
 
-    # Choose an index 5 degrees off from the pointing center
-    phi, theta = hp.pix2ang(Nside, ind, lonlat=True)
-    ind = hp.ang2pix(Nside, phi, theta - 5, lonlat=True)
+    # Make a shell and place a 1 Jy/pix point source at ra/dec of 5/0
+    Nside = 128
+    Npix = Nside**2 * 12
+    shell = np.zeros((Npix, Nfreqs))
+    pix_area = 4 * np.pi / float(Npix)
+    ind = hp.ang2pix(Nside, 5, 0.0, lonlat=True)
     shell[ind] = 1  # Jy/pix
     shell[ind] *= utils.jy2Tsr(freqs[0], bm=pix_area)  # K
 
-    obs = observatory.Observatory(latitude, longitude, array=[bl], freqs=freqs)
-    obs.pointing_centers = [[phi, theta]]
+    obs = observatory.Observatory(0, 0, array=[bl], freqs=freqs)
+    obs.pointing_centers = [center]
     obs.times_jd = np.array([1])
     obs.set_fov(fov)
-    resol = np.sqrt(pix_area)
     obs.set_beam('uniform')
 
     sky = sky_model.SkyModel(Nside=Nside, freqs=np.array(freqs), data=shell)
 
     vis_calc, times, bls = obs.make_visibilities(sky)
 
-    phi_new, theta_new = hp.pix2ang(Nside, ind, lonlat=True)
-    src_az, src_za = np.radians(phi - phi_new), np.radians(theta - theta_new)
+    ra_deg, dec_deg = hp.pix2ang(Nside, ind, lonlat=True)
+
+    src_az = np.radians(90.0)
+    src_za = np.radians(ra_deg)
+
     src_l = np.sin(src_az) * np.sin(src_za)
     src_m = np.cos(src_az) * np.sin(src_za)
     src_n = np.cos(src_za)
@@ -213,7 +213,6 @@ def test_offzenith_vis():
 
     print(vis_analytic)
     print(vis_calc)
-
     nt.assert_true(np.isclose(vis_calc, vis_analytic, atol=1e-3).all())
 
 
@@ -248,21 +247,25 @@ def test_az_za_astropy():
     """
     Check the calculated azimuth and zenith angle for a selection of HEALPix pixels against the corresponding astropy calculation.
     """
+
     Nside = 128
 
     altitude=0.0
-    loc = EarthLocation.from_geodetic(latitude, longitude, altitude)
+    loc = EarthLocation.from_geodetic(longitude, latitude, altitude)
 
     obs = observatory.Observatory(latitude, longitude)
 
-    t0 = Time.now()
-    obs.set_fov(50)
+    t0 = Time(2458684.453187554, format='jd')
+    obs.set_fov(180)
 
     zen = AltAz(alt=Angle('90d'), az=Angle('0d'), obstime=t0, location=loc)
 
     zen_radec = zen.transform_to(ICRS)
     center = [zen_radec.ra.deg, zen_radec.dec.deg]
-    za, az, inds = obs.calc_azza(Nside, center, return_inds=True)
+    north_radec = AltAz(alt='90.0d', az='0.0d', obstime=t0, location=EarthLocation.from_geodetic(lat='90.d', lon='0d', height=0.0)).transform_to(ICRS)
+    yvec = np.array([north_radec.ra.deg, north_radec.dec.deg])
+    obs.telescope_location = loc 
+    za, az, inds = obs.calc_azza(Nside, center, yvec, return_inds=True)
 
     ra, dec = hp.pix2ang(Nside, inds, lonlat=True)
 
@@ -270,5 +273,10 @@ def test_az_za_astropy():
 
     za0 = altaz_astropy.zen.rad
     az0 = altaz_astropy.az.rad
+
+#    Restore the lines below for visualization, if desired.
+#    hmap = np.zeros(12*Nside**2) + hp.UNSEEN
+#    hmap[inds] = np.unwrap(az0 - az)
+#    import IPython; IPython.embed()
     nt.assert_true(np.allclose(za0, za, atol=1e-4))
-    nt.assert_true(np.allclose((az0 - az)%np.pi, np.pi, atol=4e-4))
+    nt.assert_true(np.allclose(np.unwrap(az0 - az), 0.0, atol=3e-4))   # About 1 arcmin precision. Worst is at the southern horizon.
