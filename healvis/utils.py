@@ -91,3 +91,17 @@ class mparray(np.ndarray):
         arr = mp.RawArray(ctype, size)
         self.data = arr
         self.reshape(self.shape)
+
+
+def enu_array_to_layout(enu_arr, fname):
+    """
+    Write out an array of antenna positions in ENU to a text file.
+    """
+    with open(fname, 'w') as lfile:
+        for i in range(enu_arr.shape[0]):
+            e,n,u = enu_arr[i]
+            name = 'ant{}'.format(i)
+            num = i
+            beam_id = 0
+            line = ("{:6} {:8d} {:8d} {:10.4f} {:10.4f} {:10.4f}\n").format(name, num, beam_id, e, n, u)
+            lfile.write(line)
