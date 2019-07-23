@@ -8,6 +8,7 @@
 
 ### Fixed
 
+- h5py writing unicode strings -- Python 3/2 compatibility
 - Azimuth angle calculation accounts for change in North pole position in ICRS.
 - Baseline uvw convention --- ant2 - ant1 (previously 1 - 2)
 - The azimuth convention did not match astropy and was mislabelled.
