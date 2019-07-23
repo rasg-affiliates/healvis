@@ -117,7 +117,6 @@ class PowerBeam(UVBeam):
             self.efield_to_power()
         self.peak_normalize()
 
-
     def interp_freq(self, freqs, inplace=False, kind='linear', run_check=True):
         """
         Interpolate object across frequency.
@@ -143,7 +142,7 @@ class PowerBeam(UVBeam):
         new_beam.bandpass_array = interp_bp
         if hasattr(new_beam, 'saved_interp_functions'):
             delattr(new_beam, 'saved_interp_functions')
-        print("Doing frequency interpolation: "+kind)
+        print("Doing frequency interpolation: " + kind)
         if run_check:
             new_beam.check()
 

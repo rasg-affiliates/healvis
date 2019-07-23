@@ -178,7 +178,7 @@ def test_offzenith_vis():
     bl = observatory.Baseline(ant1_enu, ant2_enu)
 
     # Set pointing center to ra/dec = 0/0
-    center = [0,0]
+    center = [0, 0]
 
     # Make a shell and place a 1 Jy/pix point source at ra/dec of 5/0
     Nside = 128
@@ -250,7 +250,7 @@ def test_az_za_astropy():
 
     Nside = 128
 
-    altitude=0.0
+    altitude = 0.0
     loc = EarthLocation.from_geodetic(longitude, latitude, altitude)
 
     obs = observatory.Observatory(latitude, longitude)
@@ -264,7 +264,7 @@ def test_az_za_astropy():
     center = [zen_radec.ra.deg, zen_radec.dec.deg]
     north_radec = AltAz(alt='90.0d', az='0.0d', obstime=t0, location=EarthLocation.from_geodetic(lat='90.d', lon='0d', height=0.0)).transform_to(ICRS)
     yvec = np.array([north_radec.ra.deg, north_radec.dec.deg])
-    obs.telescope_location = loc 
+    obs.telescope_location = loc
     za, az, inds = obs.calc_azza(Nside, center, yvec, return_inds=True)
 
     ra, dec = hp.pix2ang(Nside, inds, lonlat=True)

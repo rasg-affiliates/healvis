@@ -99,7 +99,7 @@ def enu_array_to_layout(enu_arr, fname):
     """
     with open(fname, 'w') as lfile:
         for i in range(enu_arr.shape[0]):
-            e,n,u = enu_arr[i]
+            e, n, u = enu_arr[i]
             name = 'ant{}'.format(i)
             num = i
             beam_id = 0
