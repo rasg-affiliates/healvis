@@ -1,5 +1,18 @@
 # Changelog
 
+## [v1.1.0] 7-22-2019
+
+### Added
+
+- 'anchor_ant' selection -- choose all baselines containing this antenna
+
+### Fixed
+
+- Azimuth angle calculation accounts for change in North pole position in ICRS.
+- Baseline uvw convention --- ant2 - ant1 (previously 1 - 2)
+- The azimuth convention did not match astropy and was mislabelled.
+- Frequency interpolation is properly passed along.
+
 ## [v1.0.0] 4-3-2019
 
 ### Added
