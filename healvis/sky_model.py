@@ -6,6 +6,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import os
+import six
 import warnings
 import healpy as hp
 with warnings.catch_warnings():  # noqa
@@ -39,7 +40,7 @@ class SkyModel(object):
     _updated = []
     # keys give HDF5 datasets, value give their dtype
     dsets = {'data': np.float64, 'indices': np.int32, 'freqs': np.float64,
-             'history': h5py.special_dtype(vlen=unicode)}
+             'history': h5py.special_dtype(vlen=six.text_type)}
 
     def _defaults(self):
         """
