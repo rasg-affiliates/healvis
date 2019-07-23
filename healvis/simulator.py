@@ -175,6 +175,12 @@ def parse_frequency_params(freq_params):
         # Check that the freq_array is consistent with channel_width
         assert np.allclose(np.diff(freq_arr), np.ones(Nfreqs - 1) * channel_width)
 
+    if 'freq_chans' in freq_params:
+        chans = ast.literal_eval(freq_params['freq_chans'])
+        freq_arr = freq_arr[:,slice(*chans)]
+        Nfreqs = freq_arr.size
+    print("Freq array:" + str(freq_arr.shape))
+
     return_dict = {}
     return_dict['Nfreqs'] = Nfreqs
     return_dict['freq_array'] = freq_arr
@@ -301,7 +307,10 @@ def complete_uvdata(uv_obj, run_check=True):
     antnames = uv_obj.antenna_names     # (Nants_telescope,)
     bl_array = uv_obj.baseline_array    # (Nbls,)
     time_array = uv_obj.time_array      # (Ntimes,)
-    dt = np.diff(np.unique(time_array))[0]
+    if uv_obj.Ntimes == 1:
+        dt = 1.0
+    else:
+        dt = np.diff(np.unique(time_array))[0]
 
     uv_obj.baseline_array = np.tile(bl_array, uv_obj.Ntimes)
     uv_obj.ant_1_array, uv_obj.ant_2_array = uv_obj.baseline_to_antnums(uv_obj.baseline_array)
@@ -328,7 +337,7 @@ def complete_uvdata(uv_obj, run_check=True):
 def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None,
                  Nfreqs=None, start_freq=None, bandwidth=None, freq_array=None,
                  Ntimes=None, time_cadence=None, start_time=None, time_array=None,
-                 bls=None, antenna_nums=None, no_autos=True, pols=['xx'], make_full=False,
+                 bls=None, anchor_ant=None, antenna_nums=None, no_autos=True, pols=['xx'], make_full=False,
                  redundancy=None, run_check=True):
     """
     Setup a UVData object for simulating.
@@ -358,6 +367,8 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
             time array [Julian Date], cannot be specified if start_time, Ntimes and time_cadence is specified
         bls : list
             List of antenna-pair tuples for baseline selection
+        anchor_ant: int
+            Selects baselines such that one of the pair is a specified antenna number
         redundancy: float
             Redundant baseline selection tolerance for selection
         antenna_nums : list
@@ -443,6 +454,9 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
         bls = [bl for bl in _bls if bl in bls]
     else:
         bls = _bls
+    if anchor_ant is not None:
+        bls = [bl for bl in bls if anchor_ant in bl]
+
     if bool(no_autos):
         bls = [bl for bl in bls if bl[0] != bl[1]]
     if antenna_nums is not None:
@@ -455,6 +469,7 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
     for (a1, a2) in bls:
         bl_array.append(uvutils.antnums_to_baseline(a1, a2, 1))
     bl_array = np.asarray(bl_array)
+    print("Nbls: {}".format(bl_array.size))
 
     uv_obj.time_array = time_array  # Keep length Ntimes
     uv_obj.baseline_array = bl_array  # Length Nbls
@@ -474,7 +489,7 @@ def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None
     Args:
         uv_obj : UVData object with metadata
         fov : float
-            Field of View (radius) in degrees
+            Field of View (diameter) in degrees
         set_pointings : bool
             If True, use time_array to set Observatory pointing centers
         beam : str or UVBeam or PowerBeam or AnalyticBeam
@@ -591,8 +606,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     else:
         # write to disk if requested
         if savepath is not None:
-
-            sky.write_hdf5(os.path.join(filing_params['outdir'], savepath))
+            sky.write_hdf5(savepath)
 
     # ---------------------------
     # UVData object
@@ -696,7 +710,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
             else:
                 outfile_name = filing_params['outfile_prefix']
             if beam_type == 'gaussian':
-                outfile_name += '_fwhm{:.3f}'.format(beam_attr['gauss_width'])
+                outfile_name += '_fwhm{:.3f}'.format(fwhm)
             elif beam_type == 'airy':
                 outfile_name += '_diam{:.2f}'.format(beam_attr['diameter'])
 
