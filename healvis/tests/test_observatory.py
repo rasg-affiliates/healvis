@@ -262,9 +262,9 @@ def test_az_za_astropy():
 
     zen_radec = zen.transform_to(ICRS)
     center = [zen_radec.ra.deg, zen_radec.dec.deg]
-    north_radec = AltAz(alt='90.0d', az='0.0d', obstime=t0, location=EarthLocation.from_geodetic(lat='90.d', lon='0d', height=0.0)).transform_to(ICRS)
+    northloc = EarthLocation.from_geodetic(lat='90.d', lon='0d', height=0.0)
+    north_radec = AltAz(alt='90.0d', az='0.0d', obstime=t0, location=northloc).transform_to(ICRS)
     yvec = np.array([north_radec.ra.deg, north_radec.dec.deg])
-    obs.telescope_location = loc
     za, az, inds = obs.calc_azza(Nside, center, yvec, return_inds=True)
 
     ra, dec = hp.pix2ang(Nside, inds, lonlat=True)
