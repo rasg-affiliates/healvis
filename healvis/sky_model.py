@@ -176,9 +176,8 @@ class SkyModel(object):
                 sky_freqs_full = infile['freqs'][()]
                 freq_chans = np.where(np.in1d(sky_freqs_full, self.freqs))[0]
                 sky_freqs_part = sky_freqs_full[freq_chans]
-                if self.freqs is not None:
-                    if not np.allclose(self.freqs, sky_freqs_part):
-                        raise ValueError("Currently set frequencies do not match any subset of file's frequencies.")
+                if self.freqs is not None and not np.allclose(self.freqs, sky_freqs_part):
+                    raise ValueError("Currently set frequencies do not match any subset of file's frequencies.")
                 Nfreqs_load = freq_chans.size
 
             # load lightweight attributes

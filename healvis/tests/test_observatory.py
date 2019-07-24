@@ -245,7 +245,8 @@ def test_gsm_pointing():
 
 def test_az_za_astropy():
     """
-    Check the calculated azimuth and zenith angle for a selection of HEALPix pixels against the corresponding astropy calculation.
+    Check the calculated azimuth and zenith angle for a selection
+    of HEALPix pixels against the corresponding astropy calculation.
     """
 
     Nside = 128
