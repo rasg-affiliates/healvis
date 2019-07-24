@@ -254,7 +254,7 @@ class Observatory(object):
             return
 
         haspoles = True
-        if not hasattr(self, 'north_poles'):
+        if self.north_poles is None:
             warnings.warn('North pole positions not set. Azimuths will be off.')
             haspoles = False
 
