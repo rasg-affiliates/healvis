@@ -179,7 +179,6 @@ def parse_frequency_params(freq_params):
         chans = ast.literal_eval(freq_params['freq_chans'])
         freq_arr = freq_arr[:, slice(*chans)]
         Nfreqs = freq_arr.size
-    print("Freq array:" + str(freq_arr.shape))
 
     return_dict = {}
     return_dict['Nfreqs'] = Nfreqs

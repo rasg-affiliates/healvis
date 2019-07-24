@@ -125,8 +125,8 @@ class Observatory(object):
         centers = []
         north_poles = []
         for t in Time(time_arr, scale='utc', format='jd'):
-            zen = AltAz(alt=Angle('90d'), az=Angle('0d'), obstime=t, location=telescope_location)
-            north = AltAz(alt=Angle('0d'), az=Angle('0d'), obstime=t, location=telescope_location)
+            zen = AltAz(alt=Angle('90d'), az=Angle('0d'), obstime=t, location=self.telescope_location)
+            north = AltAz(alt=Angle('0d'), az=Angle('0d'), obstime=t, location=self.telescope_location)
             zen_radec = zen.transform_to(ICRS)
             north_radec = north.transform_to(ICRS)
             centers.append([zen_radec.ra.deg, zen_radec.dec.deg])
@@ -249,7 +249,17 @@ class Observatory(object):
 
         return pixels
 
-    def vis_calc(self, pcents, tinds, shell, vis_array, Nfin, beam_pol='pI'):
+    def _vis_calc(self, pcents, tinds, shell, vis_array, Nfin, beam_pol='pI'):
+        """
+        Function sent to subprocesses. Called by make_visibilities.
+
+        pcents : Pointing centers to evaluate.
+        tinds : Array of indices in the time array (and correspondingly in pointings/north_poles)
+        shell : SkyModel data array
+        vis_array : Output array for placing results.
+        Nfin : Number of finished tasks. A variable shared among subprocesses.
+        """
+        #
         if len(pcents) == 0:
             return
 
@@ -279,7 +289,7 @@ class Observatory(object):
                         Nfin.value, dt / 60., (1 / 3600.) * (dt / float(Nfin.value)) * (self.Ntimes - Nfin.value), memory_usage_GB))
                     sys.stdout.flush()
 
-    def make_visibilities(self, shell, Nprocs=1, beam_pol='pI'):
+    def make_visibilities(self, shell, Nprocs=1, times_jd=None, beam_pol='pI'):
         """
         Make beam cube and fringe cube, multiply and sum.
         shell (Npix, Nfreq) = healpix shell, as an mparray (multiprocessing shared array)
@@ -303,8 +313,13 @@ class Observatory(object):
         conv_fact = jy2Tsr(np.array(self.freqs), bm=pix_area_sr)
         self.Ntimes = len(self.pointing_centers)
 
-        if self.pointing_centers is None:
+        if self.pointing_centers is None and times_jd is None:
             raise ValueError("Observatory.pointing_centers must be set using set_pointings() before simulation can begin.")
+
+        if times_jd is not None:
+            if self.pointing_centers is not None:
+                warnings.warn("Overwriting existing pointing centers")
+            self.set_pointings(times_jd)
 
         pcenter_list = np.array_split(self.pointing_centers, Nprocs)
         time_inds = np.array_split(range(self.Ntimes), Nprocs)
@@ -317,7 +332,7 @@ class Observatory(object):
             warnings.warn("Caution: SkyModel data array is not in shared memory. With Nprocs > 1, this will cause duplication.")
 
         for pi in range(Nprocs):
-            p = mp.Process(name=pi, target=self.vis_calc, args=(pcenter_list[pi], time_inds[pi], shell.data, vis_array, Nfin), kwargs=dict(beam_pol=beam_pol))
+            p = mp.Process(name=pi, target=self._vis_calc, args=(pcenter_list[pi], time_inds[pi], shell.data, vis_array, Nfin), kwargs=dict(beam_pol=beam_pol))
             p.start()
             procs.append(p)
         while (Nfin.value < self.Ntimes) and np.any([p.is_alive() for p in procs]):
