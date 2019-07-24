@@ -103,9 +103,14 @@ class Observatory(object):
         self.lat = latitude
         self.lon = longitude
         self.array = array
-        self.pointings = None
-        self.fov = None
         self.freqs = freqs
+
+        self.beam = None        # Primary beam. Set by `set_beam`
+        self.time_jd = None     # Observation times. Set by `set_pointings` function
+        self.fov = None         # Diameter of sky region, centered on pointing_centers, to select from the shell.
+        self.pointing_centers = None    # List of [ra, dec] positions. One for each time. `set_pointings` sets this to zenith.
+        self.north_poles = None     # [ra,dec] ICRS position of the Earth's north pole. Set by `set_pointings`.
+        self.telescope_location = EarthLocation.from_geodetic(self.lon * units.degree, self.lat * units.degree)
         if freqs is not None:
             self.Nfreqs = len(freqs)
 
@@ -116,8 +121,6 @@ class Observatory(object):
         Also sets the north pole positions in ICRS.
         RA  = What RA is at zenith at a given JD?
         """
-        telescope_location = EarthLocation.from_geodetic(self.lon * units.degree, self.lat * units.degree)
-        self.telescope_location = telescope_location
         self.times_jd = time_arr
         centers = []
         north_poles = []

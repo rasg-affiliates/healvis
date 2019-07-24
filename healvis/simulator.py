@@ -470,7 +470,8 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
         bl_array.append(uvutils.antnums_to_baseline(a1, a2, 1))
     bl_array = np.asarray(bl_array)
     print("Nbls: {}".format(bl_array.size))
-
+    if bl_array.size == 0:
+        raise ValueError("No baselines selected.")
     uv_obj.time_array = time_array  # Keep length Ntimes
     uv_obj.baseline_array = bl_array  # Length Nbls
 
