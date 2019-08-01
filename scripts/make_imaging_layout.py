@@ -19,7 +19,7 @@ maxbl = 1.22 * (lam / res)      # Resolution ~ 1.22 * lambda/maxbl.
 core_width = maxbl/2.
 sigma = core_width/2.355
 
-# Want to overresolve pixels (treating them as point sources)
+# Want to underresolve pixels (treating them as point sources)
 minbl = 5  # m
 E, N = np.random.normal(0, sigma, (2, Nants))
 U = np.zeros(Nants)
