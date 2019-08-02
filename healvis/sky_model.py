@@ -313,7 +313,7 @@ def gsm_shell(Nside, freqs):
     return maps.T
 
 
-def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, Nskies=1, sigma=None):
+def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, Nskies=1, sigma=None, amplitude=None):
     """
     Construct a SkyModel object or read from disk
 
@@ -330,6 +330,8 @@ def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, Nskies=1, s
             Frequency reference channel for cosmological conversions
         sigma : float
             If sky_type == 'flat_spec', this is the power spectrum amplitude
+        amplitude : float
+            Monopole amplitude in K
 
     Returns:
         SkyModel object
@@ -349,9 +351,14 @@ def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, Nskies=1, s
         sky.data = gsm_shell(Nside, freqs)
         sky._update()
 
+    elif sky_type.lower() == 'monopole':
+        Npix = 12 * Nside**2
+        sky.data = mparray((Nskies, Npix, freqs.size), dtype=float)
+        sky.data[()] = amplitude
+
     # load healpix map from disk
     else:
         sky.read_hdf5(sky_type, shared_memory=True, do_not_overwrite_freqs=True)
-        sky._update()
+    sky._update()
 
     return sky
