@@ -19,6 +19,14 @@ f21 = 1.420405751e9
 c_ms = c.to('m/s').value
 
 
+def dkpar_dkperp(z):
+    '''
+    Wedge line
+    '''
+    return cosmo.H0.to('m/(s Mpc)').value * comoving_distance(z)\
+            * cosmo.efunc(z) / (c_ms * (1 + z))
+
+
 def comoving_distance(z):
     return cosmo.comoving_distance(z).to('Mpc').value
 
