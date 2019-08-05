@@ -11,7 +11,9 @@ import io
 import numpy as np
 import json
 
-from healvis import version
+import sys
+sys.path.append('healvis')
+import version
 
 data = [version.git_origin, version.git_hash, version.git_description, version.git_branch]
 with open(os.path.join('healvis', 'GIT_INFO'), 'w') as outfile:
