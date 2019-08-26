@@ -111,6 +111,10 @@ class Observatory(object):
         self.pointing_centers = None    # List of [ra, dec] positions. One for each time. `set_pointings` sets this to zenith.
         self.north_poles = None     # [ra,dec] ICRS position of the Earth's north pole. Set by `set_pointings`.
         self.telescope_location = EarthLocation.from_geodetic(self.lon * units.degree, self.lat * units.degree)
+
+        self.do_horizon_taper = False
+        self.pix_area_sr = pix_area_sr # If doing horizon taper, need to set pixel area
+
         if freqs is not None:
             self.Nfreqs = len(freqs)
 
@@ -159,6 +163,8 @@ class Observatory(object):
         if self.fov is None:
             raise AttributeError("Need to set a field of view in degrees")
         radius = self.fov * np.pi / 180. * 1 / 2.
+        if self.do_horizon_taper:
+            radius += np.sqrt(self.pix_area_sr)     # Allow parts of pixels to be above the horizon.
         cvec = hp.ang2vec(center[0], center[1], lonlat=True)
 
         if north is None:
@@ -249,6 +255,21 @@ class Observatory(object):
 
         return pixels
 
+    def _horizon_taper(self, za_arr):
+        """
+        For pixels near the edge of the FoV downweight flux
+        by what fraction of the pixel is below the horizon.
+
+        (Allow pixels to "set")
+        """
+        res = np.sqrt(self.pix_area_sr)
+        max_za = np.radians(self.fov)/2.
+        fracs = 0.5*(1 - (za_arr - max_za)/res)
+        fracs[fracs>1] = 1.0    # Do not weight pixels fully above the horizon.
+
+        return fracs
+
+
     def _vis_calc(self, pcents, tinds, shell, vis_array, Nfin, beam_pol='pI'):
         """
         Function sent to subprocesses. Called by make_visibilities.
@@ -303,6 +324,7 @@ class Observatory(object):
         Npix = shell.Npix
         Nfreqs = shell.Nfreqs
         pix_area_sr = shell.pix_area_sr
+        self.pix_area_sr = pix_area_sr
 
         assert Nfreqs == self.Nfreqs
 
@@ -321,6 +343,7 @@ class Observatory(object):
                 warnings.warn("Overwriting existing pointing centers")
             self.set_pointings(times_jd)
 
+        self.Ntimes = len(self.pointing_centers)
         pcenter_list = np.array_split(self.pointing_centers, Nprocs)
         time_inds = np.array_split(range(self.Ntimes), Nprocs)
         procs = []
