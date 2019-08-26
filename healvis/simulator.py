@@ -482,7 +482,7 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
 
 def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None, beam_kwargs={},
                                   beam_freq_interp='cubic', smooth_beam=False, smooth_scale=2.0,
-                                  freq_chans=None):
+                                  freq_chans=None, apply_horizon_taper=False, pointings=None):
     """
     Setup an Observatory object from a UVData object.
 
@@ -505,6 +505,8 @@ def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None
             If smoothing the beam, smooth it at this frequency scale [MHz]
         freq_chans : integer 1D array
             Frequency channel indices to use from uv_obj when setting observatory freqs.
+        apply_horizon_taper : bool
+            When simulating, weight pixels near horizon by the fraction of the pixel area that is up.
 
     Returns:
         Observatory object
@@ -524,6 +526,12 @@ def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None
 
     # set FOV
     obs.set_fov(fov)
+
+    # Horizon taper flag
+    obs.do_horizon_taper = apply_horizon_taper
+
+    if pointings is not None:
+        obs.pointing_centers = pointings
 
     # set pointings
     if set_pointings:
@@ -641,10 +649,18 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     beam_freq_interp = beam_attr.pop("beam_freq_interp", 'cubic')
     smooth_beam = beam_attr.pop("smooth_beam", False)
     smooth_scale = beam_attr.pop("smooth_scale", None)
+    apply_horizon_taper = param_dict.pop('do_horizon_taper', False)
+    points = param_dict.pop('pointings', None)
+    set_pointings=True
+    if points is not None:
+        print("Setting pointings from list, not times")
+        points = ast.literal_eval(points)
+        set_pointings = False
     fov = beam_attr.pop('fov')
-    obs = setup_observatory_from_uvdata(uv_obj, fov=fov, set_pointings=True,
+    obs = setup_observatory_from_uvdata(uv_obj, fov=fov, set_pointings=set_pointings,
                                         beam=beam_type, beam_kwargs=beam_attr, beam_freq_interp=beam_freq_interp,
-                                        smooth_beam=smooth_beam, smooth_scale=smooth_scale)
+                                        smooth_beam=smooth_beam, smooth_scale=smooth_scale, apply_horizon_taper=apply_horizon_taper,
+                                        pointings=points)
     # ---------------------------
     # Run simulation
     # ---------------------------
