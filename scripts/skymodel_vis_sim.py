@@ -6,7 +6,7 @@
 #SBATCH -J healvis
 #SBATCH -t 2-00:00:00
 #SBATCH --cpus-per-task=24
-#SBATCH --mem=100G
+#SBATCH --mem=50G
 #SBATCH -A jpober-condo
 #SBATCH --qos=jpober-condo
 #SBATCH --mail-type=FAIL
@@ -30,7 +30,7 @@ parser.add_argument('-n', dest='Nproc', help='Number of processes (overrides SLU
 args = parser.parse_args()
 
 param_file = args.param
-
+print(param_file)
 if args.Nproc is not None:
     print("Nprocs: ", args.Nproc)
     Nprocs = args.Nproc
