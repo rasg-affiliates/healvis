@@ -46,11 +46,14 @@ def make_fringe(az, za, freq, enu):
 
 class Baseline(object):
 
-    def __init__(self, ant1_enu, ant2_enu):
-        if not isinstance(ant1_enu, np.ndarray):
-            ant1_enu = np.array(ant1_enu)
-            ant2_enu = np.array(ant2_enu)
-        self.enu = ant2_enu - ant1_enu
+    def __init__(self, ant1_enu=None, ant2_enu=None, enu_vec=None):
+        if enu_vec is not None:
+            self.enu = enu_vec
+        else:
+            if not isinstance(ant1_enu, np.ndarray):
+                ant1_enu = np.array(ant1_enu)
+                ant2_enu = np.array(ant2_enu)
+            self.enu = ant2_enu - ant1_enu
         assert(self.enu.size == 3)
 
     def get_uvw(self, freq_Hz):
