@@ -300,9 +300,13 @@ class Observatory(object):
                 north = None
             za_arr, az_arr, pix = self.calc_azza(self.Nside, c, north, return_inds=True)
             beam_cube = self.beam.beam_val(az_arr, za_arr, self.freqs, pol=beam_pol)
+            if self.do_horizon_taper:
+                horizon_taper = self._horizon_taper(za_arr).reshape(1,za_arr.size, 1)
+            else:
+                horizon_taper = 1.0
             for bi, bl in enumerate(self.array):
                 fringe_cube = bl.get_fringe(az_arr, za_arr, self.freqs)
-                vis = np.sum(shell[..., pix, :] * beam_cube * fringe_cube, axis=-2)
+                vis = np.sum(shell[..., pix, :] * horizon_taper * beam_cube * fringe_cube, axis=-2)
                 vis_array.put((tinds[count], bi, vis.tolist()))
             with Nfin.get_lock():
                 Nfin.value += 1
