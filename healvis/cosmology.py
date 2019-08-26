@@ -24,7 +24,7 @@ def dkpar_dkperp(z):
     Wedge line
     '''
     return cosmo.H0.to('m/(s Mpc)').value * comoving_distance(z)\
-            * cosmo.efunc(z) / (c_ms * (1 + z))
+        * cosmo.efunc(z) / (c_ms * (1 + z))
 
 
 def comoving_distance(z):

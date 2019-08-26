@@ -213,7 +213,11 @@ def test_offzenith_vis():
 
     print(vis_analytic)
     print(vis_calc)
-    nt.assert_true(np.isclose(vis_calc, vis_analytic, atol=1e-3).all())
+    print(vis_calc[0, 0, 0] - vis_analytic)
+    vis_calc = vis_calc[0, 0, 0]
+    #nt.assert_true(np.isclose(vis_calc, vis_analytic, atol=1e-3).all())
+    nt.assert_true(np.isclose(vis_calc.real, vis_analytic.real))
+    nt.assert_true(np.isclose(vis_calc.imag, vis_analytic.imag))
 
 
 def test_gsm_pointing():
@@ -279,5 +283,6 @@ def test_az_za_astropy():
 #    hmap = np.zeros(12*Nside**2) + hp.UNSEEN
 #    hmap[inds] = np.unwrap(az0 - az)
 #    import IPython; IPython.embed()
+    print(np.degrees(za0 - za))
     nt.assert_true(np.allclose(za0, za, atol=1e-4))
     nt.assert_true(np.allclose(np.unwrap(az0 - az), 0.0, atol=3e-4))   # About 1 arcmin precision. Worst is at the southern horizon.
