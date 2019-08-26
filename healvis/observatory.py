@@ -99,7 +99,7 @@ class Observatory(object):
 
     """
 
-    def __init__(self, latitude, longitude, array=None, freqs=None):
+    def __init__(self, latitude, longitude, array=None, freqs=None, pix_area_sr=None):
         """
         array = list of baseline objects (just one for now)
         """
@@ -109,7 +109,7 @@ class Observatory(object):
         self.freqs = freqs
 
         self.beam = None        # Primary beam. Set by `set_beam`
-        self.time_jd = None     # Observation times. Set by `set_pointings` function
+        self.times_jd = None     # Observation times. Set by `set_pointings` function
         self.fov = None         # Diameter of sky region, centered on pointing_centers, to select from the shell.
         self.pointing_centers = None    # List of [ra, dec] positions. One for each time. `set_pointings` sets this to zenith.
         self.north_poles = None     # [ra,dec] ICRS position of the Earth's north pole. Set by `set_pointings`.
@@ -283,13 +283,13 @@ class Observatory(object):
         vis_array : Output array for placing results.
         Nfin : Number of finished tasks. A variable shared among subprocesses.
         """
-        #
         if len(pcents) == 0:
             return
 
+        # Check for North Pole attribute.
         haspoles = True
         if self.north_poles is None:
-            warnings.warn('North pole positions not set. Azimuths will be off.')
+            warnings.warn('North pole positions not set. Azimuths may be inaccurate.')
             haspoles = False
 
         for count, c in enumerate(pcents):
@@ -306,7 +306,7 @@ class Observatory(object):
                 vis_array.put((tinds[count], bi, vis.tolist()))
             with Nfin.get_lock():
                 Nfin.value += 1
-            if mp.current_process().name == 0:
+            if mp.current_process().name == '0':
                 if Nfin.value > 0:
                     dt = (time.time() - self.time0)
                     sys.stdout.write('Finished: {:d}, Elapsed {:.2f}min, Remain {:.3f}hour, MaxRSS {}GB\n'.format(
@@ -336,7 +336,6 @@ class Observatory(object):
         self.Nside = Nside
         self.freqs = np.array(self.freqs)
         conv_fact = jy2Tsr(np.array(self.freqs), bm=pix_area_sr)
-        self.Ntimes = len(self.pointing_centers)
 
         if self.pointing_centers is None and times_jd is None:
             raise ValueError("Observatory.pointing_centers must be set using set_pointings() before simulation can begin.")
@@ -358,7 +357,7 @@ class Observatory(object):
             warnings.warn("Caution: SkyModel data array is not in shared memory. With Nprocs > 1, this will cause duplication.")
 
         for pi in range(Nprocs):
-            p = mp.Process(name=pi, target=self._vis_calc, args=(pcenter_list[pi], time_inds[pi], shell.data, vis_array, Nfin), kwargs=dict(beam_pol=beam_pol))
+            p = mp.Process(name=str(pi), target=self._vis_calc, args=(pcenter_list[pi], time_inds[pi], shell.data, vis_array, Nfin), kwargs=dict(beam_pol=beam_pol))
             p.start()
             procs.append(p)
         while (Nfin.value < self.Ntimes) and np.any([p.is_alive() for p in procs]):
@@ -377,7 +376,10 @@ class Observatory(object):
         srt = np.lexsort((baseline_inds, time_inds))
         time_inds = np.array(time_inds)[srt]
         visibilities = np.array(visibilities)[srt]      # Shape (Nblts, Nskies, Nfreqs)
-        time_array = self.times_jd[time_inds]
+        if self.times_jd is not None:
+            time_array = self.times_jd[time_inds]
+        else:
+            time_array = None
         baseline_array = np.array(baseline_inds)[srt]
 
         # Time and baseline arrays are now Nblts
