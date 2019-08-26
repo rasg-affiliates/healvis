@@ -6,8 +6,8 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-layout_csv_name = 'imaging_layout.csv'
-Nants = 80
+layout_csv_name = 'dense_imaging_layout.csv'
+Nants = 128
 freq = 100e6
 c = 3e8
 Nside = 128
@@ -15,13 +15,18 @@ Nside = 128
 res = np.sqrt(4 * np.pi / (12 * Nside**2))
 lam = c / freq
 maxbl = 1.22 * (lam / res)      # Resolution ~ 1.22 * lambda/maxbl.
+print(maxbl/2.)
+import sys; sys.exit()
 
+maxbl = 30 * lam  # wavelengths
 core_width = maxbl/2.
 sigma = core_width/2.355
 
 # Want to underresolve pixels (treating them as point sources)
-minbl = 5  # m
-E, N = np.random.normal(0, sigma, (2, Nants))
+adists = np.random.exponential(core_width, Nants)
+angs = np.random.uniform(0,2*np.pi, Nants)
+E, N = adists * np.cos(angs), adists*np.sin(angs)
+#E, N = np.random.normal(0, sigma, (2, Nants))
 U = np.zeros(Nants)
 
 enu = np.vstack((E, N, U)).T

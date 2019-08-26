@@ -29,6 +29,7 @@ from healvis import sky_model, simulator
 parser = argparse.ArgumentParser()
 parser.add_argument(dest='param', help='obsparam yaml file')
 parser.add_argument('--nside', dest='nside', help='Final Nside to use', type=int, default=128)
+parser.add_argument('--clobber', dest='clobber', help='Clobber existing files', action="store_true", default=False)
 args = parser.parse_args()
 
 assert args.nside <= 512
@@ -50,4 +51,4 @@ sky.Nside = args.nside
 data = sky_model.gsm_shell(sky.Nside, freq_array)
 sky.set_data(data)
 
-sky.write_hdf5('skymodels/gsm_{:.2f}-{:.2f}MHz_nside{}.hdf5'.format(freq_array[0] / 1e6, freq_array[-1] / 1e6, args.nside))
+sky.write_hdf5('skymodels/gsm_{:.2f}-{:.2f}MHz_nside{}.hdf5'.format(freq_array[0] / 1e6, freq_array[-1] / 1e6, args.nside), clobber=args.clobber)
