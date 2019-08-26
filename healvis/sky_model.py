@@ -285,7 +285,7 @@ def flat_spectrum_noise_shell(sigma, freqs, Nside, Nskies, ref_chan=0, shared_me
     return data
 
 
-def gsm_shell(Nside, freqs):
+def gsm_shell(Nside, freqs, use_2016=True):
     """
     Generate a Global Sky Model shell in units of Kelvin
 
@@ -294,14 +294,18 @@ def gsm_shell(Nside, freqs):
             Nside resolution of HEALpix maps
         freqs : ndarray
             Array of frequencies [Hz]
+        use_2016 : bool
+            Use the 2016 GSM model, not the 2008. (Default is True)
 
     Returns:
         data : ndarray, shape (Npix, Nfreqs)
             GSM shell as HEALpix maps
     """
     assert pygsm_import, "Couldn't import pygsm package. This is required to use GSM functionality."
-
-    maps = pygsm.GlobalSkyModel(freq_unit='Hz', basemap='haslam').generate(freqs)  # Units K
+    if use_2016:
+        maps = pygsm.GlobalSkyModel2016(freq_unit='Hz', unit='TCMB').generate(freqs)  # Units K
+    else:
+        maps = pygsm.GlobalSkyModel(freq_unit='Hz', basemap='haslam').generate(freqs)  # Units K
 
     rot = hp.Rotator(coord=['G', 'C'])
     Npix = Nside**2 * 12
@@ -315,7 +319,7 @@ def gsm_shell(Nside, freqs):
 
 def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, Nskies=1, sigma=None, amplitude=None):
     """
-    Construct a SkyModel object or read from disk
+    Cnstruct a SkyModel object or read from disk
 
     Args:
         sky_type : str, options=["flat_spec", "gsm", "<filepath>"]
