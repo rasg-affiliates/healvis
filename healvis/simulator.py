@@ -588,11 +588,11 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     skyparam['freqs'] = freq_array
 
     Nskies = 1 if 'Nskies' not in param_dict else int(param_dict['Nskies'])
-    print("Nprocs: ", Nprocs)
-    sys.stdout.flush()
 
     if 'Nprocs' in param_dict:
         Nprocs = param_dict['Nprocs']
+    print("Nprocs: ", Nprocs)
+    sys.stdout.flush()
 
     # ---------------------------
     # SkyModel
@@ -718,10 +718,11 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
         else:
             out_format = 'uvh5'
 
-        if Nskies > 1:
-            filing_params['outfile_suffix'] = '{}sky_uv'.format(sky_i)
-        elif out_format == 'miriad':
-            filing_params['outfile_suffix'] = 'uv'
+        if 'outfile_suffix' not in filing_params:
+            if Nskies > 1:
+                filing_params['outfile_suffix'] = '{}sky_uv'.format(sky_i)
+            elif out_format == 'miriad':
+                filing_params['outfile_suffix'] = 'uv'
 
         if 'outfile_name' not in filing_params:
             if 'outfile_prefix' not in filing_params:
@@ -735,7 +736,15 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
 
         else:
             outfile_name = filing_params['outfile_name']
-        outfile_name = os.path.join(filing_params['outdir'], outfile_name + ".{}".format(out_format))
+
+        if 'outfile_suffix' in filing_params:
+            outfile_name = outfile_name + '_' + filing_params['outfile_suffix']
+
+        if out_format == 'miriad':
+            outfile_name = os.path.join(filing_params['outdir'], outfile_name + ".uv")
+        else:
+            outfile_name = os.path.join(filing_params['outdir'], outfile_name + ".{}".format(out_format))
+
 
         # write base directory if it doesn't exist
         dirname = os.path.dirname(outfile_name)
@@ -743,6 +752,8 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
             os.mkdir(dirname)
 
         print("...writing {}".format(outfile_name))
+        clobber = filing_params.pop('clobber', False)
+        filing_params['clobber'] = clobber
         if out_format == 'uvh5':
             uv_obj.write_uvh5(outfile_name, clobber=filing_params['clobber'])
         elif out_format == 'miriad':
