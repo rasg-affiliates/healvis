@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Set pointings from list of pointings, not just from jd times, in config file.
+- Support for 2016 GSM in PyGSM
+- Option to let pixels smoothly `set` with `horizon taper`
+
+### Changed
+- UVBeam objects now have data arrays moved to shared memory.
+
+### Fixed
+- Bug with progress reporting from zeroth process
+
 ## [v1.1.0] 7-22-2019
 
 ### Added
