@@ -651,7 +651,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     smooth_scale = beam_attr.pop("smooth_scale", None)
     apply_horizon_taper = param_dict.pop('do_horizon_taper', False)
     points = param_dict.pop('pointings', None)
-    set_pointings=True
+    set_pointings = True
     if points is not None:
         print("Setting pointings from list, not times")
         points = ast.literal_eval(points)
@@ -744,7 +744,6 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
             outfile_name = os.path.join(filing_params['outdir'], outfile_name + ".uv")
         else:
             outfile_name = os.path.join(filing_params['outdir'], outfile_name + ".{}".format(out_format))
-
 
         # write base directory if it doesn't exist
         dirname = os.path.dirname(outfile_name)

@@ -116,7 +116,7 @@ class Observatory(object):
         self.telescope_location = EarthLocation.from_geodetic(self.lon * units.degree, self.lat * units.degree)
 
         self.do_horizon_taper = False
-        self.pix_area_sr = pix_area_sr # If doing horizon taper, need to set pixel area
+        self.pix_area_sr = pix_area_sr  # If doing horizon taper, need to set pixel area
 
         if freqs is not None:
             self.Nfreqs = len(freqs)
@@ -266,12 +266,11 @@ class Observatory(object):
         (Allow pixels to "set")
         """
         res = np.sqrt(self.pix_area_sr)
-        max_za = np.radians(self.fov)/2.
-        fracs = 0.5*(1 - (za_arr - max_za)/res)
-        fracs[fracs>1] = 1.0    # Do not weight pixels fully above the horizon.
+        max_za = np.radians(self.fov) / 2.
+        fracs = 0.5 * (1 - (za_arr - max_za) / res)
+        fracs[fracs > 1] = 1.0    # Do not weight pixels fully above the horizon.
 
         return fracs
-
 
     def _vis_calc(self, pcents, tinds, shell, vis_array, Nfin, beam_pol='pI'):
         """
@@ -301,7 +300,7 @@ class Observatory(object):
             za_arr, az_arr, pix = self.calc_azza(self.Nside, c, north, return_inds=True)
             beam_cube = self.beam.beam_val(az_arr, za_arr, self.freqs, pol=beam_pol)
             if self.do_horizon_taper:
-                horizon_taper = self._horizon_taper(za_arr).reshape(1,za_arr.size, 1)
+                horizon_taper = self._horizon_taper(za_arr).reshape(1, za_arr.size, 1)
             else:
                 horizon_taper = 1.0
             for bi, bl in enumerate(self.array):
