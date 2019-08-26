@@ -11,6 +11,8 @@ from scipy.special import j1
 
 from pyuvdata import UVBeam
 
+from .utils import mparray
+
 try:
     from sklearn import gaussian_process as gp
     sklearn_import = True
@@ -116,6 +118,13 @@ class PowerBeam(UVBeam):
         if self.beam_type == 'efield':
             self.efield_to_power()
         self.peak_normalize()
+
+        # Put data array in shared memory
+        dat = self.data_array
+        pdat = mparray(dat.shape, dtype=float)
+        pdat[()] = dat[()]
+        self.data_array = pdat
+        self._data_array.expected_type = float
 
     def interp_freq(self, freqs, inplace=False, kind='linear', run_check=True):
         """
