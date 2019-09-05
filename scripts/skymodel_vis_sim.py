@@ -6,7 +6,7 @@
 #SBATCH -J healvis
 #SBATCH -t 2-00:00:00
 #SBATCH --cpus-per-task=24
-#SBATCH --mem=50G
+#SBATCH --mem=70G
 #SBATCH -A jpober-condo
 #SBATCH --qos=jpober-condo
 #SBATCH --mail-type=FAIL
