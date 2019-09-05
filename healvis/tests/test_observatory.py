@@ -215,7 +215,7 @@ def test_offzenith_vis():
     print(vis_calc)
     print(vis_calc[0, 0, 0] - vis_analytic)
     vis_calc = vis_calc[0, 0, 0]
-    #nt.assert_true(np.isclose(vis_calc, vis_analytic, atol=1e-3).all())
+    # nt.assert_true(np.isclose(vis_calc, vis_analytic, atol=1e-3).all())
     nt.assert_true(np.isclose(vis_calc.real, vis_analytic.real))
     nt.assert_true(np.isclose(vis_calc.imag, vis_analytic.imag))
 
