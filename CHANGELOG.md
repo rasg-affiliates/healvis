@@ -11,6 +11,7 @@
 - UVBeam objects now have data arrays moved to shared memory.
 
 ### Fixed
+- UVBeam interpolation function compatibility
 - Bug with progress reporting from zeroth process
 
 ## [v1.1.0] 7-22-2019

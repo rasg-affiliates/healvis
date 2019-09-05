@@ -270,11 +270,11 @@ class PowerBeam(UVBeam):
         # interpolate
         if self.pixel_coordinate_system == 'az_za':
             # azimuth - zenith angle interpolation
-            interp_beam, interp_basis = self._interp_az_za_rect_spline(az_array=az, za_array=za, freq_array=freqs, reuse_spline=True, polarizations=[pol])
+            interp_beam, interp_basis, interp_bandpass = self._interp_az_za_rect_spline(az_array=az, za_array=za, freq_array=freqs, reuse_spline=True, polarizations=[pol])
 
         elif self.pixel_coordinate_system == 'healpix':
             # healpix interpolation
-            interp_beam, interp_basis = self._interp_healpix_bilinear(az_array=az, za_array=za, freq_array=freqs, polarizations=[pol])
+            interp_beam, interp_basis, interp_bandpass = self._interp_healpix_bilinear(az_array=az, za_array=za, freq_array=freqs, polarizations=[pol])
 
         return interp_beam[0, 0, 0].T
 
