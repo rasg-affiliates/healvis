@@ -258,9 +258,8 @@ def test_redundant_setup():
                                   freq_array=freq_array, time_array=time_array, redundancy=redtol, no_autos=False)
 
     uvd0 = simulator.complete_uvdata(uvd0)
-
-    nt.assert_true(uvd0.Nbls == 66)
-    nt.assert_true(uvd.Nbls == 65)
+    nt.assert_true(uvd0.Nbls == 62)
+    nt.assert_true(uvd.Nbls == 61)
 
 
 def test_freq_time_params():
