@@ -285,7 +285,7 @@ def flat_spectrum_noise_shell(sigma, freqs, Nside, Nskies, ref_chan=0, shared_me
     return data
 
 
-def gsm_shell(Nside, freqs, use_2016=True):
+def gsm_shell(Nside, freqs, use_2016=False):
     """
     Generate a Global Sky Model shell in units of Kelvin
 
@@ -295,7 +295,7 @@ def gsm_shell(Nside, freqs, use_2016=True):
         freqs : ndarray
             Array of frequencies [Hz]
         use_2016 : bool
-            Use the 2016 GSM model, not the 2008. (Default is True)
+            Use the 2016 GSM model, not the 2008. (Default is False)
 
     Returns:
         data : ndarray, shape (Npix, Nfreqs)
@@ -319,7 +319,7 @@ def gsm_shell(Nside, freqs, use_2016=True):
 
 def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, Nskies=1, sigma=None, amplitude=None):
     """
-    Cnstruct a SkyModel object or read from disk
+    Construct a SkyModel object or read from disk
 
     Args:
         sky_type : str, options=["flat_spec", "gsm", "<filepath>"]
