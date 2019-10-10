@@ -35,8 +35,8 @@ class SkyModel(object):
     """
     SkyModel class
     """
-    valid_params = ['Npix', 'Nside', 'Nskies', 'Nfreqs', 'indices', 'Z_array', 'ref_chan',
-                    'pspec_amp', 'freqs', 'data', 'history']
+    valid_params = ['Npix', 'Nside', 'Nskies', 'Nfreqs', 'indices', 'Z_array',
+                    'ref_chan', 'ref_freq', 'pspec_amp', 'freqs', 'data', 'history']
     _updated = []
     # keys give HDF5 datasets, value give their dtype
     dsets = {'data': np.float64, 'indices': np.int32, 'freqs': np.float64,
@@ -113,6 +113,8 @@ class SkyModel(object):
             if 'indices' not in ud:
                 if self.indices is None:
                     self.indices = np.arange(self.Npix)
+        if 'ref_chan' in ud:
+            self.ref_freq = self.freqs[self.ref_chan]
         if 'indices' in ud:
             self.Npix = self.indices.size
         if 'data' in ud:
@@ -174,11 +176,14 @@ class SkyModel(object):
 
             if do_not_overwrite_freqs:
                 sky_freqs_full = infile['freqs'][()]
-                freq_chans = np.where(np.in1d(sky_freqs_full, self.freqs))[0]
+                # Find nearest frequency in sky_freqs for each self.freqs.
+                freq_chans = []
+                for fr in self.freqs:
+                    freq_chans.append(np.argmin(np.abs(fr - sky_freqs_full)))
                 sky_freqs_part = sky_freqs_full[freq_chans]
                 if self.freqs is not None and not np.allclose(self.freqs, sky_freqs_part):
                     raise ValueError("Currently set frequencies do not match any subset of file's frequencies.")
-                Nfreqs_load = freq_chans.size
+                Nfreqs_load = len(freq_chans)
 
             # load lightweight attributes
             for k in infile.attrs:
@@ -201,9 +206,11 @@ class SkyModel(object):
                     elif k == 'freqs':
                         setattr(self, k, infile[k][:][freq_chans])
                     elif k == 'history':
-                        setattr(self, k, infile[k].value)
+                        setattr(self, k, infile[k][()])
                     else:
                         setattr(self, k, infile[k][:])
+
+            self.ref_freq = infile['freqs'][:][self.ref_chan]
 
             # make sure Nfreq agrees
             self.Nfreqs = len(self.freqs)
