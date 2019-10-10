@@ -151,7 +151,7 @@ class PowerBeam(UVBeam):
         new_beam.bandpass_array = interp_bp
         if hasattr(new_beam, 'saved_interp_functions'):
             delattr(new_beam, 'saved_interp_functions')
-        print("Doing frequency interpolation: " + kind)
+        print("Doing frequency interpolation: " + str(kind))
         if run_check:
             new_beam.check()
 
