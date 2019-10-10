@@ -85,10 +85,8 @@ class mparray(np.ndarray):
     # https://stackoverflow.com/questions/7894791/use-numpy-array-in-shared-memory-for-multiprocessing
 
     def __init__(self, *args, **kwargs):
-        super(mparray, self).__init__(*args, **kwargs)
-        size = np.prod(self.shape)
         ctype = np.sctype2char(self.dtype)
-        arr = mp.RawArray(ctype, size)
+        arr = mp.RawArray(ctype, self.size)
         self.data = arr
         self.reshape(self.shape)
 
