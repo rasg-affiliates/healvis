@@ -6,7 +6,6 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import multiprocessing as mp
-from numba import jit
 import sys
 import resource
 import warnings
@@ -26,8 +25,6 @@ from .cosmology import c_ms
 # Classes and methods to calculate visibilities from HEALPix maps.
 # -----------------------
 
-
-@jit
 def make_fringe(az, za, freq, enu):
     """
     az, za = Azimuth, zenith angle, radians
