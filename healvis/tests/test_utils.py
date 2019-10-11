@@ -26,11 +26,11 @@ def test_mparray():
     Nprocs = 5
 
     def do_a_thing(arr, nsarr, ind):
-        arr[ind] = ind*2
-        nsarr[ind] = ind*3
+        arr[ind] = ind * 2
+        nsarr[ind] = ind * 3
         if ind == 1:
             time.sleep(1)
-            nt.assert_true(np.all([arr[i] == 2*i for i in range(Nprocs)]))
+            nt.assert_true(np.all([arr[i] == 2 * i for i in range(Nprocs)]))
             nt.assert_true(np.all([nsarr[i] == 100 for i in range(Nprocs)
                                    if not i == 1]))
 

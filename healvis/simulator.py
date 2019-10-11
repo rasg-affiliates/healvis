@@ -755,7 +755,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
             os.mkdir(dirname)
 
         print("...writing {}".format(outfile_name))
-        if not 'clobber' in filing_params:
+        if 'clobber' not in filing_params:
             filing_params['clobber'] = False
         if out_format == 'uvh5':
             uv_obj.write_uvh5(outfile_name, clobber=filing_params['clobber'])
