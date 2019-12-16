@@ -46,7 +46,7 @@ setup_args = {
     'version': version.version,
     'include_package_data': True,
     'setup_requires': ['numpy>=1.14', 'six>=1.10'],
-    'install_requires': ['numpy>=1.14', 'six>=1.10', 'scipy', 'astropy>=2.0', 'numba', 'h5py', 'pyyaml', 'pyuvdata'],
+    'install_requires': ['numpy>=1.14', 'six>=1.10', 'scipy', 'astropy>=2.0', 'numba', 'h5py', 'pyyaml', 'pyuvdata','astropy-healpix'],
     'keywords': 'radio astronomy interferometry'
 }
 
