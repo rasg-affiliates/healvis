@@ -5,10 +5,7 @@
 from __future__ import absolute_import, division, print_function
 
 from setuptools import setup
-import glob
 import os
-import io
-import numpy as np
 import json
 
 import sys
@@ -45,9 +42,17 @@ setup_args = {
 #    'scripts': glob.glob('scripts/*'),
     'version': version.version,
     'include_package_data': True,
-    'setup_requires': ['numpy>=1.14', 'six>=1.10'],
-    'install_requires': ['numpy>=1.14', 'six>=1.10', 'scipy', 'astropy>=2.0', 'numba', 'h5py', 'pyyaml', 'pyuvdata','astropy-healpix'],
-    'keywords': 'radio astronomy interferometry'
+    'install_requires': ['numpy>=1.14', 'six>=1.10', 'scipy', 'astropy>=2.0',
+                         'numba', 'h5py', 'pyyaml', 'pyuvdata', 'astropy-healpix',
+                         'healpy'],
+    'keywords': 'radio astronomy interferometry',
+    'extras_require': {
+        'gsm': "pygsm @ git+https://github.com/telegraphic/PyGSM.git",
+        'dev': [
+            'nose', 'pycodestyle', 'sklearn'
+        ],
+        'beam': ['sklearn']
+    }
 }
 
 if __name__ == '__main__':

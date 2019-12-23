@@ -5,13 +5,15 @@
 from __future__ import absolute_import, division, print_function
 
 import os
-import six
 import subprocess
 import json
 import inspect
+import sys
 
 healvis_dir = os.path.dirname(os.path.realpath(__file__))
 
+def _py2():
+    return sys.version[0] < '3'
 
 def _get_git_output(args, capture_stderr=False):
     """Get output from Git, ensuring that it is of the ``str`` type,
@@ -26,7 +28,7 @@ def _get_git_output(args, capture_stderr=False):
 
     data = data.strip()
 
-    if six.PY2:
+    if _py2():
         return data
     return data.decode('utf8')
 
@@ -48,7 +50,7 @@ def _get_gitinfo_file(git_file=None):
 
 
 def _unicode_to_str(u):
-    if six.PY2:
+    if _py2():
         return u.encode('utf8')
     return u
 
