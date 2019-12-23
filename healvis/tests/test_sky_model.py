@@ -12,7 +12,7 @@ from astropy.cosmology import Planck15
 
 from healvis import sky_model, utils
 from healvis.data import DATA_PATH
-
+import tempfile
 
 def verify_update(sky_obj):
     """
@@ -65,7 +65,8 @@ def test_flat_spectrum():
 
 
 def test_write_read():
-    testfilename = 'test_out.hdf5'
+    dr = tempfile.mkdtemp()
+    testfilename = os.path.join(dr, 'test_out.hdf5')
     Nfreqs = 10
     freq_array = np.linspace(167.0, 177.0, Nfreqs)
     sky = sky_model.SkyModel(Nside=64, Nskies=1, freqs=freq_array, ref_chan=5)
