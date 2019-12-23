@@ -45,8 +45,8 @@ setup_args = {
 #    'scripts': glob.glob('scripts/*'),
     'version': version.version,
     'include_package_data': True,
-    'setup_requires': ['numpy>=1.14', 'six>=1.10'],
-    'install_requires': ['numpy>=1.14', 'six>=1.10', 'scipy', 'astropy>=2.0'],
+    'setup_requires': ['numpy>=1.14'],
+    'install_requires': ['numpy>=1.14', 'scipy', 'astropy>=2.0'],
     'keywords': 'radio astronomy interferometry'
 }
 

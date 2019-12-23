@@ -7,8 +7,6 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import yaml
 import sys
-import six
-from six.moves import map, range, zip
 import os
 import ast
 import copy
@@ -31,11 +29,7 @@ def _parse_layout_csv(layout_csv):
         header = fhandle.readline()
 
     header = [h.strip() for h in header.split()]
-    if six.PY2:
-        str_format_code = 'a'
-    else:
-        str_format_code = 'U'
-    dt = np.format_parser([str_format_code + '10', 'i4', 'i4', 'f8', 'f8', 'f8'],
+    dt = np.format_parser(['U10', 'i4', 'i4', 'f8', 'f8', 'f8'],
                           ['name', 'number', 'beamid', 'e', 'n', 'u'], header)
 
     return np.genfromtxt(layout_csv, autostrip=True, skip_header=1,
