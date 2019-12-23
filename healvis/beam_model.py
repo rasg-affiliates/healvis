@@ -320,7 +320,7 @@ class AnalyticBeam(object):
             self.ref_freq = ref_freq
             if (not spectral_index == 0.0) and (ref_freq is None):
                 raise ValueError("ref_freq must be set for nonzero gaussian beam spectral index")
-            elif ref_freq is None:
+            if ref_freq is None:
                 self.ref_freq = 1.0  # Flat spectrum anyway
         elif beam_type == 'airy':
             if diameter is None:

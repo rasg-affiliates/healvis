@@ -113,8 +113,6 @@ class SkyModel(object):
             if 'indices' not in ud:
                 if self.indices is None:
                     self.indices = np.arange(self.Npix)
-        if 'ref_chan' in ud:
-            self.ref_freq = self.freqs[self.ref_chan]
         if 'indices' in ud:
             self.Npix = self.indices.size
         if 'data' in ud:
@@ -144,6 +142,7 @@ class SkyModel(object):
 
         self.data = flat_spectrum_noise_shell(sigma, self.freqs, self.Nside, self.Nskies,
                                               ref_chan=self.ref_chan, shared_memory=shared_memory)
+        self.ref_freq = self.freqs[self.ref_chan]
         self.pspec_amp = sigma
         self._update()
 
@@ -173,13 +172,13 @@ class SkyModel(object):
 
         print('...reading {}'.format(filename))
         with h5py.File(filename, 'r') as infile:
-
             if do_not_overwrite_freqs:
                 sky_freqs_full = infile['freqs'][()]
                 # Find nearest frequency in sky_freqs for each self.freqs.
                 freq_chans = []
                 for fr in self.freqs:
                     freq_chans.append(np.argmin(np.abs(fr - sky_freqs_full)))
+                freq_chans = np.sort(freq_chans)
                 sky_freqs_part = sky_freqs_full[freq_chans]
                 if self.freqs is not None and not np.allclose(self.freqs, sky_freqs_part):
                     raise ValueError("Currently set frequencies do not match any subset of file's frequencies.")
@@ -198,8 +197,10 @@ class SkyModel(object):
                             if Nfreqs_load is not None:
                                 s[-1] = Nfreqs_load
                             s = tuple(s)
+                            if len(s) < 3:
+                                s = (1,) + s
                             self.data = mparray(s, dtype=np.float)
-                            self.data[()] = infile[k][:, :, freq_chans]   # Transfer data from infile.
+                            self.data[()] = infile[k][..., freq_chans]   # Transfer data from infile.
                         else:
                             # load the data via slice
                             setattr(self, k, infile[k][:, :, freq_chans])
@@ -210,11 +211,17 @@ class SkyModel(object):
                     else:
                         setattr(self, k, infile[k][:])
 
-            self.ref_freq = infile['freqs'][:][self.ref_chan]
+            if self.ref_freq is None:
+                self.ref_freq = infile['freqs'][:][self.ref_chan]
 
             # make sure Nfreq agrees
             self.Nfreqs = len(self.freqs)
 
+        if self.Nside is None:
+            try:
+                self.Nside = hp.npix2nside(self.data.shape[1])
+            except(ValueError):
+                raise ValueError("Data array is not a full HEALPix map, and Nside not provided.")
         self._update()
 
     def write_hdf5(self, filename, clobber=False):
