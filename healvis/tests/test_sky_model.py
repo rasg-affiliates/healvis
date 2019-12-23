@@ -14,10 +14,11 @@ from healvis import sky_model, utils
 from healvis.data import DATA_PATH
 import tempfile
 
+
 def verify_update(sky_obj):
     """
-        Check that the frequencies/redshifts/distances are consistent.
-        If healpix, check that Npix/indices/Nside are consistent
+    Check that the frequencies/redshifts/distances are consistent.
+    If healpix, check that Npix/indices/Nside are consistent
     """
 
     if sky_obj.data is not None:
