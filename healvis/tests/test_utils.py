@@ -5,7 +5,6 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-import nose.tools as nt
 import multiprocessing as mp
 import time
 
@@ -30,9 +29,9 @@ def test_mparray():
         nsarr[ind] = ind * 3
         if ind == 1:
             time.sleep(1)
-            nt.assert_true(np.all([arr[i] == 2 * i for i in range(Nprocs)]))
-            nt.assert_true(np.all([nsarr[i] == 100 for i in range(Nprocs)
-                                   if not i == 1]))
+            assert np.all([arr[i] == 2 * i for i in range(Nprocs)])
+            assert np.all([nsarr[i] == 100 for i in range(Nprocs)
+                          if not i == 1])
 
     procs = []
 
@@ -47,3 +46,21 @@ def test_mparray():
 
     while np.any([p.is_alive() for p in procs]):
         continue
+
+
+def assert_raises_message(exception_type, message, func, *args, **kwargs):
+    """
+    Check that the correct error message is raised.
+    """
+    nocatch = kwargs.pop('nocatch', False)
+    if nocatch:
+        func(*args, **kwargs)
+
+    with pytest.raises(exception_type) as err:
+        func(*args, **kwargs)
+
+    try:
+        assert message in str(err.value)
+    except AssertionError as excp:
+        print("{} not in {}".format(message, str(err.value)))
+        raise excp

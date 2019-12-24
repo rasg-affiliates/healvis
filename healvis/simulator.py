@@ -243,7 +243,7 @@ def parse_time_params(time_params):
         if Ntimes > 1:
             time_cadence = np.diff(time_array)[0] / dayspersec
         elif 'time_cadence' not in time_params:
-            raise ValueError("time_cadence must be specified"
+            raise ValueError("time_cadence must be specified "
                              "if Ntimes == 1.")
         duration = time_cadence * Ntimes
 

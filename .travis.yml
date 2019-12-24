@@ -35,5 +35,5 @@ install:
   - pip install git+https://github.com/RadioAstronomySoftwareGroup/pyuvdata.git
   - pip install git+https://github.com/telegraphic/PyGSM.git
 script:
-  - nosetests healvis
+  - pytest healvis
   - pycodestyle healvis/*.py healvis/tests/*.py --ignore=E501,W503

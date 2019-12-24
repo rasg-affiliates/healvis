@@ -7,11 +7,11 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import os
 import healpy as hp
-import nose.tools as nt
 from astropy.cosmology import Planck15
 
 from healvis import sky_model, utils
 from healvis.data import DATA_PATH
+from healvis.tests import TESTDATA_PATH
 import tempfile
 
 
@@ -27,9 +27,9 @@ def verify_update(sky_obj):
         Npix = sky_obj.Npix
 
         if Npix == 12 * Nside**2:
-            nt.assert_true(all(indices == np.arange(Npix)))
+            assert all(indices == np.arange(Npix))
         else:
-            nt.assert_true(Npix == indices.size)
+            assert Npix == indices.size
     if sky_obj.freqs is not None:
         freqs = sky_obj.freqs
         Nfreq = sky_obj.Nfreqs
@@ -38,9 +38,9 @@ def verify_update(sky_obj):
 
         Zcheck = 1420. / freqs - 1.
         Rcheck = Planck15.comoving_distance(Zcheck).to("Mpc").value
-        nt.assert_true(all(Zcheck == Zcheck))
-        nt.assert_true(all(Rcheck == Rcheck))
-    nt.assert_true(len(sky_obj._updated) == 0)  # The _updated list should be cleared
+        assert all(Zcheck == Zcheck)
+        assert all(Rcheck == Rcheck)
+    assert len(sky_obj._updated) == 0  # The _updated list should be cleared
 
 
 def test_update():
@@ -61,7 +61,7 @@ def test_flat_spectrum():
     Npix = hp.nside2npix(Nside)
     Nskies = 1
     maps = sky_model.flat_spectrum_noise_shell(sigma, freq_array, Nside, Nskies)
-    nt.assert_equal(maps.shape, (Nskies, Npix, Nfreqs))
+    assert maps.shape == (Nskies, Npix, Nfreqs)
     # any other checks?
 
 
@@ -76,11 +76,11 @@ def test_write_read():
     sky2 = sky_model.SkyModel()
     sky3 = sky_model.SkyModel()
     sky2.read_hdf5(testfilename, shared_memory=True)
-    nt.assert_true(isinstance(sky2.data, utils.mparray))
+    assert isinstance(sky2.data, utils.mparray)
     sky3.read_hdf5(testfilename)
     sky.history, sky2.history, sky3.history, = '', '', ''
-    nt.assert_equal(sky, sky2)
-    nt.assert_equal(sky2, sky3)
+    assert sky == sky2
+    assert sky2 == sky3
     os.remove(testfilename)
 
 
@@ -88,10 +88,10 @@ def test_fewchannel_read():
     sky = sky_model.SkyModel()
     chans = np.arange(4)
     sky.read_hdf5(os.path.join(DATA_PATH, "gsm_nside32.hdf5"), freq_chans=chans)
-    nt.assert_true(sky.freqs.size == 4)
+    assert sky.freqs.size == 4
     sky = sky_model.SkyModel()
     sky.read_hdf5(os.path.join(DATA_PATH, "gsm_nside32.hdf5"), freq_chans=chans, shared_memory=True)
-    nt.assert_true(sky.freqs.size == 4)
+    assert sky.freqs.size == 4
 
 
 def test_freqselect_read():
@@ -102,4 +102,4 @@ def test_freqselect_read():
     sky = sky_model.SkyModel()
     sky.freqs = subfreqs
     sky.read_hdf5(os.path.join(DATA_PATH, "gsm_nside32.hdf5"), do_not_overwrite_freqs=True)
-    nt.assert_true(sky.freqs.size == subfreqs.size)
+    assert sky.freqs.size == subfreqs.size
