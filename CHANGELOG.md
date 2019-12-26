@@ -1,5 +1,10 @@
 # Changelog
 
+## [v2.0.0] 12-26-2019
+
+### Changed
+- Removing all support for Python 2
+
 ## [v1.2.0] 12-23-2019
 
 ### Added
