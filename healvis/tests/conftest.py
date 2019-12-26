@@ -9,11 +9,7 @@ import shutil
 import pytest
 from astropy.time import Time
 from astropy.utils import iers
-
-try:
-    from urllib.error import URLError, HTTPError
-except ImportError:
-    from urllib2 import URLError, HTTPError
+from urllib.error import URLError, HTTPError
 
 from healvis.data import DATA_PATH
 
@@ -37,7 +33,7 @@ def setup_and_teardown_package():
                 iers.IERS.iers_table = iers.IERS_A.open(iers.IERS_A_URL_MIRROR)
                 t1 = Time.now()
                 t1.ut1
-            except(URLError, HTTPError, AttributeError):
+            except(URLError, HTTPError):
                 iers.conf.auto_max_age = None
                 iers.conf.auto_download = False
     # yield to allow tests to run
