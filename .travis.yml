@@ -5,7 +5,6 @@ python:
   - "2.7"
   - "3.6"
   - "3.7"
-  - "3.8"
 
 install:
   # ensure that we have the full tag information available for version.py
@@ -27,9 +26,9 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
   # create environment and install dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy astropy>=2.0.16 nose pip matplotlib coverage scikit-learn h5py six pyyaml numba
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy astropy>=2.0.16 pip matplotlib scikit-learn h5py six pyyaml
   - source activate test-environment
-  - conda install -c conda-forge healpy pycodestyle mpi4py
+  - conda install -c conda-forge healpy pycodestyle
   - pip install coveralls
   - pip install --no-deps astropy-healpix
   - pip install git+https://github.com/RadioAstronomySoftwareGroup/pyuvdata.git
