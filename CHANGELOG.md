@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v1.2.0] 12-23-2019
 
 ### Added
 - Set pointings from list of pointings, not just from jd times, in config file.
@@ -8,6 +8,7 @@
 - Option to let pixels smoothly `set` with `horizon taper`
 
 ### Changed
+- Use pytest instead of nosetests
 - UVBeam objects now have data arrays moved to shared memory.
 
 ### Fixed

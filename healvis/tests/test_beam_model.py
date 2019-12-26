@@ -8,11 +8,11 @@ import numpy as np
 import healpy as hp
 import os
 import copy
-import nose.tools as nt
 from astropy.cosmology import WMAP9
 
 from healvis import beam_model
 from healvis.data import DATA_PATH
+import healvis.tests as simtest
 
 
 def test_PowerBeam():
@@ -27,10 +27,10 @@ def test_PowerBeam():
     P3 = P2.interp_freq(freqs, inplace=False, kind='linear')
     P2.interp_freq(freqs, inplace=True, kind='linear')
     # assert inplace and not inplace are consistent
-    nt.assert_equal(P2, P3)
+    assert P2 == P3
     # assert correct frequencies
     np.testing.assert_array_almost_equal(freqs, P3.freq_array[0])
-    nt.assert_true(P3.bandpass_array.shape[1] == P3.Nfreqs == Nfreqs)
+    assert (P3.bandpass_array.shape[1] == P3.Nfreqs == Nfreqs)
 
     # get beam value
     Npix = 20
@@ -38,10 +38,10 @@ def test_PowerBeam():
     za = np.linspace(0, 1, Npix, endpoint=False)
     b = P.beam_val(az, az, freqs, pol='XX')
     # check shape and rough value check (i.e. interpolation is near zenith as expected)
-    nt.assert_equal(b.shape, (Npix, Nfreqs))
-    nt.assert_true(np.isclose(b.max(), 1.0, atol=1e-3))
+    assert b.shape == (Npix, Nfreqs)
+    assert np.isclose(b.max(), 1.0, atol=1e-3)
 
-    # shift frequnecies by a delta and assert beams are EXACLTY the same (i.e. no freq interpolation)
+    # shift frequnecies by a delta and assert beams are EXACTLY the same (i.e. no freq interpolation)
     # delta must be larger than UVBeam._inter_freq tol, but small enough
     # to keep the same freq nearest neighbors
     b2 = P.beam_val(az, az, freqs + 1e6, pol='XX')
@@ -49,7 +49,7 @@ def test_PowerBeam():
 
     # smooth the beam
     SP = P.smooth_beam(freqs, inplace=False, freq_ls=2.0, noise=1e-10)
-    nt.assert_true(SP.Nfreqs, len(freqs))
+    assert SP.Nfreqs == len(freqs)
 
 
 def test_AnalyticBeam():
@@ -62,36 +62,36 @@ def test_AnalyticBeam():
     # Gaussian
     A = beam_model.AnalyticBeam('gaussian', gauss_width=15.0)
     b = A.beam_val(az, za, freqs)
-    nt.assert_equal(b.shape, (Npix, Nfreqs))  # assert array shape
-    nt.assert_true(np.isclose(b[0, :], 1.0).all())  # assert peak normalized
+    assert b.shape == (Npix, Nfreqs)  # assert array shape
+    assert np.isclose(b[0, :], 1.0).all()  # assert peak normalized
 
     # Chromatic Gaussian
     A = beam_model.AnalyticBeam('gaussian', gauss_width=15.0, ref_freq=freqs[0], spectral_index=-1.0)
     b = A.beam_val(az, za, freqs)
-    nt.assert_equal(b.shape, (Npix, Nfreqs))  # assert array shape
-    nt.assert_true(np.isclose(b[0, :], 1.0).all())  # assert peak normalized
+    assert b.shape == (Npix, Nfreqs)  # assert array shape
+    assert np.isclose(b[0, :], 1.0).all()  # assert peak normalized
 
     # Uniform
     A = beam_model.AnalyticBeam('uniform')
     b = A.beam_val(az, za, freqs)
-    nt.assert_equal(b.shape, (Npix, Nfreqs))  # assert array shape
-    nt.assert_true(np.isclose(b, 1.0).all())
+    assert b.shape == (Npix, Nfreqs)  # assert array shape
+    assert np.isclose(b, 1.0).all()  # assert peak normalized
 
     # Airy
     A = beam_model.AnalyticBeam('airy', diameter=15.0)
     b = A.beam_val(az, za, freqs)
-    nt.assert_equal(b.shape, (Npix, Nfreqs))  # assert array shape
-    nt.assert_true(np.isclose(b[0, :], 1.0).all())  # assert peak normalized
+    assert b.shape == (Npix, Nfreqs)  # assert array shape
+    assert np.isclose(b[0, :], 1.0).all()  # assert peak normalized
 
     # custom
     A = beam_model.AnalyticBeam(beam_model.airy_disk)
     b2 = A.beam_val(az, za, freqs, diameter=15.0)
-    nt.assert_equal(b2.shape, (Npix, Nfreqs))  # assert array shape
-    nt.assert_true(np.isclose(b2[0, :], 1.0).all())  # assert peak normalized
+    assert b2.shape == (Npix, Nfreqs)  # assert array shape
+    assert np.isclose(b2[0, :], 1.0).all()  # assert peak normalized
     np.testing.assert_array_almost_equal(b, b2)  # assert its the same as airy
 
     # exceptions
     A = beam_model.AnalyticBeam("uniform")
-    nt.assert_raises(NotImplementedError, beam_model.AnalyticBeam, "foo")
-    nt.assert_raises(KeyError, beam_model.AnalyticBeam, "gaussian")
-    nt.assert_raises(KeyError, beam_model.AnalyticBeam, "airy")
+    simtest.assert_raises_message(NotImplementedError, 'Beam type foo not available yet.', beam_model.AnalyticBeam, "foo")
+    simtest.assert_raises_message(KeyError, 'gauss_width required for gaussian beam', beam_model.AnalyticBeam, 'gaussian')
+    simtest.assert_raises_message(KeyError, 'Dish diameter required for airy beam', beam_model.AnalyticBeam, 'airy')

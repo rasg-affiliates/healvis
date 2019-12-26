@@ -243,7 +243,7 @@ def parse_time_params(time_params):
         if Ntimes > 1:
             time_cadence = np.diff(time_array)[0] / dayspersec
         elif 'time_cadence' not in time_params:
-            raise ValueError("time_cadence must be specified"
+            raise ValueError("time_cadence must be specified "
                              "if Ntimes == 1.")
         duration = time_cadence * Ntimes
 
@@ -600,6 +600,8 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     # construct sky model
     if 'Nskies' not in skyparam:
         skyparam['Nskies'] = Nskies
+    else:
+        Nskies = skyparam['Nskies']
     sky_type = skyparam.pop('sky_type')
     savepath = None
     if 'savepath' in skyparam:
@@ -668,6 +670,8 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     sys.stdout.flush()
     visibility = []
     beam_sq_int = {}
+    print('Nskies: {}'.format(sky.Nskies))
+    sys.stdout.flush()
     if pols is None:
         warnings.warn("No polarization specified. Defaulting to pI")
         pols = ['pI']
@@ -676,7 +680,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
         visibs, time_array, baseline_inds = obs.make_visibilities(sky, Nprocs=Nprocs, beam_pol=pol)
         visibility.append(visibs)
         # Average Beam^2 integral across frequency
-        beam_sq_int['bm_sq_{}'.format(pol)] = np.asscalar(obs.beam_sq_int(obs.freqs[sky.ref_chan], sky.Nside, obs.pointing_centers[0], beam_pol=pol))
+        beam_sq_int['bm_sq_{}'.format(pol)] = np.asscalar(obs.beam_sq_int(sky.ref_freq, sky.Nside, obs.pointing_centers[0], beam_pol=pol))
 
     visibility = np.moveaxis(visibility, 0, -1)
 
@@ -720,7 +724,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
 
         if 'outfile_suffix' not in filing_params:
             if Nskies > 1:
-                filing_params['outfile_suffix'] = '{}sky_uv'.format(sky_i)
+                filing_params['outfile_suffix'] = '{}sky_uv'.format(si)
             elif out_format == 'miriad':
                 filing_params['outfile_suffix'] = 'uv'
 
@@ -751,14 +755,15 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
             os.mkdir(dirname)
 
         print("...writing {}".format(outfile_name))
-        clobber = filing_params.pop('clobber', False)
-        filing_params['clobber'] = clobber
+        if 'clobber' not in filing_params:
+            filing_params['clobber'] = False
         if out_format == 'uvh5':
             uv_obj.write_uvh5(outfile_name, clobber=filing_params['clobber'])
         elif out_format == 'miriad':
             uv_obj.write_miriad(outfile_name, clobber=filing_params['clobber'])
         elif out_format == 'uvfits':
             uv_obj.write_uvfits(outfile_name, force_phase=True, spoof_nonessential=True)
+        filing_params.pop('outfile_suffix', None)
 
 
 def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, beam=None, beam_kwargs={},

@@ -7,7 +7,6 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import os
 import healpy as hp
-import nose.tools as nt
 from astropy.time import Time
 from astropy.coordinates import EarthLocation, AltAz, ICRS, Angle
 
@@ -38,15 +37,15 @@ def test_Observatory():
     # test Analytic set beam
     for beam in ['uniform', 'gaussian', 'airy', beam_model.airy_disk]:
         obs.set_beam(beam, gauss_width=10, diameter=10)
-        nt.assert_true(isinstance(obs.beam, beam_model.AnalyticBeam))
+        assert isinstance(obs.beam, beam_model.AnalyticBeam)
         b = obs.beam.beam_val(az, za, freqs, pol='xx')
-        nt.assert_equal(b.shape, (Npix, Nfreqs))
+        assert b.shape == (Npix, Nfreqs)
 
     # test Power set beam
     obs.set_beam(os.path.join(DATA_PATH, "HERA_NF_dipole_power.beamfits"))
-    nt.assert_true(isinstance(obs.beam, beam_model.PowerBeam))
+    assert isinstance(obs.beam, beam_model.PowerBeam)
     b = obs.beam.beam_val(az, za, freqs, pol='xx')
-    nt.assert_equal(b.shape, (Npix, Nfreqs))
+    assert b.shape == (Npix, Nfreqs)
 
 
 def test_Baseline():
@@ -63,10 +62,10 @@ def test_Baseline():
 
     # test fringe is right dimensions
     fringe = bl.get_fringe(az, za, freqs)
-    nt.assert_equal(fringe.shape, (Npix, Nfreqs))
+    assert fringe.shape == (Npix, Nfreqs)
 
     # test fringe at zenith is 1.0 across all freqs
-    nt.assert_true(np.isclose(fringe[0, :], 1.0).all())
+    assert np.isclose(fringe[0, :], 1.0).all()
 
 
 ####################
@@ -100,8 +99,8 @@ def test_pointings():
     degperhour_sidereal = 360. / 23.9344
     dts = np.diff(ras) / degperhour_sidereal
     dts *= 60.  # Minutes
-    nt.assert_true(np.allclose(dts, dt_min, atol=1e-2))  # Within half a second.
-    nt.assert_true(np.allclose(decs, latitude, atol=1e-1))  # Within 6 arcmin
+    assert np.allclose(dts, dt_min, atol=1e-2)  # Within half a second.
+    assert np.allclose(decs, latitude, atol=1e-1)  # Within 6 arcmin
 
 
 def test_az_za():
@@ -123,8 +122,8 @@ def test_az_za():
     print(np.degrees(za[ind]), np.degrees(az[ind]))
     print(lon, lat)
     # lon = longitude of the source, which is set to 5deg off zenith (hence, zenith angle)
-    nt.assert_true(np.isclose(np.degrees(za[ind]), lon))
-    nt.assert_true(np.isclose(np.degrees(az[ind]), 90.))
+    assert np.isclose(np.degrees(za[ind]), lon)
+    assert np.isclose(np.degrees(az[ind]), 90.)
 
 
 def test_vis_calc():
@@ -162,7 +161,7 @@ def test_vis_calc():
 
     visibs, times, bls = obs.make_visibilities(sky)
     print(visibs)
-    nt.assert_true(np.isclose(np.real(visibs), 1.0).all())  # Unit point source at zenith
+    assert np.isclose(np.real(visibs), 1.0).all()  # Unit point source at zenith
 
 
 def test_offzenith_vis():
@@ -216,8 +215,8 @@ def test_offzenith_vis():
     print(vis_calc[0, 0, 0] - vis_analytic)
     vis_calc = vis_calc[0, 0, 0]
     # nt.assert_true(np.isclose(vis_calc, vis_analytic, atol=1e-3).all())
-    nt.assert_true(np.isclose(vis_calc.real, vis_analytic.real))
-    nt.assert_true(np.isclose(vis_calc.imag, vis_analytic.imag))
+    assert np.isclose(vis_calc.real, vis_analytic.real)
+    assert np.isclose(vis_calc.imag, vis_analytic.imag)
 
 
 def test_gsm_pointing():
@@ -244,7 +243,7 @@ def test_gsm_pointing():
     visibs, times, bls = obs.make_visibilities(sky)
 
     # make sure peak is at time index 5, centered at transit time
-    nt.assert_equal(np.argmax(np.abs(visibs[:, 0, 0])), 5)
+    assert np.argmax(np.abs(visibs[:, 0, 0])) == 5
 
 
 def test_az_za_astropy():
@@ -284,5 +283,5 @@ def test_az_za_astropy():
 #    hmap[inds] = np.unwrap(az0 - az)
 #    import IPython; IPython.embed()
     print(np.degrees(za0 - za))
-    nt.assert_true(np.allclose(za0, za, atol=1e-4))
-    nt.assert_true(np.allclose(np.unwrap(az0 - az), 0.0, atol=3e-4))   # About 1 arcmin precision. Worst is at the southern horizon.
+    assert np.allclose(za0, za, atol=1e-4)
+    assert np.allclose(np.unwrap(az0 - az), 0.0, atol=3e-4)   # About 1 arcmin precision. Worst is at the southern horizon.
