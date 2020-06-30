@@ -423,7 +423,7 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
         uv_obj.channel_width = np.diff(uv_obj.freq_array[0])[0]
     else:
         uv_obj.channel_width = 1.0
-    uv_obj.set_drift()
+    uv_obj._set_drift()
     uv_obj.telescope_name = tele_dict['telescope_name']
     uv_obj.instrument = 'simulator'
     uv_obj.object_name = 'zenith'
@@ -666,7 +666,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
         visibs, time_array, baseline_inds = obs.make_visibilities(sky, Nprocs=Nprocs, beam_pol=pol)
         visibility.append(visibs)
         # Average Beam^2 integral across frequency
-        beam_sq_int['bm_sq_{}'.format(pol)] = np.asscalar(obs.beam_sq_int(sky.ref_freq, sky.Nside, obs.pointing_centers[0], beam_pol=pol))
+        beam_sq_int['bm_sq_{}'.format(pol)] = obs.beam_sq_int(sky.ref_freq, sky.Nside, obs.pointing_centers[0], beam_pol=pol).item()
 
     visibility = np.moveaxis(visibility, 0, -1)
 
