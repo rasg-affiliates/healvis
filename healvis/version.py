@@ -22,6 +22,7 @@ def _get_git_output(args, capture_stderr=False):
         data = subprocess.check_output(argv)
 
     data = data.strip()
+
     return data.decode('utf8')
 
 
