@@ -1,4 +1,4 @@
-name: tests
+name: mindeps
 channels:
   - conda-forge
   - defaults
@@ -17,6 +17,3 @@ dependencies:
   - pyuvdata
   - pyyaml>=5.1
   - scipy
-  - healpy
-  - pip:
-    - git+https://github.com/telegraphic/PyGSM.git
