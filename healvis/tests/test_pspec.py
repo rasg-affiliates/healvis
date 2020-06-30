@@ -55,7 +55,7 @@ def test_pspec_amp():
 
     dspec_instr = np.abs(_vis)**2
 
-    za, az = obs.calc_azza(sky.Nside, obs.pointing_centers[0])
+    za, az = obs.calc_azza(obs.pointing_centers[0])
     beam_sq_int = np.mean(obs.beam_sq_int(freqs, nside, obs.pointing_centers[0]))
 
     Bandwidth = freqs[-1] - freqs[0]
