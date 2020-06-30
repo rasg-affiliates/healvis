@@ -23,9 +23,8 @@ install:
   # create environment and install dependencies
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy astropy pip matplotlib scikit-learn h5py pyyaml
   - source activate test-environment
-  - conda install -c conda-forge pycodestyle
+  - conda install -c conda-forge pycodestyle astropy-healpix
   - pip install coveralls
-  - pip install --no-deps astropy-healpix
   - pip install git+https://github.com/RadioAstronomySoftwareGroup/pyuvdata.git
   - pip install git+https://github.com/telegraphic/PyGSM.git
 script:
