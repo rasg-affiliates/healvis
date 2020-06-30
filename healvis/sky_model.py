@@ -2,18 +2,16 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 3-clause BSD License
 
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 import os
 import warnings
-import healpy as hp
+from astropy_healpix import healpy as hp
 with warnings.catch_warnings():  # noqa
     warnings.simplefilter('ignore', FutureWarning)
     import h5py
 from astropy.cosmology import Planck15 as cosmo
 
-from .utils import mparray
+from .utils import mparray, npix2nside
 from .cosmology import f21, comoving_voxel_volume, comoving_distance
 from .version import history_string
 
@@ -218,7 +216,7 @@ class SkyModel(object):
 
         if self.Nside is None:
             try:
-                self.Nside = hp.npix2nside(self.data.shape[1])
+                self.Nside = npix2nside(self.data.shape[1])
             except(ValueError):
                 raise ValueError("Data array is not a full HEALPix map, and Nside not provided.")
         self._update()
@@ -277,7 +275,7 @@ def flat_spectrum_noise_shell(sigma, freqs, Nside, Nskies, ref_chan=0, shared_me
     """
     # generate empty array
     Nfreqs = len(freqs)
-    Npix = hp.nside2npix(Nside)
+    Npix = 12 * Nside**2
     if shared_memory:
         data = mparray((Nskies, Npix, Nfreqs), dtype=float)
     else:
@@ -314,6 +312,10 @@ def gsm_shell(Nside, freqs, use_2016=False):
         data : ndarray, shape (Npix, Nfreqs)
             GSM shell as HEALpix maps
     """
+    try:
+        import healpy as hp
+    except ImportError:
+        raise ImportError("healpy is unavailable, and is required for this function.")
     assert pygsm_import, "Couldn't import pygsm package. This is required to use GSM functionality."
     if use_2016:
         maps = pygsm.GlobalSkyModel2016(freq_unit='Hz', unit='TCMB').generate(freqs)  # Units K

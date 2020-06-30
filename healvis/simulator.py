@@ -2,8 +2,6 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 3-clause BSD License
 
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 import yaml
 import sys
@@ -513,13 +511,12 @@ def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None
         ap = uv_obj.baseline_to_antnums(bl)
         bls.append(observatory.Baseline(antpos_d[ap[0]], antpos_d[ap[1]]))
 
-    lat, lon, alt = uv_obj.telescope_location_lat_lon_alt
+    lat, lon, alt = uv_obj.telescope_location_lat_lon_alt_degrees
     if freq_chans is None:
         freq_chans = slice(None)
-    obs = observatory.Observatory(np.degrees(lat), np.degrees(lon), array=bls, freqs=uv_obj.freq_array[0, freq_chans])
-
-    # set FOV
-    obs.set_fov(fov)
+    obs = observatory.Observatory(
+        lat, lon, fov=fov, baseline_array=bls, freqs=uv_obj.freq_array[0, freq_chans]
+    )
 
     # Horizon taper flag
     obs.do_horizon_taper = apply_horizon_taper
@@ -557,8 +554,6 @@ def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None
 def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     """
     Parse input parameter file, construct UVData and SkyModel objects, and run simulation.
-
-    (Moved code from wrapper to here)
     """
     # parse parameter dictionary
     if isinstance(param_file, (str, np.str)):
@@ -585,8 +580,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
 
     if 'Nprocs' in param_dict:
         Nprocs = param_dict['Nprocs']
-    print("Nprocs: ", Nprocs)
-    sys.stdout.flush()
+    print("Nprocs: ", Nprocs, flush=True)
 
     # ---------------------------
     # SkyModel
@@ -660,12 +654,10 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     # ---------------------------
     # Run simulation
     # ---------------------------
-    print("Running simulation")
-    sys.stdout.flush()
+    print("Running simulation", flush=True)
     visibility = []
     beam_sq_int = {}
-    print('Nskies: {}'.format(sky.Nskies))
-    sys.stdout.flush()
+    print('Nskies: {}'.format(sky.Nskies), flush=True)
     if pols is None:
         warnings.warn("No polarization specified. Defaulting to pI")
         pols = ['pI']
@@ -689,7 +681,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     if sjob_id is None:
         sjob_id = ''
 
-    del sky.data    # Free up memory of sky model.
+    del sky.data    # Free up memory.
 
     uv_obj = complete_uvdata(uv_obj)
 

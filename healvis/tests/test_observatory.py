@@ -2,11 +2,10 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 3-clause BSD License
 
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 import os
-import healpy as hp
+import pytest
+from astropy_healpix import healpy as hp
 from astropy.time import Time
 from astropy.coordinates import EarthLocation, AltAz, ICRS, Angle
 
@@ -22,7 +21,6 @@ longitude = 21.4283055554
 
 
 def test_Observatory():
-    # TODO: fill out test coverage
 
     # setup
     ant1 = np.array([15.0, 0, 0])
@@ -49,7 +47,6 @@ def test_Observatory():
 
 
 def test_Baseline():
-    # TODO: fill out test coverage
 
     # setup
     ant1 = np.array([15.0, 0, 0])
@@ -108,19 +105,14 @@ def test_az_za():
     Check the calculated azimuth and zenith angle of a point exactly 5 deg east on the sphere (az = 90d, za = 5d)
     """
     Nside = 128
-    obs = observatory.Observatory(latitude, longitude)
+    obs = observatory.Observatory(latitude, longitude, fov=20, nside=Nside)
     center = [0, 0]
     lon, lat = [5, 0]
     ind0 = hp.ang2pix(Nside, lon, lat, lonlat=True)
     lon, lat = hp.pix2ang(Nside, ind0, lonlat=True)
     cvec = hp.ang2vec(center[0], center[1], lonlat=True)
-    radius = np.radians(10.)
-    obs.set_fov(20)
-    pix = hp.query_disc(Nside, cvec, radius)
-    za, az = obs.calc_azza(Nside, center)
+    za, az, pix = obs.calc_azza(center, return_inds=True)
     ind = np.where(pix == ind0)
-    print(np.degrees(za[ind]), np.degrees(az[ind]))
-    print(lon, lat)
     # lon = longitude of the source, which is set to 5deg off zenith (hence, zenith angle)
     assert np.isclose(np.degrees(za[ind]), lon)
     assert np.isclose(np.degrees(az[ind]), 90.)
@@ -141,7 +133,7 @@ def test_vis_calc():
 
     # Longitude/Latitude in degrees.
 
-    nside = 128
+    nside = 32 
     ind = 10
     center = list(hp.pix2ang(nside, ind, lonlat=True))
     centers = [center]
@@ -160,7 +152,6 @@ def test_vis_calc():
     sky = sky_model.SkyModel(Nside=nside, freqs=freqs, data=shell[np.newaxis, :, :])
 
     visibs, times, bls = obs.make_visibilities(sky)
-    print(visibs)
     assert np.isclose(np.real(visibs), 1.0).all()  # Unit point source at zenith
 
 
@@ -257,7 +248,7 @@ def test_az_za_astropy():
     altitude = 0.0
     loc = EarthLocation.from_geodetic(longitude, latitude, altitude)
 
-    obs = observatory.Observatory(latitude, longitude)
+    obs = observatory.Observatory(latitude, longitude, nside=Nside)
 
     t0 = Time(2458684.453187554, format='jd')
     obs.set_fov(180)
@@ -269,7 +260,7 @@ def test_az_za_astropy():
     northloc = EarthLocation.from_geodetic(lat='90.d', lon='0d', height=0.0)
     north_radec = AltAz(alt='90.0d', az='0.0d', obstime=t0, location=northloc).transform_to(ICRS)
     yvec = np.array([north_radec.ra.deg, north_radec.dec.deg])
-    za, az, inds = obs.calc_azza(Nside, center, yvec, return_inds=True)
+    za, az, inds = obs.calc_azza(center, yvec, return_inds=True)
 
     ra, dec = hp.pix2ang(Nside, inds, lonlat=True)
 

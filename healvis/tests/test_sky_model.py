@@ -2,11 +2,9 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 3-clause BSD License
 
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 import os
-import healpy as hp
+from astropy_healpix import healpy as hp
 from astropy.cosmology import Planck15
 
 from healvis import sky_model, utils
