@@ -185,22 +185,44 @@ class SkyModel(object):
             for k in infile.attrs:
                 setattr(self, k, infile.attrs[k])
 
+            standard_attrs = ['Nfreqs', 'Nside']
+            for sa in standard_attrs:
+                if not sa in infile.attrs:
+                    warnings.warn(f"{sa} not in file attributes. Inferring from array shapes.")
+
             # load heavier datasets
             for k in self.dsets:
                 if k in infile:
                     if k == 'data':
+                        s = list(infile[k].shape)   # Shape of infile data array
+                        if Nfreqs_load is not None:
+                            s[-1] = Nfreqs_load
+                        s = tuple(s)
+                        if len(s) < 3:
+                            s = (1,) + s
                         if shared_memory:
-                            s = list(infile[k].shape)   # Shape of infile data array
-                            if Nfreqs_load is not None:
-                                s[-1] = Nfreqs_load
-                            s = tuple(s)
-                            if len(s) < 3:
-                                s = (1,) + s
                             self.data = mparray(s, dtype=np.float)
-                            self.data[()] = infile[k][..., freq_chans]   # Transfer data from infile.
+                        npix = -1
+                        if self.Nside is not None:
+                            npix = self.Nside**2 * 12
+                        if self.Nfreqs is None:
+                            try:
+                                self.Nfreqs = infile['freqs'].shape[0]
+                            except AttributeError:
+                                pass
+                        if s[2] == npix or s[1] == self.Nfreqs:
+                            # pixel axis is last.
+                            # For compatibility with pyradiosky's hdf5 axis ordering.
+                            if shared_memory:
+                                self.data[()] = infile[k][..., freq_chans, :]
+                            else:
+                                setattr(self, k, infile[k][:, freq_chans, :])
+                            self.data = np.swapaxes(self.data, 1, 2)
                         else:
-                            # load the data via slice
-                            setattr(self, k, infile[k][:, :, freq_chans])
+                            if shared_memory:
+                                self.data[()] = infile[k][..., freq_chans]   # Transfer data from infile.
+                            else:
+                                setattr(self, k, infile[k][:, :, freq_chans])
                     elif k == 'freqs':
                         setattr(self, k, infile[k][:][freq_chans])
                     elif k == 'history':
