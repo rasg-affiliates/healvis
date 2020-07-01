@@ -3,10 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 from setuptools import setup
-import glob
 import os
-import io
-import numpy as np
 import json
 
 import sys
@@ -40,12 +37,15 @@ setup_args = {
     'packages': ['healvis', 'healvis.tests'],
     'include_package_data': True,
     'package_data': {'healvis': data_files},
-#    'scripts': glob.glob('scripts/*'),
     'version': version.version,
     'include_package_data': True,
-    'setup_requires': ['numpy>=1.14'],
-    'install_requires': ['numpy>=1.14', 'scipy', 'astropy'],
-    'keywords': 'radio astronomy interferometry'
+    'setup_requires': ['numpy'],
+    'install_requires': ['numpy', 'scipy', 'astropy', 'astropy_healpix', 'pyyaml'],
+    'keywords': 'radio astronomy interferometry',
+    'extras_require': {
+        'gsm': "pygsm @ git+git://github.com/telegraphic/PyGSM.git",
+        'all': ["pygsm @ git+git://github.com/telegraphic/PyGSM.git", 'scikit-learn']
+    }
 }
 
 if __name__ == '__main__':
