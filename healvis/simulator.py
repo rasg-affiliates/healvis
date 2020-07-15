@@ -618,8 +618,12 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     uvd_dict['freq_array'] = freq_array
     uvd_dict['time_array'] = time_array
 
-    if 'pols' in param_dict['beam'].keys():
-        uvd_dict['pols'] = param_dict['beam']['pols']
+    beam_attr = param_dict['beam'].copy()
+    pols = beam_attr.pop("pols", None)
+    if pols is None:
+        warnings.warn("No polarization specified. Defaulting to pI")
+        pols = ['pI']
+        uvd_dict['pols'] = pols
 
     if 'select' in param_dict:
         uvd_dict.update(param_dict['select'])
@@ -632,10 +636,8 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     # ---------------------------
     # Observatory
     # ---------------------------
-    beam_attr = param_dict['beam'].copy()
     beam_type = beam_attr.pop("beam_type")
 
-    pols = beam_attr.pop("pols", None)
     beam_freq_interp = beam_attr.pop("beam_freq_interp", 'cubic')
     smooth_beam = beam_attr.pop("smooth_beam", False)
     smooth_scale = beam_attr.pop("smooth_scale", None)
@@ -658,9 +660,6 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     visibility = []
     beam_sq_int = {}
     print('Nskies: {}'.format(sky.Nskies), flush=True)
-    if pols is None:
-        warnings.warn("No polarization specified. Defaulting to pI")
-        pols = ['pI']
     for pol in pols:
         # calculate visibility
         visibs, time_array, baseline_inds = obs.make_visibilities(sky, Nprocs=Nprocs, beam_pol=pol)
