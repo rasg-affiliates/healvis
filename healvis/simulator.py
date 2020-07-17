@@ -659,13 +659,13 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     print("Running simulation", flush=True)
     visibility = []
     beam_sq_int = {}
-    print('Nskies: {}'.format(sky.Nskies), flush=True)
+    print(f'Nskies: {sky.Nskies}', flush=True)
     for pol in pols:
         # calculate visibility
         visibs, time_array, baseline_inds = obs.make_visibilities(sky, Nprocs=Nprocs, beam_pol=pol)
         visibility.append(visibs)
         # Average Beam^2 integral across frequency
-        beam_sq_int['bm_sq_{}'.format(pol)] = obs.beam_sq_int(sky.ref_freq, sky.Nside, obs.pointing_centers[0], beam_pol=pol).item()
+        beam_sq_int[f'bm_sq_{pol}'] = obs.beam_sq_int(sky.ref_freq, sky.Nside, obs.pointing_centers[0], beam_pol=pol).item()
 
     visibility = np.moveaxis(visibility, 0, -1)
 
@@ -709,7 +709,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
 
         if 'outfile_suffix' not in filing_params:
             if Nskies > 1:
-                filing_params['outfile_suffix'] = '{}sky_uv'.format(si)
+                filing_params['outfile_suffix'] = f'{si}sky_uv'
             elif out_format == 'miriad':
                 filing_params['outfile_suffix'] = 'uv'
 
@@ -719,7 +719,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
             else:
                 outfile_name = filing_params['outfile_prefix']
             if beam_type == 'gaussian':
-                outfile_name += '_fwhm{:.3f}'.format(fwhm)
+                outfile_name += f'_fwhm{fwhm:.3f}'
             elif beam_type == 'airy':
                 outfile_name += '_diam{:.2f}'.format(beam_attr['diameter'])
 
@@ -732,14 +732,14 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
         if out_format == 'miriad':
             outfile_name = os.path.join(filing_params['outdir'], outfile_name + ".uv")
         else:
-            outfile_name = os.path.join(filing_params['outdir'], outfile_name + ".{}".format(out_format))
+            outfile_name = os.path.join(filing_params['outdir'], outfile_name + f".{out_format}")
 
         # write base directory if it doesn't exist
         dirname = os.path.dirname(outfile_name)
         if dirname != '' and not os.path.exists(dirname):
             os.mkdir(dirname)
 
-        print("...writing {}".format(outfile_name))
+        print(f"...writing {outfile_name}")
         if 'clobber' not in filing_params:
             filing_params['clobber'] = False
         if out_format == 'uvh5':

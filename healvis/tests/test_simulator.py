@@ -75,7 +75,7 @@ def test_run_simulation():
     # erase output directory
     shutil.rmtree(param_dict['filing']['outdir'])
 
-@pytest.mark.skip
+
 def test_run_simulation_partial_freq():
     # read gsm test file
     skymod_file = os.path.join(DATA_PATH, "gsm_nside32.hdf5")
