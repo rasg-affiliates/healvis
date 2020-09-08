@@ -44,7 +44,9 @@ def make_fringe(az, za, freq, enu):
 
 class Baseline(object):
 
-    def __init__(self, ant1_enu=None, ant2_enu=None, enu_vec=None):
+    def __init__(self, ant1_enu=None, ant2_enu=None, ant1=None, ant2=None, enu_vec=None):
+        self.ant1 = ant1	# Antenna indexes, for indexing beam list if necessary
+        self.ant2 = ant2        # Must be numbers from 0 ..., so the right beams are found.
         if enu_vec is not None:
             self.enu = enu_vec
         else:
@@ -99,11 +101,15 @@ class Observatory(object):
 
     def __init__(self, latitude, longitude, array=None, freqs=None, pix_area_sr=None):
         """
-        array = list of baseline objects (just one for now)
+        array = list of baseline objects
         """
         self.lat = latitude
         self.lon = longitude
         self.array = array
+        self.antennas = set()	# Accumulate the antenna numbers
+        for baseline in array:
+            self.antennas.add(baseline.ant1)
+            self.antennas.add(baseline.ant2)
         self.freqs = freqs
 
         self.beam = None        # Primary beam. Set by `set_beam`
@@ -198,24 +204,26 @@ class Observatory(object):
         Set the beam of the array.
 
         Args:
-            beam : str
-                Input to PowerBeam or AnalyticBeam. If beam is
-                a viable input to AnalyticBeam, then instantiates
-                an AnalyticBeam, otherwise assumes beam is a filepath
-                to a beamfits and instantiates a PowerBeam.
+            beam : str, class or list of classes
+                If beam is a string: if it is a viable input to AnalyticBeam, 
+	        then instantiates an AnalyticBeam, otherwise assumes beam is 
+                a filepath to a beamfits and instantiates a PowerBeam.
+                If beam is a class or list of classes: assume these are beam
+                objects with a "beam_val" method, and save them.
             freq_interp_kind : str
                 For PowerBeam, frequency interpolation option.
 
             kwargs : keyword arguments
                 kwargs to pass to AnalyticBeam instantiation.
         """
-        if beam in ['uniform', 'gaussian', 'airy'] or callable(beam):
-            self.beam = AnalyticBeam(beam, **kwargs)
-
-        else:
-            self.beam = PowerBeam(beam)
-            self.beam.interp_freq(self.freqs, inplace=True, kind=freq_interp_kind)
-            self.beam.freq_interp_kind = freq_interp_kind
+        if isinstance(beam, str):
+            if beam in ['uniform', 'gaussian', 'airy'] or callable(beam):
+                self.beam = AnalyticBeam(beam, **kwargs)
+            else:
+                self.beam = PowerBeam(beam)
+                self.beam.interp_freq(self.freqs, inplace=True, kind=freq_interp_kind)
+                self.beam.freq_interp_kind = freq_interp_kind
+        else: self.beam = beam
 
     def beam_sq_int(self, freqs, Nside, pointing, beam_pol='pI'):
         """
@@ -229,6 +237,8 @@ class Observatory(object):
             pointing : len-2 list
                 Pointing center [Dec, RA] in J2000 degrees
         """
+        if isinstance(beam, list):
+            raise RuntimeError("beam_sq_int not implemented for multiple beams")
         za, az = self.calc_azza(Nside, pointing)
         beam_sq_int = np.sum(self.beam.beam_val(az, za, freqs, pol=beam_pol)**2, axis=0)
         om = 4 * np.pi / (12.0 * Nside**2)
@@ -282,7 +292,7 @@ class Observatory(object):
         """
         if len(pcents) == 0:
             return
-
+        
         # Check for North Pole attribute.
         haspoles = True
         if self.north_poles is None:
@@ -296,14 +306,27 @@ class Observatory(object):
             else:
                 north = None
             za_arr, az_arr, pix = self.calc_azza(self.Nside, c, north, return_inds=True)
-            beam_cube = self.beam.beam_val(az_arr, za_arr, self.freqs, pol=beam_pol)
+ 
+            if isinstance(self.beam, list):
+                # Adds another dimension to beam_cube: the baselines
+                beam_cube = [ None for i in range(len(self.array)) ]
+                for bi, bl in enumerate(self.array):
+                    # Multiply beam correction for the two antennas in each baseline
+                    beam_cube[bi] = \
+                        self.beam[bl.ant1].beam_val(az_arr, za_arr, self.freqs, pol=beam_pol) * \
+                        self.beam[bl.ant2].beam_val(az_arr, za_arr, self.freqs, pol=beam_pol)
+            else:
+                beam_cube = self.beam.beam_val(az_arr, za_arr, self.freqs, pol=beam_pol) # (Npix, Nfreq)
+                if not isinstance(self.beam, PowerBeam): beam_cube *= beam_cube
             if self.do_horizon_taper:
                 horizon_taper = self._horizon_taper(za_arr).reshape(1, za_arr.size, 1)
             else:
                 horizon_taper = 1.0
             for bi, bl in enumerate(self.array):
                 fringe_cube = bl.get_fringe(az_arr, za_arr, self.freqs)
-                vis = np.sum(shell[..., pix, :] * horizon_taper * beam_cube * fringe_cube, axis=-2)
+                vis = np.sum(shell[..., pix, :] * horizon_taper * 
+                             (beam_cube[bi] if isinstance(beam_cube, list) else beam_cube) *
+                             fringe_cube, axis=-2)
                 vis_array.put((tinds[count], bi, vis.tolist()))
             with Nfin.get_lock():
                 Nfin.value += 1
