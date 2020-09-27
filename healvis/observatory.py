@@ -99,12 +99,13 @@ class Observatory(object):
 
     """
 
-    def __init__(self, latitude, longitude, array=None, freqs=None, pix_area_sr=None):
+    def __init__(self, latitude, longitude, height, array=None, freqs=None, pix_area_sr=None):
         """
         array = list of baseline objects
         """
         self.lat = latitude
         self.lon = longitude
+        self.height = height
         self.array = array
         self.antennas = set()	# Accumulate the antenna numbers
         for baseline in array:
@@ -117,7 +118,8 @@ class Observatory(object):
         self.fov = None         # Diameter of sky region, centered on pointing_centers, to select from the shell.
         self.pointing_centers = None    # List of [ra, dec] positions. One for each time. `set_pointings` sets this to zenith.
         self.north_poles = None     # [ra,dec] ICRS position of the Earth's north pole. Set by `set_pointings`.
-        self.telescope_location = EarthLocation.from_geodetic(self.lon * units.degree, self.lat * units.degree)
+        self.telescope_location = EarthLocation.from_geodetic(self.lon * units.degree, self.lat * units.degree, 
+                                    self.height)
 
         self.do_horizon_taper = False
         self.pix_area_sr = pix_area_sr  # If doing horizon taper, need to set pixel area
