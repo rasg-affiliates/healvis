@@ -312,11 +312,11 @@ class Observatory(object):
             if isinstance(self.beam, list):
                 # Adds another dimension to beam_cube: the baselines
                 beam_cube = [ None for i in range(len(self.array)) ]
+                beam_val = [ None for i in range(len(self.antennas)) ]
+                for i in self.antennas: beam_val[i] = self.beam[i].beam_val(az_arr, za_arr, self.freqs, pol=beam_pol)
                 for bi, bl in enumerate(self.array):
                     # Multiply beam correction for the two antennas in each baseline
-                    beam_cube[bi] = \
-                        self.beam[bl.ant1].beam_val(az_arr, za_arr, self.freqs, pol=beam_pol) * \
-                        self.beam[bl.ant2].beam_val(az_arr, za_arr, self.freqs, pol=beam_pol)
+                    beam_cube[bi] = beam_val[bl.ant1]*beam_val[bl.ant2]
             else:
                 beam_cube = self.beam.beam_val(az_arr, za_arr, self.freqs, pol=beam_pol) # (Npix, Nfreq)
                 if not isinstance(self.beam, PowerBeam): beam_cube *= beam_cube
