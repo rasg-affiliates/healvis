@@ -313,13 +313,17 @@ class Observatory(object):
                 # Adds another dimension to beam_cube: the baselines
                 beam_cube = [ None for i in range(len(self.array)) ]
                 beam_val = [ None for i in range(len(self.antennas)) ]
-                for i in self.antennas: beam_val[i] = self.beam[i].beam_val(az_arr, za_arr, self.freqs, pol=beam_pol)
+                for i in self.antennas: 
+                    bv = self.beam[i].beam_val(az_arr, za_arr, self.freqs, pol=beam_pol)
+                    bv[np.argwhere(za_arr>np.pi/2)[:, 0], :] = 0    # Sources below horizon
+                    beam_val[i] = bv
                 for bi, bl in enumerate(self.array):
                     # Multiply beam correction for the two antennas in each baseline
                     beam_cube[bi] = beam_val[bl.ant1]*beam_val[bl.ant2]
             else:
                 beam_cube = self.beam.beam_val(az_arr, za_arr, self.freqs, pol=beam_pol) # (Npix, Nfreq)
                 if not isinstance(self.beam, PowerBeam): beam_cube *= beam_cube
+                beam_cube[np.argwhere(za_arr>np.pi/2)[:, 0], :] = 0    # Sources below horizon
             if self.do_horizon_taper:
                 horizon_taper = self._horizon_taper(za_arr).reshape(1, za_arr.size, 1)
             else:
