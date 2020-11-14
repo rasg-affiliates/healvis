@@ -114,10 +114,9 @@ class PowerBeam(UVBeam):
         if beamfits is not None:
             self.read_beamfits(beamfits)
 
-        # convert to power if efield
+        # raise error if fed an efield beam
         if self.beam_type == 'efield':
-            self.efield_to_power()
-        self.peak_normalize()
+            raise ValueError("input beam_type is 'efield'. First use efield_to_power()")
 
         # Put data array in shared memory
         dat = self.data_array
