@@ -795,13 +795,13 @@ def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, bea
         Writes simulation result into uvh5_file
     """
     # load UVH5 metadata
-    if isinstance(uvd, str):
+    if isinstance(uvh5_file, str):
         uvd = UVData()
         uvd.read_uvh5(uvh5_file, read_data=False)
     pols = [uvutils.polnum2str(pol) for pol in uvd.polarization_array]
 
     # load SkyModel
-    if isinstance(sky, str):
+    if isinstance(skymod_file, str):
         sky = sky_model.SkyModel()
         sky.read_hdf5(skymod_file, freq_chans=freq_chans, shared_memory=False)
 
