@@ -330,7 +330,7 @@ def gsm_shell(Nside, freqs, use_2016=False):
     return maps.T
 
 
-def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, Nskies=1, sigma=None, amplitude=None):
+def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, Nskies=1, sigma=None, amplitude=None, seed=None):
     """
     Construct a SkyModel object or read from disk
 
@@ -349,10 +349,16 @@ def construct_skymodel(sky_type, freqs=None, Nside=None, ref_chan=0, Nskies=1, s
             If sky_type == 'flat_spec', this is the power spectrum amplitude
         amplitude : float
             Monopole amplitude in K
+        seed : int
+            Seed to initialise random number generator. Only relevant for flat
+            spectrum noise shell.
 
     Returns:
         SkyModel object
     """
+
+    if seed is not None: np.random.seed(seed)
+
     sky = SkyModel()
     sky.Nside = Nside
     sky.freqs = freqs
