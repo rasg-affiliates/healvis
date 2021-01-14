@@ -99,6 +99,9 @@ git_hash = version_info['git_hash']
 git_description = version_info['git_description']
 git_branch = version_info['git_branch']
 
+updated = True  # This indicates that the installation of healvis is 
+                # from https://github.com/hughbg/healvis.git, which has
+                # some updates and fixes.
 
 def main():
     print('Version = {0}'.format(version))
