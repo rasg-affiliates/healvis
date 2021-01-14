@@ -33,6 +33,8 @@ To get started running `healvis`, see our [tutorial notebooks](https://github.co
 
 ## Updates in this fork
 
-- Allow a telescope height above ground to be specfied
-- Allow specifying a different beam for each antenna
+- Allow a telescope height above ground to be specfied.
+- Allow specifying a different beam for each antenna.
 - Make sure beam is multiplied twice (not once) into cross-correlation calculations. If the beam is not a power beam.
+- Add the ability to seed the random number generator, which is used for generating the EoR shell.
+- Ignore pixels below the horizon.
