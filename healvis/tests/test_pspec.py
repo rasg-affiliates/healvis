@@ -6,7 +6,6 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 from astropy.time import Time
-import nose.tools as nt
 
 from healvis import observatory, sky_model, utils, cosmology
 
@@ -74,4 +73,4 @@ def test_pspec_amp():
     tolerance = (amp_theor / float(Ntimes))   # assuming independent fields
     print(amp_theor, np.mean(dspec_I))
     print(tolerance)
-    nt.assert_true(np.isclose(amp_theor, np.mean(dspec_I), atol=2 * tolerance))   # Close to within twice the sample variance
+    assert np.isclose(amp_theor, np.mean(dspec_I), atol=2 * tolerance)   # Close to within twice the sample variance

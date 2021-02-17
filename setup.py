@@ -42,7 +42,6 @@ setup_args = {
     'packages': ['healvis', 'healvis.tests'],
     'include_package_data': True,
     'package_data': {'healvis': data_files},
-#    'scripts': glob.glob('scripts/*'),
     'version': version.version,
     'include_package_data': True,
     'setup_requires': ['numpy>=1.14', 'six>=1.10'],
