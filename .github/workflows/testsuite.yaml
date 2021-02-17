@@ -38,14 +38,10 @@ jobs:
 
       - name: Install
         run: |
-          export PATH="$HOME/miniconda/bin:$PATH"
-          source activate ${{ matrix.kind }}
           python -m pip install .
 
       - name: Run Tests
         run: |
-          export PATH="$HOME/miniconda/bin:$PATH"
-          source activate ${{ matrix.kind }}
           python -m pytest --cov=healvis --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
 
       - uses: codecov/codecov-action@master
