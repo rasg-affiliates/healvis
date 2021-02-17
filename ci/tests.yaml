@@ -7,7 +7,6 @@ dependencies:
   - coverage
   - h5py
   - scikit-learn
-  - astropy-healpix
   - numpy>=1.15
   - pip
   - astropy-healpix
@@ -17,6 +16,5 @@ dependencies:
   - pyuvdata
   - pyyaml>=5.1
   - scipy
-  - healpy
   - pip:
     - git+https://github.com/telegraphic/PyGSM.git
