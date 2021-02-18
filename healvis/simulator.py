@@ -59,7 +59,7 @@ def parse_telescope_params(tele_params):
             raise ValueError('layout_csv file from yaml does not exist: {}'.format(layout_csv))
 
     ant_layout = _parse_layout_csv(layout_csv)
-    if isinstance(tele_params['telescope_location'], (str, np.str)):
+    if isinstance(tele_params['telescope_location'], str):
         tloc = tele_params['telescope_location'][1:-1]  # drop parens
         tloc = list(map(float, tloc.split(",")))
     else:
@@ -314,7 +314,7 @@ def complete_uvdata(uv_obj, run_check=True):
 
     # fill in data
     uv_obj.data_array = np.zeros((uv_obj.Nblts, uv_obj.Nspws, uv_obj.Nfreqs, uv_obj.Npols), dtype=np.complex128)
-    uv_obj.flag_array = np.zeros((uv_obj.Nblts, uv_obj.Nspws, uv_obj.Nfreqs, uv_obj.Npols), dtype=np.bool)
+    uv_obj.flag_array = np.zeros((uv_obj.Nblts, uv_obj.Nspws, uv_obj.Nfreqs, uv_obj.Npols), dtype=bool)
     uv_obj.nsample_array = np.ones((uv_obj.Nblts, uv_obj.Nspws, uv_obj.Nfreqs, uv_obj.Npols), dtype=np.float64)
 
     # Other attributes
@@ -415,9 +415,9 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
     uv_obj.Ntimes = Ntimes
 
     # fill in other attributes
-    uv_obj.spw_array = np.array([0], dtype=np.int)
+    uv_obj.spw_array = np.array([0], dtype=int)
     uv_obj.Nspws = 1
-    uv_obj.polarization_array = np.array([uvutils.polstr2num(pol) for pol in pols], dtype=np.int)
+    uv_obj.polarization_array = np.array([uvutils.polstr2num(pol) for pol in pols], dtype=int)
     uv_obj.Npols = uv_obj.polarization_array.size
     if uv_obj.Nfreqs > 1:
         uv_obj.channel_width = np.diff(uv_obj.freq_array[0])[0]
@@ -440,7 +440,7 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
     bl_array = []
     _bls = [(a1, a2) for a1 in anums for a2 in anums if a1 <= a2]
     if bls is not None:
-        if isinstance(bls, (str, np.str)):
+        if isinstance(bls, str):
             bls = ast.literal_eval(bls)
         bls = [bl for bl in _bls if bl in bls]
     else:
@@ -451,9 +451,9 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
     if bool(no_autos):
         bls = [bl for bl in bls if bl[0] != bl[1]]
     if antenna_nums is not None:
-        if isinstance(antenna_nums, (str, np.str)):
+        if isinstance(antenna_nums, str):
             antenna_nums = ast.literal_eval(antenna_nums)
-        if isinstance(antenna_nums, (int, np.int)):
+        if isinstance(antenna_nums, int):
             antenna_nums = [antenna_nums]
         bls = [(a1, a2) for (a1, a2) in bls if a1 in antenna_nums or a2 in antenna_nums]
     bls = sorted(bls)
@@ -535,7 +535,7 @@ def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None
             obs.beam.__class__ = beam_model.PowerBeam
             obs.beam.interp_freq(obs.freqs, inplace=True, kind=beam_freq_interp)
 
-        elif isinstance(beam, (str, np.str)) or callable(beam):
+        elif isinstance(beam, str) or callable(beam):
             obs.set_beam(beam, freq_interp_kind=beam_freq_interp, **beam_kwargs)
 
         elif isinstance(beam, beam_model.PowerBeam):
@@ -556,7 +556,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     Parse input parameter file, construct UVData and SkyModel objects, and run simulation.
     """
     # parse parameter dictionary
-    if isinstance(param_file, (str, np.str)):
+    if isinstance(param_file, str):
         with open(param_file, 'r') as yfile:
             param_dict = yaml.safe_load(yfile)
     else:
@@ -623,7 +623,8 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     if pols is None:
         warnings.warn("No polarization specified. Defaulting to pI")
         pols = ['pI']
-        uvd_dict['pols'] = pols
+
+    uvd_dict['pols'] = pols
 
     if 'select' in param_dict:
         uvd_dict.update(param_dict['select'])
@@ -701,7 +702,6 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
         uv_obj.data_array = vis[:, np.newaxis, :, :]  # (Nblts, Nspws, Nfreqs, Npols)
 
         uv_obj.check()
-
         if 'format' in filing_params:
             out_format = filing_params['format']
         else:
@@ -811,8 +811,8 @@ def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, bea
         visibility.append(visibs)
 
     visibility = np.moveaxis(visibility, 0, -1)
-    flags = np.zeros_like(visibility, np.bool)
-    nsamples = np.ones_like(visibility, np.float)
+    flags = np.zeros_like(visibility, bool)
+    nsamples = np.ones_like(visibility, float)
 
     # write to disk
     print("...writing to {}".format(uvh5_file))
