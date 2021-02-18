@@ -25,7 +25,6 @@ def setup_and_teardown_package():
     # and turn it back on in teardown_package (done by extending auto_max_age)
     if iers.conf.auto_download:
         try:
-            iers.IERS_A.open(iers.IERS_A_URL)
             t1 = Time.now()
             t1.ut1
         except (URLError, HTTPError):

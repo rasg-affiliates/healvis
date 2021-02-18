@@ -2,8 +2,6 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 3-clause BSD License
 
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 import multiprocessing as mp
 from astropy.constants import c
@@ -103,3 +101,9 @@ def enu_array_to_layout(enu_arr, fname):
             beam_id = 0
             line = ("{:6} {:8d} {:8d} {:10.4f} {:10.4f} {:10.4f}\n").format(name, num, beam_id, e, n, u)
             lfile.write(line)
+
+def npix2nside(npix):
+    test = np.log2(npix / 12)
+    if not test == np.floor(test):
+        raise ValueError(f"Invalid number of pixels {npix}")
+    return int(test)

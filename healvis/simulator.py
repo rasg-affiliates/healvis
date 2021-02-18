@@ -2,8 +2,6 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 3-clause BSD License
 
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 import yaml
 import sys
@@ -61,7 +59,7 @@ def parse_telescope_params(tele_params):
             raise ValueError('layout_csv file from yaml does not exist: {}'.format(layout_csv))
 
     ant_layout = _parse_layout_csv(layout_csv)
-    if isinstance(tele_params['telescope_location'], (str, np.str)):
+    if isinstance(tele_params['telescope_location'], str):
         tloc = tele_params['telescope_location'][1:-1]  # drop parens
         tloc = list(map(float, tloc.split(",")))
     else:
@@ -316,7 +314,7 @@ def complete_uvdata(uv_obj, run_check=True):
 
     # fill in data
     uv_obj.data_array = np.zeros((uv_obj.Nblts, uv_obj.Nspws, uv_obj.Nfreqs, uv_obj.Npols), dtype=np.complex128)
-    uv_obj.flag_array = np.zeros((uv_obj.Nblts, uv_obj.Nspws, uv_obj.Nfreqs, uv_obj.Npols), dtype=np.bool)
+    uv_obj.flag_array = np.zeros((uv_obj.Nblts, uv_obj.Nspws, uv_obj.Nfreqs, uv_obj.Npols), dtype=bool)
     uv_obj.nsample_array = np.ones((uv_obj.Nblts, uv_obj.Nspws, uv_obj.Nfreqs, uv_obj.Npols), dtype=np.float64)
 
     # Other attributes
@@ -417,15 +415,15 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
     uv_obj.Ntimes = Ntimes
 
     # fill in other attributes
-    uv_obj.spw_array = np.array([0], dtype=np.int)
+    uv_obj.spw_array = np.array([0], dtype=int)
     uv_obj.Nspws = 1
-    uv_obj.polarization_array = np.array([uvutils.polstr2num(pol) for pol in pols], dtype=np.int)
+    uv_obj.polarization_array = np.array([uvutils.polstr2num(pol) for pol in pols], dtype=int)
     uv_obj.Npols = uv_obj.polarization_array.size
     if uv_obj.Nfreqs > 1:
         uv_obj.channel_width = np.diff(uv_obj.freq_array[0])[0]
     else:
         uv_obj.channel_width = 1.0
-    uv_obj.set_drift()
+    uv_obj._set_drift()
     uv_obj.telescope_name = tele_dict['telescope_name']
     uv_obj.instrument = 'simulator'
     uv_obj.object_name = 'zenith'
@@ -442,7 +440,7 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
     bl_array = []
     _bls = [(a1, a2) for a1 in anums for a2 in anums if a1 <= a2]
     if bls is not None:
-        if isinstance(bls, (str, np.str)):
+        if isinstance(bls, str):
             bls = ast.literal_eval(bls)
         bls = [bl for bl in _bls if bl in bls]
     else:
@@ -453,9 +451,9 @@ def setup_uvdata(array_layout=None, telescope_location=None, telescope_name=None
     if bool(no_autos):
         bls = [bl for bl in bls if bl[0] != bl[1]]
     if antenna_nums is not None:
-        if isinstance(antenna_nums, (str, np.str)):
+        if isinstance(antenna_nums, str):
             antenna_nums = ast.literal_eval(antenna_nums)
-        if isinstance(antenna_nums, (int, np.int)):
+        if isinstance(antenna_nums, int):
             antenna_nums = [antenna_nums]
         bls = [(a1, a2) for (a1, a2) in bls if a1 in antenna_nums or a2 in antenna_nums]
     bls = sorted(bls)
@@ -513,13 +511,12 @@ def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None
         ap = uv_obj.baseline_to_antnums(bl)
         bls.append(observatory.Baseline(antpos_d[ap[0]], antpos_d[ap[1]]))
 
-    lat, lon, alt = uv_obj.telescope_location_lat_lon_alt
+    lat, lon, alt = uv_obj.telescope_location_lat_lon_alt_degrees
     if freq_chans is None:
         freq_chans = slice(None)
-    obs = observatory.Observatory(np.degrees(lat), np.degrees(lon), array=bls, freqs=uv_obj.freq_array[0, freq_chans])
-
-    # set FOV
-    obs.set_fov(fov)
+    obs = observatory.Observatory(
+        lat, lon, fov=fov, baseline_array=bls, freqs=uv_obj.freq_array[0, freq_chans]
+    )
 
     # Horizon taper flag
     obs.do_horizon_taper = apply_horizon_taper
@@ -538,7 +535,7 @@ def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None
             obs.beam.__class__ = beam_model.PowerBeam
             obs.beam.interp_freq(obs.freqs, inplace=True, kind=beam_freq_interp)
 
-        elif isinstance(beam, (str, np.str)) or callable(beam):
+        elif isinstance(beam, str) or callable(beam):
             obs.set_beam(beam, freq_interp_kind=beam_freq_interp, **beam_kwargs)
 
         elif isinstance(beam, beam_model.PowerBeam):
@@ -557,11 +554,9 @@ def setup_observatory_from_uvdata(uv_obj, fov=180, set_pointings=True, beam=None
 def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     """
     Parse input parameter file, construct UVData and SkyModel objects, and run simulation.
-
-    (Moved code from wrapper to here)
     """
     # parse parameter dictionary
-    if isinstance(param_file, (str, np.str)):
+    if isinstance(param_file, str):
         with open(param_file, 'r') as yfile:
             param_dict = yaml.safe_load(yfile)
     else:
@@ -585,8 +580,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
 
     if 'Nprocs' in param_dict:
         Nprocs = param_dict['Nprocs']
-    print("Nprocs: ", Nprocs)
-    sys.stdout.flush()
+    print("Nprocs: ", Nprocs, flush=True)
 
     # ---------------------------
     # SkyModel
@@ -624,8 +618,13 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     uvd_dict['freq_array'] = freq_array
     uvd_dict['time_array'] = time_array
 
-    if 'pols' in param_dict['beam'].keys():
-        uvd_dict['pols'] = param_dict['beam']['pols']
+    beam_attr = param_dict['beam'].copy()
+    pols = beam_attr.pop("pols", None)
+    if pols is None:
+        warnings.warn("No polarization specified. Defaulting to pI")
+        pols = ['pI']
+
+    uvd_dict['pols'] = pols
 
     if 'select' in param_dict:
         uvd_dict.update(param_dict['select'])
@@ -638,10 +637,8 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     # ---------------------------
     # Observatory
     # ---------------------------
-    beam_attr = param_dict['beam'].copy()
     beam_type = beam_attr.pop("beam_type")
 
-    pols = beam_attr.pop("pols", None)
     beam_freq_interp = beam_attr.pop("beam_freq_interp", 'cubic')
     smooth_beam = beam_attr.pop("smooth_beam", False)
     smooth_scale = beam_attr.pop("smooth_scale", None)
@@ -660,21 +657,16 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     # ---------------------------
     # Run simulation
     # ---------------------------
-    print("Running simulation")
-    sys.stdout.flush()
+    print("Running simulation", flush=True)
     visibility = []
     beam_sq_int = {}
-    print('Nskies: {}'.format(sky.Nskies))
-    sys.stdout.flush()
-    if pols is None:
-        warnings.warn("No polarization specified. Defaulting to pI")
-        pols = ['pI']
+    print(f'Nskies: {sky.Nskies}', flush=True)
     for pol in pols:
         # calculate visibility
         visibs, time_array, baseline_inds = obs.make_visibilities(sky, Nprocs=Nprocs, beam_pol=pol)
         visibility.append(visibs)
         # Average Beam^2 integral across frequency
-        beam_sq_int['bm_sq_{}'.format(pol)] = np.asscalar(obs.beam_sq_int(sky.ref_freq, sky.Nside, obs.pointing_centers[0], beam_pol=pol))
+        beam_sq_int[f'bm_sq_{pol}'] = obs.beam_sq_int(sky.ref_freq, sky.Nside, obs.pointing_centers[0], beam_pol=pol).item()
 
     visibility = np.moveaxis(visibility, 0, -1)
 
@@ -689,7 +681,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
     if sjob_id is None:
         sjob_id = ''
 
-    del sky.data    # Free up memory of sky model.
+    del sky.data    # Free up memory.
 
     uv_obj = complete_uvdata(uv_obj)
 
@@ -710,7 +702,6 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
         uv_obj.data_array = vis[:, np.newaxis, :, :]  # (Nblts, Nspws, Nfreqs, Npols)
 
         uv_obj.check()
-
         if 'format' in filing_params:
             out_format = filing_params['format']
         else:
@@ -718,7 +709,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
 
         if 'outfile_suffix' not in filing_params:
             if Nskies > 1:
-                filing_params['outfile_suffix'] = '{}sky_uv'.format(si)
+                filing_params['outfile_suffix'] = f'{si}sky_uv'
             elif out_format == 'miriad':
                 filing_params['outfile_suffix'] = 'uv'
 
@@ -728,7 +719,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
             else:
                 outfile_name = filing_params['outfile_prefix']
             if beam_type == 'gaussian':
-                outfile_name += '_fwhm{:.3f}'.format(fwhm)
+                outfile_name += f'_fwhm{fwhm:.3f}'
             elif beam_type == 'airy':
                 outfile_name += '_diam{:.2f}'.format(beam_attr['diameter'])
 
@@ -741,14 +732,14 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=''):
         if out_format == 'miriad':
             outfile_name = os.path.join(filing_params['outdir'], outfile_name + ".uv")
         else:
-            outfile_name = os.path.join(filing_params['outdir'], outfile_name + ".{}".format(out_format))
+            outfile_name = os.path.join(filing_params['outdir'], outfile_name + f".{out_format}")
 
         # write base directory if it doesn't exist
         dirname = os.path.dirname(outfile_name)
         if dirname != '' and not os.path.exists(dirname):
             os.mkdir(dirname)
 
-        print("...writing {}".format(outfile_name))
+        print(f"...writing {outfile_name}")
         if 'clobber' not in filing_params:
             filing_params['clobber'] = False
         if out_format == 'uvh5':
@@ -820,8 +811,8 @@ def run_simulation_partial_freq(freq_chans, uvh5_file, skymod_file, fov=180, bea
         visibility.append(visibs)
 
     visibility = np.moveaxis(visibility, 0, -1)
-    flags = np.zeros_like(visibility, np.bool)
-    nsamples = np.ones_like(visibility, np.float)
+    flags = np.zeros_like(visibility, bool)
+    nsamples = np.ones_like(visibility, float)
 
     # write to disk
     print("...writing to {}".format(uvh5_file))

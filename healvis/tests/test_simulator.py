@@ -2,20 +2,14 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 3-clause BSD License
 
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
-import healpy as hp
 import os
-import pytest
-import six
 import yaml
 import shutil
-from astropy.cosmology import Planck15
 
 from pyuvdata import UVData
 
-from healvis import sky_model, simulator, observatory, beam_model, utils
+from healvis import sky_model, simulator,beam_model, utils
 from healvis.data import DATA_PATH
 import healvis.tests as simtest
 
@@ -43,7 +37,6 @@ def test_setup_uvdata():
     assert uvd.Nbls == 1
 
 
-@pytest.mark.skipif(six.PY2, reason='Very slow on Python 2')
 def test_run_simulation():
     # load parameter file from test directory
     param_file = os.path.join(DATA_PATH, "configs/obsparam_test.yaml")
@@ -80,7 +73,6 @@ def test_run_simulation():
     shutil.rmtree(param_dict['filing']['outdir'])
 
 
-@pytest.mark.skipif(six.PY2, reason='Very slow on Python 2')
 def test_run_simulation_partial_freq():
     # read gsm test file
     skymod_file = os.path.join(DATA_PATH, "gsm_nside32.hdf5")

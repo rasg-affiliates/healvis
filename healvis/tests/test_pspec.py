@@ -2,8 +2,6 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 3-clause BSD License
 
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 from astropy.time import Time
 
@@ -57,7 +55,7 @@ def test_pspec_amp():
 
     dspec_instr = np.abs(_vis)**2
 
-    za, az = obs.calc_azza(sky.Nside, obs.pointing_centers[0])
+    za, az = obs.calc_azza(obs.pointing_centers[0])
     beam_sq_int = np.mean(obs.beam_sq_int(freqs, nside, obs.pointing_centers[0]))
 
     Bandwidth = freqs[-1] - freqs[0]

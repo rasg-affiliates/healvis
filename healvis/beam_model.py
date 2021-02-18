@@ -2,8 +2,6 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 3-clause BSD License
 
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 import copy
 from astropy.constants import c
@@ -121,6 +119,8 @@ class PowerBeam(UVBeam):
 
         # Put data array in shared memory
         dat = self.data_array
+        if np.iscomplexobj(dat):
+            dat = dat.real      # Power beams should have zero imaginary component.
         pdat = mparray(dat.shape, dtype=float)
         pdat[()] = dat[()]
         self.data_array = pdat
@@ -237,12 +237,12 @@ class PowerBeam(UVBeam):
         """
         # type checks
         assert self.beam_type == 'power', "beam_type must be power. See efield_to_power()"
-        if isinstance(az, (float, np.float, int, np.int)):
-            az = np.array([az]).astype(np.float)
-        if isinstance(za, (float, np.float, int, np.int)):
-            za = np.array([za]).astype(np.float)
-        if isinstance(freqs, (float, np.float, int, np.int)):
-            freqs = np.array([freqs]).astype(np.float)
+        if isinstance(az, (float, int)):
+            az = np.array([az]).astype(float)
+        if isinstance(za, (float, int)):
+            za = np.array([za]).astype(float)
+        if isinstance(freqs, (float, int)):
+            freqs = np.array([freqs]).astype(float)
         az = np.asarray(az)
         za = np.asarray(za)
         freqs = np.asarray(freqs)
@@ -256,7 +256,7 @@ class PowerBeam(UVBeam):
             freqs = self.freq_array[0]
         else:
             # get nearest neighbor of each reqeuested frequency
-            if isinstance(freqs, (float, np.float, int, np.int)):
+            if isinstance(freqs, (float, int)):
                 freqs = np.array([freqs])
             freqs = np.asarray(freqs)
             assert freqs.ndim == 1, "input freqs array must be 1-dimensional"
@@ -340,11 +340,11 @@ class AnalyticBeam(object):
         Returns:
             beam_value : ndarray of beam power, with shape (Npix, Nfreqs) where Npix = len(za)
         """
-        if isinstance(az, (float, np.float, int, np.int)):
+        if isinstance(az, (float, int)):
             az = np.array([az])
-        if isinstance(za, (float, np.float, int, np.int)):
+        if isinstance(za, (float, int)):
             za = np.array([za])
-        if isinstance(freqs, (float, np.float, int, np.int)):
+        if isinstance(freqs, (float, int)):
             freqs = np.array([freqs])
         az = np.asarray(az)
         za = np.asarray(za)
@@ -354,7 +354,7 @@ class AnalyticBeam(object):
             if isinstance(az, np.ndarray):
                 if np.isscalar(freqs):
                     freqs = [freqs]
-                beam_value = np.ones((len(za), len(freqs)), dtype=np.float)
+                beam_value = np.ones((len(za), len(freqs)), dtype=float)
             else:
                 beam_value = 1.0
         elif self.beam_type == 'gaussian':

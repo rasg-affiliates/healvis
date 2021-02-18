@@ -2,18 +2,16 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 3-clause BSD License
 
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 import os
 import warnings
-import healpy as hp
+from astropy_healpix import healpy as hp
 with warnings.catch_warnings():  # noqa
     warnings.simplefilter('ignore', FutureWarning)
     import h5py
 from astropy.cosmology import Planck15 as cosmo
 
-from .utils import mparray
+from .utils import mparray, npix2nside
 from .cosmology import f21, comoving_voxel_volume, comoving_distance
 from .version import history_string
 
@@ -187,22 +185,44 @@ class SkyModel(object):
             for k in infile.attrs:
                 setattr(self, k, infile.attrs[k])
 
+            standard_attrs = ['Nfreqs', 'Nside']
+            for sa in standard_attrs:
+                if not sa in infile.attrs:
+                    warnings.warn(f"{sa} not in file attributes. Inferring from array shapes.")
+
             # load heavier datasets
             for k in self.dsets:
                 if k in infile:
                     if k == 'data':
+                        s = list(infile[k].shape)   # Shape of infile data array
+                        if Nfreqs_load is not None:
+                            s[-1] = Nfreqs_load
+                        s = tuple(s)
+                        if len(s) < 3:
+                            s = (1,) + s
                         if shared_memory:
-                            s = list(infile[k].shape)   # Shape of infile data array
-                            if Nfreqs_load is not None:
-                                s[-1] = Nfreqs_load
-                            s = tuple(s)
-                            if len(s) < 3:
-                                s = (1,) + s
-                            self.data = mparray(s, dtype=np.float)
-                            self.data[()] = infile[k][..., freq_chans]   # Transfer data from infile.
+                            self.data = mparray(s, dtype=float)
+                        npix = -1
+                        if self.Nside is not None:
+                            npix = self.Nside**2 * 12
+                        if self.Nfreqs is None:
+                            try:
+                                self.Nfreqs = infile['freqs'].shape[0]
+                            except AttributeError:
+                                pass
+                        if s[2] == npix or s[1] == self.Nfreqs:
+                            # pixel axis is last.
+                            # For compatibility with pyradiosky's hdf5 axis ordering.
+                            if shared_memory:
+                                self.data[()] = infile[k][..., freq_chans, :]
+                            else:
+                                setattr(self, k, infile[k][:, freq_chans, :])
+                            self.data = np.swapaxes(self.data, 1, 2)
                         else:
-                            # load the data via slice
-                            setattr(self, k, infile[k][:, :, freq_chans])
+                            if shared_memory:
+                                self.data[()] = infile[k][..., freq_chans]   # Transfer data from infile.
+                            else:
+                                setattr(self, k, infile[k][:, :, freq_chans])
                     elif k == 'freqs':
                         setattr(self, k, infile[k][:][freq_chans])
                     elif k == 'history':
@@ -218,7 +238,7 @@ class SkyModel(object):
 
         if self.Nside is None:
             try:
-                self.Nside = hp.npix2nside(self.data.shape[1])
+                self.Nside = npix2nside(self.data.shape[1])
             except(ValueError):
                 raise ValueError("Data array is not a full HEALPix map, and Nside not provided.")
         self._update()
@@ -277,7 +297,7 @@ def flat_spectrum_noise_shell(sigma, freqs, Nside, Nskies, ref_chan=0, shared_me
     """
     # generate empty array
     Nfreqs = len(freqs)
-    Npix = hp.nside2npix(Nside)
+    Npix = 12 * Nside**2
     if shared_memory:
         data = mparray((Nskies, Npix, Nfreqs), dtype=float)
     else:
@@ -314,6 +334,10 @@ def gsm_shell(Nside, freqs, use_2016=False):
         data : ndarray, shape (Npix, Nfreqs)
             GSM shell as HEALpix maps
     """
+    try:
+        import healpy as hp
+    except ImportError:
+        raise ImportError("healpy is unavailable, and is required for this function.")
     assert pygsm_import, "Couldn't import pygsm package. This is required to use GSM functionality."
     if use_2016:
         maps = pygsm.GlobalSkyModel2016(freq_unit='Hz', unit='TCMB').generate(freqs)  # Units K
