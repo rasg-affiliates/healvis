@@ -17,3 +17,4 @@ dependencies:
   - pyuvdata
   - pyyaml>=5.1
   - scipy
+  - numba

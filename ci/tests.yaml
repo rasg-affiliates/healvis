@@ -16,5 +16,6 @@ dependencies:
   - pyuvdata
   - pyyaml>=5.1
   - scipy
+  - numba
   - pip:
     - git+https://github.com/telegraphic/PyGSM.git
