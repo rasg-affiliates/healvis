@@ -151,7 +151,7 @@ class PowerBeam(UVBeam):
         new_beam.bandpass_array = interp_bp
         if hasattr(new_beam, 'saved_interp_functions'):
             delattr(new_beam, 'saved_interp_functions')
-        print("Doing frequency interpolation: " + kind)
+        print("Doing frequency interpolation: " + str(kind))
         if run_check:
             new_beam.check()
 
@@ -320,7 +320,7 @@ class AnalyticBeam(object):
             self.ref_freq = ref_freq
             if (not spectral_index == 0.0) and (ref_freq is None):
                 raise ValueError("ref_freq must be set for nonzero gaussian beam spectral index")
-            elif ref_freq is None:
+            if ref_freq is None:
                 self.ref_freq = 1.0  # Flat spectrum anyway
         elif beam_type == 'airy':
             if diameter is None:
