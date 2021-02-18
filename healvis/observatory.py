@@ -126,8 +126,8 @@ class Observatory(object):
         for t in Time(time_arr, scale='utc', format='jd'):
             zen = AltAz(alt=Angle('90d'), az=Angle('0d'), obstime=t, location=self.telescope_location)
             north = AltAz(alt=Angle('0d'), az=Angle('0d'), obstime=t, location=self.telescope_location)
-            zen_radec = zen.transform_to(ICRS)
-            north_radec = north.transform_to(ICRS)
+            zen_radec = zen.transform_to(ICRS())
+            north_radec = north.transform_to(ICRS())
             centers.append([zen_radec.ra.deg, zen_radec.dec.deg])
             north_poles.append([north_radec.ra.deg, north_radec.dec.deg])
         self.pointing_centers = centers

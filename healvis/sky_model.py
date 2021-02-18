@@ -201,7 +201,7 @@ class SkyModel(object):
                         if len(s) < 3:
                             s = (1,) + s
                         if shared_memory:
-                            self.data = mparray(s, dtype=np.float)
+                            self.data = mparray(s, dtype=float)
                         npix = -1
                         if self.Nside is not None:
                             npix = self.Nside**2 * 12
