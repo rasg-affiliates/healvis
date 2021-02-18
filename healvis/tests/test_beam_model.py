@@ -43,7 +43,7 @@ def test_PowerBeam():
     # interpolation)
     # delta must be larger than UVBeam._inter_freq tol, but small enough
     # to keep the same freq nearest neighbors
-    b2 = P.beam_val(az, az, freqs + 1e6, pol="XX")
+    b2 = P.beam_val(az, za, freqs + 1e6, pol="XX")
     np.testing.assert_array_almost_equal(b, b2)
 
     # smooth the beam
