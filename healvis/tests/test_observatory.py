@@ -215,6 +215,7 @@ def test_offzenith_vis():
 
 def test_gsm_pointing():
     pytest.importorskip("pygsm")
+
     # test that PyGSM visibility sim peaks at times when galactic center transits
     ant1_enu = np.array([0.0, 0.0, 0.0])
     ant2_enu = np.array([15.0, 0, 0])

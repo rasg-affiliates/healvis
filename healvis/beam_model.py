@@ -133,6 +133,7 @@ class PowerBeam(UVBeam):
         dat = self.data_array
         if np.iscomplexobj(dat):
             dat = dat.real  # Power beams should have zero imaginary component.
+
         pdat = mparray(dat.shape, dtype=float)
         pdat[()] = dat[()]
         self.data_array = pdat
@@ -269,6 +270,7 @@ class PowerBeam(UVBeam):
         assert (
             self.beam_type == "power"
         ), "beam_type must be power. See efield_to_power()"
+
         if isinstance(az, (float, int)):
             az = np.array([az]).astype(float)
         if isinstance(za, (float, int)):

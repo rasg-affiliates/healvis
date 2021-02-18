@@ -1,13 +1,12 @@
 # Changelog
 
-## [unreleased]
+## [Unreleased]
 
 ### Changed
 - Made healpy an optional dependency for using pygsm.
 - Replaced healpy functions with astropy-healpix equivalents.
 - Removed astropy-healpix incompatible functions
 - Removing all support for Python 2
-
 
 ## [v1.2.0] 12-23-2019
 

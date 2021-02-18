@@ -107,7 +107,6 @@ def enu_array_to_layout(enu_arr, fname):
             )
             lfile.write(line)
 
-
 def npix2nside(npix):
     test = np.log2(npix / 12)
     if not test == np.floor(test):

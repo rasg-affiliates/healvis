@@ -33,6 +33,7 @@ class Baseline(object):
             ant1_enu = np.asarray(ant1_enu)
             ant2_enu = np.asarray(ant2_enu)
             self.enu = ant2_enu - ant1_enu
+
         assert self.enu.size == 3, f"Wronge enu vector shape {self.enu.shape}"
 
     def get_uvw(self, freq_Hz):
@@ -53,6 +54,7 @@ class Baseline(object):
         fringe = np.cos(2 * np.pi * udotl) + (1j) * np.sin(
             2 * np.pi * udotl
         )  # This is weirdly faster than np.exp
+
         return fringe
 
 
@@ -93,6 +95,7 @@ class Observatory(object):
 
         if fov is None:
             fov = 180  # Degrees
+
         self.fov = fov
 
         if nside is None:
@@ -148,6 +151,7 @@ class Observatory(object):
                 obstime=t,
                 location=self.telescope_location,
             )
+
             zen_radec = zen.transform_to(ICRS())
             north_radec = north.transform_to(ICRS())
             centers.append([zen_radec.ra.deg, zen_radec.dec.deg])
@@ -194,6 +198,7 @@ class Observatory(object):
             radius += self.healpix.pixel_resolution.to_value(
                 "rad"
             )  # Allow parts of pixels to be above the horizon.
+
         cvec = hp.ang2vec(center[0], center[1], lonlat=True)
 
         if north is None:
