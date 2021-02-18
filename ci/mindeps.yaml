@@ -10,10 +10,10 @@ dependencies:
   - astropy-healpix
   - numpy>=1.15
   - pip
-  - astropy-healpix
   - psutil
   - pytest
   - pytest-cov
   - pyuvdata
   - pyyaml>=5.1
   - scipy
+  - numba

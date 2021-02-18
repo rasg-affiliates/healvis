@@ -20,7 +20,7 @@ Python dependencies for `healvis` include
 * multiprocessing
 * [pyuvdata](https://github.com/HERA-Team/pyuvdata/)
 
-Optional dependencies include
+These will be installed automatically. Optional dependencies include
 
 * [pygsm](https://github.com/telegraphic/PyGSM)
 * [scikit-learn](https://scikit-learn.org/stable/)
@@ -29,9 +29,11 @@ The use of PyGSM within this package is subject to the GNU General Public Licens
 
 ## Installation
 Clone this repository and run the installation script as
-```python setup.py install```
+```pip install .```
 
 To install optional dependencies, use ```pip install .[gsm]``` to install with PyGSM or ```pip install .[all]``` to install scikit-learn as well.
+
+To install `healvis` for development, use ```pip install .[dev]```.
 
 ## Getting Started
 To get started running `healvis`, see our [tutorial notebooks](https://github.com/RadioAstronomySoftwareGroup/healvis/tree/master/notebooks).

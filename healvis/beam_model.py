@@ -13,6 +13,7 @@ from .utils import mparray
 
 try:
     from sklearn import gaussian_process as gp
+
     sklearn_import = True
 except ImportError:
     sklearn_import = False
@@ -21,6 +22,7 @@ except ImportError:
 # -----------------------
 # Handles antenna beam models.
 # -----------------------
+
 
 def airy_disk(za_array, freqs, diameter=15.0, **kwargs):
     """
@@ -37,9 +39,17 @@ def airy_disk(za_array, freqs, diameter=15.0, **kwargs):
     # set za values greater than pi/2 to pi/2, such that beam doesn't rise to unity at np.pi
     za_arr = za_array.copy()
     za_arr[za_arr > np.pi / 2] = np.pi / 2
-    xvals = diameter / 2. * np.sin(za_arr.reshape(-1, 1)) * 2. * np.pi * freqs.reshape(1, -1) / c.value
+    xvals = (
+        diameter
+        / 2.0
+        * np.sin(za_arr.reshape(-1, 1))
+        * 2.0
+        * np.pi
+        * freqs.reshape(1, -1)
+        / c.value
+    )
     zeros = np.isclose(xvals, 0.0)
-    beam = (2.0 * np.true_divide(j1(xvals), xvals, where=~zeros))**2.0
+    beam = (2.0 * np.true_divide(j1(xvals), xvals, where=~zeros)) ** 2.0
     beam[zeros] = 1.0
 
     return beam
@@ -65,10 +75,12 @@ def smooth_beam(freqs, beam_array, freq_ls=2.0, noise=1e-10, output_freqs=None):
         smooth_beam : 2D ndarray
             Smoothed beam
     """
-    assert sklearn_import, "Couldn't import sklearn package. This is required to use beam smoothing functionality."
+    assert (
+        sklearn_import
+    ), "Couldn't import sklearn package. This is required to use beam smoothing functionality."
 
     # setup kernel
-    kernel = 1**2 * gp.kernels.RBF(freq_ls) + gp.kernels.WhiteKernel(noise)
+    kernel = 1 ** 2 * gp.kernels.RBF(freq_ls) + gp.kernels.WhiteKernel(noise)
     GP = gp.GaussianProcessRegressor(kernel=kernel, optimizer=None, copy_X_train=False)
     if output_freqs is None:
         output_freqs = freqs
@@ -113,20 +125,21 @@ class PowerBeam(UVBeam):
             self.read_beamfits(beamfits)
 
         # convert to power if efield
-        if self.beam_type == 'efield':
+        if self.beam_type == "efield":
             self.efield_to_power()
         self.peak_normalize()
 
         # Put data array in shared memory
         dat = self.data_array
         if np.iscomplexobj(dat):
-            dat = dat.real      # Power beams should have zero imaginary component.
+            dat = dat.real  # Power beams should have zero imaginary component.
+
         pdat = mparray(dat.shape, dtype=float)
         pdat[()] = dat[()]
         self.data_array = pdat
         self._data_array.expected_type = float
 
-    def interp_freq(self, freqs, inplace=False, kind='linear', run_check=True):
+    def interp_freq(self, freqs, inplace=False, kind="linear", run_check=True):
         """
         Interpolate object across frequency.
 
@@ -149,8 +162,8 @@ class PowerBeam(UVBeam):
         new_beam.Nfreqs = interp_data.shape[3]
         new_beam.freq_array = freqs.reshape(1, -1)
         new_beam.bandpass_array = interp_bp
-        if hasattr(new_beam, 'saved_interp_functions'):
-            delattr(new_beam, 'saved_interp_functions')
+        if hasattr(new_beam, "saved_interp_functions"):
+            delattr(new_beam, "saved_interp_functions")
         print("Doing frequency interpolation: " + str(kind))
         if run_check:
             new_beam.check()
@@ -158,7 +171,9 @@ class PowerBeam(UVBeam):
         if not inplace:
             return new_beam
 
-    def smooth_beam(self, freqs, inplace=False, freq_ls=2.0, noise=1e-10, run_check=True):
+    def smooth_beam(
+        self, freqs, inplace=False, freq_ls=2.0, noise=1e-10, run_check=True
+    ):
         """
         Smooth the beam across frequency.
 
@@ -184,31 +199,47 @@ class PowerBeam(UVBeam):
         for pi, pol in enumerate(new_beam.polarization_array):
 
             # get beam data
-            if new_beam.pixel_coordinate_system == 'az_za':
-                data = new_beam.data_array[0, 0, pi].reshape(new_beam.Nfreqs, new_beam.Naxes2 * new_beam.Naxes1)
-            elif new_beam.pixel_coordinate_system == 'healpix':
+            if new_beam.pixel_coordinate_system == "az_za":
+                data = new_beam.data_array[0, 0, pi].reshape(
+                    new_beam.Nfreqs, new_beam.Naxes2 * new_beam.Naxes1
+                )
+            elif new_beam.pixel_coordinate_system == "healpix":
                 data = new_beam.data_array[0, 0, pi]
 
             # smooth
-            sdata = smooth_beam(new_beam.freq_array[0], data, freq_ls=freq_ls, noise=noise, output_freqs=freqs)
+            sdata = smooth_beam(
+                new_beam.freq_array[0],
+                data,
+                freq_ls=freq_ls,
+                noise=noise,
+                output_freqs=freqs,
+            )
 
             # append
-            if new_beam.pixel_coordinate_system == 'az_za':
-                interp_data.append(sdata.reshape(Nfreqs, new_beam.Naxes2, new_beam.Naxes1))
-            elif new_beam.pixel_coordinate_system == 'healpix':
+            if new_beam.pixel_coordinate_system == "az_za":
+                interp_data.append(
+                    sdata.reshape(Nfreqs, new_beam.Naxes2, new_beam.Naxes1)
+                )
+            elif new_beam.pixel_coordinate_system == "healpix":
                 interp_data.append(sdata)
 
         # insert into new_beam
         new_beam.data_array = np.asarray(interp_data)[np.newaxis, np.newaxis]
 
         # smooth bandpass array too
-        new_beam.bandpass_array = smooth_beam(new_beam.freq_array[0], new_beam.bandpass_array.T, freq_ls=freq_ls, noise=noise, output_freqs=freqs).T
+        new_beam.bandpass_array = smooth_beam(
+            new_beam.freq_array[0],
+            new_beam.bandpass_array.T,
+            freq_ls=freq_ls,
+            noise=noise,
+            output_freqs=freqs,
+        ).T
 
         # update metadata
         new_beam.Nfreqs = new_beam.data_array.shape[3]
         new_beam.freq_array = freqs.reshape(1, -1)
-        if hasattr(new_beam, 'saved_interp_functions'):
-            delattr(new_beam, 'saved_interp_functions')
+        if hasattr(new_beam, "saved_interp_functions"):
+            delattr(new_beam, "saved_interp_functions")
 
         if run_check:
             new_beam.check()
@@ -216,7 +247,7 @@ class PowerBeam(UVBeam):
         if not inplace:
             return new_beam
 
-    def beam_val(self, az, za, freqs, pol='pI', **kwargs):
+    def beam_val(self, az, za, freqs, pol="pI", **kwargs):
         """
         Fast interpolation of power beam across the sky,
         using UVBeam "simple" interpolation methods.
@@ -236,7 +267,10 @@ class PowerBeam(UVBeam):
             beam_value : ndarray of beam power, with shape (Npix, Nfreqs) where Npix = len(za)
         """
         # type checks
-        assert self.beam_type == 'power', "beam_type must be power. See efield_to_power()"
+        assert (
+            self.beam_type == "power"
+        ), "beam_type must be power. See efield_to_power()"
+
         if isinstance(az, (float, int)):
             az = np.array([az]).astype(float)
         if isinstance(za, (float, int)):
@@ -247,10 +281,10 @@ class PowerBeam(UVBeam):
         za = np.asarray(za)
         freqs = np.asarray(freqs)
 
-        if self.pixel_coordinate_system == 'az_za':
-            self.interpolation_function = 'az_za_simple'
-        elif self.pixel_coordinate_system == 'healpix':
-            self.interpolation_function = 'healpix_simple'
+        if self.pixel_coordinate_system == "az_za":
+            self.interpolation_function = "az_za_simple"
+        elif self.pixel_coordinate_system == "healpix":
+            self.interpolation_function = "healpix_simple"
 
         if freqs is None:
             freqs = self.freq_array[0]
@@ -261,27 +295,40 @@ class PowerBeam(UVBeam):
             freqs = np.asarray(freqs)
             assert freqs.ndim == 1, "input freqs array must be 1-dimensional"
             freq_dists = np.abs(self.freq_array - freqs.reshape(-1, 1))
-            nearest_dist = np.min(freq_dists, axis=1)
             nearest_inds = np.argmin(freq_dists, axis=1)
             freqs = self.freq_array[0, nearest_inds]
 
         assert isinstance(pol, str), "requested polarization must be a single string"
 
         # interpolate
-        if self.pixel_coordinate_system == 'az_za':
+        if self.pixel_coordinate_system == "az_za":
             # azimuth - zenith angle interpolation
-            interp_beam, interp_basis, interp_bandpass = self._interp_az_za_rect_spline(az_array=az, za_array=za, freq_array=freqs, reuse_spline=True, polarizations=[pol])
+            interp_beam, interp_basis, interp_bandpass = self._interp_az_za_rect_spline(
+                az_array=az,
+                za_array=za,
+                freq_array=freqs,
+                reuse_spline=True,
+                polarizations=[pol],
+            )
 
-        elif self.pixel_coordinate_system == 'healpix':
+        elif self.pixel_coordinate_system == "healpix":
             # healpix interpolation
-            interp_beam, interp_basis, interp_bandpass = self._interp_healpix_bilinear(az_array=az, za_array=za, freq_array=freqs, polarizations=[pol])
+            interp_beam, interp_basis, interp_bandpass = self._interp_healpix_bilinear(
+                az_array=az, za_array=za, freq_array=freqs, polarizations=[pol]
+            )
 
         return interp_beam[0, 0, 0].T
 
 
 class AnalyticBeam(object):
-
-    def __init__(self, beam_type, gauss_width=None, diameter=None, spectral_index=0.0, ref_freq=None):
+    def __init__(
+        self,
+        beam_type,
+        gauss_width=None,
+        diameter=None,
+        spectral_index=0.0,
+        ref_freq=None,
+    ):
         """
         Instantiate an analytic beam model.
 
@@ -309,20 +356,24 @@ class AnalyticBeam(object):
                 and returns an ndarray of shape (Npix, Nfreqs) with power beam values, where
                 Npix = len(za_array)
         """
-        if beam_type not in ['uniform', 'gaussian', 'airy'] and not callable(beam_type):
-            raise NotImplementedError("Beam type " + str(beam_type) + " not available yet.")
+        if beam_type not in ["uniform", "gaussian", "airy"] and not callable(beam_type):
+            raise NotImplementedError(
+                "Beam type " + str(beam_type) + " not available yet."
+            )
         self.beam_type = beam_type
-        if beam_type == 'gaussian':
+        if beam_type == "gaussian":
             if gauss_width is None:
                 raise KeyError("gauss_width required for gaussian beam")
-            self.gauss_width = gauss_width * np.pi / 180.  # deg -> radians
+            self.gauss_width = gauss_width * np.pi / 180.0  # deg -> radians
             self.spectral_index = spectral_index
             self.ref_freq = ref_freq
             if (not spectral_index == 0.0) and (ref_freq is None):
-                raise ValueError("ref_freq must be set for nonzero gaussian beam spectral index")
+                raise ValueError(
+                    "ref_freq must be set for nonzero gaussian beam spectral index"
+                )
             if ref_freq is None:
                 self.ref_freq = 1.0  # Flat spectrum anyway
-        elif beam_type == 'airy':
+        elif beam_type == "airy":
             if diameter is None:
                 raise KeyError("Dish diameter required for airy beam")
             self.diameter = diameter
@@ -350,17 +401,19 @@ class AnalyticBeam(object):
         za = np.asarray(za)
         freqs = np.asarray(freqs)
 
-        if self.beam_type == 'uniform':
+        if self.beam_type == "uniform":
             if isinstance(az, np.ndarray):
                 if np.isscalar(freqs):
                     freqs = [freqs]
                 beam_value = np.ones((len(za), len(freqs)), dtype=float)
             else:
                 beam_value = 1.0
-        elif self.beam_type == 'gaussian':
-            sigmas = self.gauss_width * (freqs / self.ref_freq)**(self.spectral_index)
-            beam_value = np.exp(-(za[..., np.newaxis]**2) / (2 * sigmas**2))  # Peak normalized
-        elif self.beam_type == 'airy':
+        elif self.beam_type == "gaussian":
+            sigmas = self.gauss_width * (freqs / self.ref_freq) ** (self.spectral_index)
+            beam_value = np.exp(
+                -(za[..., np.newaxis] ** 2) / (2 * sigmas ** 2)
+            )  # Peak normalized
+        elif self.beam_type == "airy":
             beam_value = airy_disk(za, freqs, diameter=self.diameter)
         elif callable(self.beam_type):
             beam_value = self.beam_type(za, freqs, **kwargs)

@@ -46,7 +46,7 @@ jobs:
 
       - name: Run Tests
         run: |
-          python -m pytest --cov=healvis --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
+          python -m pytest
 
       - uses: codecov/codecov-action@master
         if: matrix.os == 'ubuntu-latest' && success()

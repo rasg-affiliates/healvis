@@ -8,8 +8,6 @@
 - Removed astropy-healpix incompatible functions
 - Removing all support for Python 2
 
->>>>>>> c5512e3... use astropy-healpix instead of healpy
-
 ## [v1.2.0] 12-23-2019
 
 ### Added
