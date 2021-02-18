@@ -5,6 +5,7 @@
 import numpy as np
 import multiprocessing as mp
 import time
+import pytest
 
 from healvis import utils
 
@@ -28,8 +29,7 @@ def test_mparray():
         if ind == 1:
             time.sleep(1)
             assert np.all([arr[i] == 2 * i for i in range(Nprocs)])
-            assert np.all([nsarr[i] == 100 for i in range(Nprocs)
-                          if not i == 1])
+            assert np.all([nsarr[i] == 100 for i in range(Nprocs) if not i == 1])
 
     procs = []
 
@@ -50,7 +50,7 @@ def assert_raises_message(exception_type, message, func, *args, **kwargs):
     """
     Check that the correct error message is raised.
     """
-    nocatch = kwargs.pop('nocatch', False)
+    nocatch = kwargs.pop("nocatch", False)
     if nocatch:
         func(*args, **kwargs)
 

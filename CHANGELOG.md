@@ -1,6 +1,6 @@
 # Changelog
 
-## [unreleased] 
+## [unreleased]
 
 ### Changed
 - Made healpy an optional dependency for using pygsm.

@@ -26,14 +26,13 @@ from .cosmology import c_ms
 
 
 class Baseline(object):
-
     def __init__(self, ant1_enu=None, ant2_enu=None, enu_vec=None):
         if enu_vec is not None:
             self.enu = enu_vec
         else:
-           ant1_enu = np.asarray(ant1_enu)
-           ant2_enu = np.asarray(ant2_enu)
-           self.enu = ant2_enu - ant1_enu
+            ant1_enu = np.asarray(ant1_enu)
+            ant2_enu = np.asarray(ant2_enu)
+            self.enu = ant2_enu - ant1_enu
         assert self.enu.size == 3, f"Wronge enu vector shape {self.enu.shape}"
 
     def get_uvw(self, freq_Hz):
@@ -51,7 +50,9 @@ class Baseline(object):
         lmn = np.vstack((pos_l, pos_m, pos_n))
         self.uvw = self.get_uvw(freq_Hz)
         udotl = np.einsum("jk,jl->kl", lmn, self.uvw)
-        fringe = np.cos(2 * np.pi * udotl) + (1j) * np.sin(2 * np.pi * udotl)  # This is weirdly faster than np.exp
+        fringe = np.cos(2 * np.pi * udotl) + (1j) * np.sin(
+            2 * np.pi * udotl
+        )  # This is weirdly faster than np.exp
         return fringe
 
 
@@ -75,14 +76,23 @@ class Observatory(object):
         Alias for baseline_array, for backwards compatibility.
     """
 
-    def __init__(self, latitude, longitude, fov=None, baseline_array=None, freqs=None, nside=None, array=None):
+    def __init__(
+        self,
+        latitude,
+        longitude,
+        fov=None,
+        baseline_array=None,
+        freqs=None,
+        nside=None,
+        array=None,
+    ):
         if baseline_array is None and array is not None:
             baseline_array = array
         self.array = baseline_array
         self.freqs = freqs
 
         if fov is None:
-            fov = 180   # Degrees
+            fov = 180  # Degrees
         self.fov = fov
 
         if nside is None:
@@ -91,11 +101,13 @@ class Observatory(object):
             self.healpix = HEALPix(nside=nside)
             self._set_vectors()
 
-        self.beam = None        # Primary beam. Set by `set_beam`
-        self.times_jd = None     # Observation times. Set by `set_pointings` function
-        self.pointing_centers = None    # List of [ra, dec] positions. One for each time. `set_pointings` sets this to zenith.
-        self.north_poles = None     # [ra,dec] ICRS position of the Earth's north pole. Set by `set_pointings`.
-        self.telescope_location = EarthLocation.from_geodetic(longitude * units.degree, latitude * units.degree)
+        self.beam = None  # Primary beam. Set by `set_beam`
+        self.times_jd = None  # Observation times. Set by `set_pointings` function
+        self.pointing_centers = None  # List of [ra, dec] positions. One for each time. `set_pointings` sets this to zenith.
+        self.north_poles = None  # [ra,dec] ICRS position of the Earth's north pole. Set by `set_pointings`.
+        self.telescope_location = EarthLocation.from_geodetic(
+            longitude * units.degree, latitude * units.degree
+        )
 
         self.do_horizon_taper = False
 
@@ -123,9 +135,19 @@ class Observatory(object):
         self.times_jd = time_arr
         centers = []
         north_poles = []
-        for t in Time(time_arr, scale='utc', format='jd'):
-            zen = AltAz(alt=Angle('90d'), az=Angle('0d'), obstime=t, location=self.telescope_location)
-            north = AltAz(alt=Angle('0d'), az=Angle('0d'), obstime=t, location=self.telescope_location)
+        for t in Time(time_arr, scale="utc", format="jd"):
+            zen = AltAz(
+                alt=Angle("90d"),
+                az=Angle("0d"),
+                obstime=t,
+                location=self.telescope_location,
+            )
+            north = AltAz(
+                alt=Angle("0d"),
+                az=Angle("0d"),
+                obstime=t,
+                location=self.telescope_location,
+            )
             zen_radec = zen.transform_to(ICRS())
             north_radec = north.transform_to(ICRS())
             centers.append([zen_radec.ra.deg, zen_radec.dec.deg])
@@ -167,13 +189,15 @@ class Observatory(object):
         if self.healpix is None:
             raise AttributeError("Need to set HEALPix instance attribute")
 
-        radius = self.fov * np.pi / 180. * 1 / 2.
+        radius = self.fov * np.pi / 180.0 * 1 / 2.0
         if self.do_horizon_taper:
-            radius += self.healpix.pixel_resolution.to_value('rad')     # Allow parts of pixels to be above the horizon.
+            radius += self.healpix.pixel_resolution.to_value(
+                "rad"
+            )  # Allow parts of pixels to be above the horizon.
         cvec = hp.ang2vec(center[0], center[1], lonlat=True)
 
         if north is None:
-            north = np.array([0, 90.])
+            north = np.array([0, 90.0])
         nvec = hp.ang2vec(north[0], north[1], lonlat=True)
         colat = np.arccos(np.dot(cvec, nvec))  # Should be close to 90d
         xvec = np.cross(nvec, cvec) * 1 / np.sin(colat)
@@ -182,8 +206,10 @@ class Observatory(object):
         sdotz = np.tensordot(self._vecs, cvec, 1)
         sdoty = np.tensordot(self._vecs, yvec, 1)
         za_arr = np.arccos(sdotz)
-        az_arr = (np.arctan2(sdotx, sdoty)) % (2 * np.pi)  # xy plane is tangent. Increasing azimuthal angle eastward, zero at North (y axis). x is East.
-        pix = za_arr <= radius    # Horizon cut.
+        az_arr = (np.arctan2(sdotx, sdoty)) % (
+            2 * np.pi
+        )  # xy plane is tangent. Increasing azimuthal angle eastward, zero at North (y axis). x is East.
+        pix = za_arr <= radius  # Horizon cut.
         if return_inds:
             return za_arr[pix], az_arr[pix], np.arange(self.healpix.npix)[pix]
         return za_arr[pix], az_arr[pix]
@@ -194,7 +220,7 @@ class Observatory(object):
         """
         self.fov = fov
 
-    def set_beam(self, beam='uniform', freq_interp_kind='linear', **kwargs):
+    def set_beam(self, beam="uniform", freq_interp_kind="linear", **kwargs):
         """
         Set the beam of the array.
 
@@ -210,7 +236,7 @@ class Observatory(object):
             kwargs : keyword arguments
                 kwargs to pass to AnalyticBeam instantiation.
         """
-        if beam in ['uniform', 'gaussian', 'airy'] or callable(beam):
+        if beam in ["uniform", "gaussian", "airy"] or callable(beam):
             self.beam = AnalyticBeam(beam, **kwargs)
 
         else:
@@ -218,7 +244,7 @@ class Observatory(object):
             self.beam.interp_freq(self.freqs, inplace=True, kind=freq_interp_kind)
             self.beam.freq_interp_kind = freq_interp_kind
 
-    def beam_sq_int(self, freqs, Nside, pointing, beam_pol='pI'):
+    def beam_sq_int(self, freqs, Nside, pointing, beam_pol="pI"):
         """
         Get the integral of the squared antenna primary beam power across the sky.
 
@@ -231,8 +257,10 @@ class Observatory(object):
                 Pointing center [Dec, RA] in J2000 degrees
         """
         za, az = self.calc_azza(pointing)
-        beam_sq_int = np.sum(self.beam.beam_val(az, za, freqs, pol=beam_pol)**2, axis=0)
-        om = 4 * np.pi / (12.0 * Nside**2)
+        beam_sq_int = np.sum(
+            self.beam.beam_val(az, za, freqs, pol=beam_pol) ** 2, axis=0
+        )
+        om = 4 * np.pi / (12.0 * Nside ** 2)
         beam_sq_int = beam_sq_int * om
 
         return beam_sq_int
@@ -244,14 +272,14 @@ class Observatory(object):
 
         (Allow pixels to "set")
         """
-        res = self.healpix.pixel_resolution.to_value('rad')
-        max_za = np.radians(self.fov) / 2.
+        res = self.healpix.pixel_resolution.to_value("rad")
+        max_za = np.radians(self.fov) / 2.0
         fracs = 0.5 * (1 - (za_arr - max_za) / res)
-        fracs[fracs > 1] = 1.0    # Do not weight pixels fully above the horizon.
+        fracs[fracs > 1] = 1.0  # Do not weight pixels fully above the horizon.
 
         return fracs
 
-    def _vis_calc(self, pcents, tinds, shell, vis_array, Nfin, beam_pol='pI'):
+    def _vis_calc(self, pcents, tinds, shell, vis_array, Nfin, beam_pol="pI"):
         """
         Function sent to subprocesses. Called by make_visibilities.
 
@@ -267,16 +295,13 @@ class Observatory(object):
         # Check for North Pole attribute.
         haspoles = True
         if self.north_poles is None:
-            warnings.warn('North pole positions not set. Azimuths may be inaccurate.')
+            warnings.warn("North pole positions not set. Azimuths may be inaccurate.")
             haspoles = False
 
-        for count, c in enumerate(pcents):
+        for count, c_ in enumerate(pcents):
             memory_usage_GB = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6
-            if haspoles:
-                north = self.north_poles[tinds[count]]
-            else:
-                north = None
-            za_arr, az_arr, pix = self.calc_azza(c, north, return_inds=True)
+            north = self.north_poles[tinds[count]] if haspoles else None
+            za_arr, az_arr, pix = self.calc_azza(c_, north, return_inds=True)
             beam_cube = self.beam.beam_val(az_arr, za_arr, self.freqs, pol=beam_pol)
             if self.do_horizon_taper:
                 horizon_taper = self._horizon_taper(za_arr).reshape(1, za_arr.size, 1)
@@ -289,14 +314,21 @@ class Observatory(object):
                 vis_array.put((tinds[count], bi, vis.tolist()))
             with Nfin.get_lock():
                 Nfin.value += 1
-            if mp.current_process().name == '0':
-                if Nfin.value > 0:
-                    dt = (time.time() - self.time0)
-                    sys.stdout.write('Finished: {:d}, Elapsed {:.2f}min, Remain {:.3f}hour, MaxRSS {}GB\n'.format(
-                        Nfin.value, dt / 60., (1 / 3600.) * (dt / float(Nfin.value)) * (self.Ntimes - Nfin.value), memory_usage_GB))
-                    sys.stdout.flush()
+            if mp.current_process().name == "0" and Nfin.value > 0:
+                dt = time.time() - self.time0
+                sys.stdout.write(
+                    "Finished: {:d}, Elapsed {:.2f}min, Remain {:.3f}hour, MaxRSS {}GB\n".format(
+                        Nfin.value,
+                        dt / 60.0,
+                        (1 / 3600.0)
+                        * (dt / float(Nfin.value))
+                        * (self.Ntimes - Nfin.value),
+                        memory_usage_GB,
+                    )
+                )
+                sys.stdout.flush()
 
-    def make_visibilities(self, shell, Nprocs=1, times_jd=None, beam_pol='pI'):
+    def make_visibilities(self, shell, Nprocs=1, times_jd=None, beam_pol="pI"):
         """
         Make beam cube and fringe cube, multiply and sum.
         shell (Npix, Nfreq) = healpix shell, as an mparray (multiprocessing shared array)
@@ -305,21 +337,20 @@ class Observatory(object):
         Returns visibility in Jy
         """
 
-        Nskies = shell.Nskies
         self.healpix = HEALPix(nside=shell.Nside)
         self._set_vectors()
-        Npix = shell.Npix
         Nfreqs = shell.Nfreqs
 
         assert Nfreqs == self.Nfreqs
 
         self.time0 = time.time()
-        Nbls = len(self.array)
         self.freqs = np.asarray(self.freqs)
-        conv_fact = jy2Tsr(self.freqs, bm=self.healpix.pixel_area.to_value('sr'))
+        conv_fact = jy2Tsr(self.freqs, bm=self.healpix.pixel_area.to_value("sr"))
 
         if self.pointing_centers is None and times_jd is None:
-            raise ValueError("Observatory.pointing_centers must be set using set_pointings() before simulation can begin.")
+            raise ValueError(
+                "Observatory.pointing_centers must be set using set_pointings() before simulation can begin."
+            )
 
         if times_jd is not None:
             if self.pointing_centers is not None:
@@ -332,15 +363,21 @@ class Observatory(object):
         procs = []
         man = mp.Manager()
         vis_array = man.Queue()
-        Nfin = mp.Value('i', 0)
+        Nfin = mp.Value("i", 0)
 
         if Nprocs > 1 and not isinstance(shell.data, mparray):
-            warnings.warn("Caution: SkyModel data array is not in shared memory. With Nprocs > 1, this will cause duplication.")
+            warnings.warn(
+                "Caution: SkyModel data array is not in shared memory. With Nprocs > 1, "
+                "this will cause duplication."
+            )
 
         for pi in range(Nprocs):
-            p = mp.Process(name=str(pi), target=self._vis_calc, args=(pcenter_list[pi], time_inds[pi], shell.data, vis_array, Nfin), kwargs=dict(beam_pol=beam_pol))
-#             self._vis_calc(pcenter_list[pi], time_inds[pi], shell.data, vis_array, Nfin, **dict(beam_pol=beam_pol))
-            #p.daemon = True
+            p = mp.Process(
+                name=str(pi),
+                target=self._vis_calc,
+                args=(pcenter_list[pi], time_inds[pi], shell.data, vis_array, Nfin),
+                kwargs={"beam_pol": beam_pol},
+            )
             p.start()
             procs.append(p)
         while (Nfin.value < self.Ntimes) and np.any([p.is_alive() for p in procs]):
@@ -349,7 +386,6 @@ class Observatory(object):
         time_inds, baseline_inds = [], []
         for (ti, bi, varr) in iter(vis_array.get, None):
             visibilities.append(varr)
-            N = len(varr)
             time_inds += [ti]
             baseline_inds += [bi]
             if vis_array.empty():
@@ -357,11 +393,8 @@ class Observatory(object):
 
         srt = np.lexsort((baseline_inds, time_inds))
         time_inds = np.array(time_inds)[srt]
-        visibilities = np.array(visibilities)[srt]      # Shape (Nblts, Nskies, Nfreqs)
-        if self.times_jd is not None:
-            time_array = self.times_jd[time_inds]
-        else:
-            time_array = None
+        visibilities = np.array(visibilities)[srt]  # Shape (Nblts, Nskies, Nfreqs)
+        time_array = self.times_jd[time_inds] if self.times_jd is not None else None
         baseline_array = np.array(baseline_inds)[srt]
 
         # Time and baseline arrays are now Nblts

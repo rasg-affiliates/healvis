@@ -18,6 +18,5 @@ def branch_scheme(version):
         else:
             return version.format_choice("+{node}.{branch}", "+{node}.{branch}.dirty")
 
-setup(
-    use_scm_version={"local_scheme": branch_scheme}
-)
+
+setup(use_scm_version={"local_scheme": branch_scheme})

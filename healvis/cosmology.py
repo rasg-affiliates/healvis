@@ -14,41 +14,45 @@ from astropy.constants import c
 # -----------------------
 
 f21 = 1.420405751e9
-c_ms = c.to('m/s').value
+c_ms = c.to("m/s").value
 
 
 def dkpar_dkperp(z):
-    '''
+    """
     Wedge line
-    '''
-    return cosmo.H0.to('m/(s Mpc)').value * comoving_distance(z)\
-        * cosmo.efunc(z) / (c_ms * (1 + z))
+    """
+    return (
+        cosmo.H0.to("m/(s Mpc)").value
+        * comoving_distance(z)
+        * cosmo.efunc(z)
+        / (c_ms * (1 + z))
+    )
 
 
 def comoving_distance(z):
-    return cosmo.comoving_distance(z).to('Mpc').value
+    return cosmo.comoving_distance(z).to("Mpc").value
 
 
 def dL_df(z):
-    '''
+    """
     Comoving differential distance at redshift per frequency.
 
     [cMpc]/Hz, from Furlanetto et al. (2006)
-    '''
+    """
     c_kms = c_ms / 1e3  # km/s
-    return c_kms / (cosmo.H0.value * cosmo.efunc(z)) * (z + 1)**2 / f21
+    return c_kms / (cosmo.H0.value * cosmo.efunc(z)) * (z + 1) ** 2 / f21
 
 
 def dL_dth(z):
-    '''
+    """
     Comoving transverse distance per radian in Mpc
     [cMpc]/radian
-    '''
+    """
     return cosmo.comoving_transverse_distance(z).value
 
 
 def dk_deta(z):
-    '''2pi * [Mpc^-1] / [Hz^-1]'''
+    """2pi * [Mpc^-1] / [Hz^-1]"""
     return 2 * np.pi / dL_df(z)
 
 
@@ -57,16 +61,16 @@ def dk_du(z):
 
 
 def X2Y(z):
-    '''[Mpc^3] / [sr * Hz] scalar conversion between observing and cosmological coordinates'''
-    return dL_dth(z)**2 * dL_df(z)
+    """[Mpc^3] / [sr * Hz] scalar conversion between observing and cosmological coordinates"""
+    return dL_dth(z) ** 2 * dL_df(z)
 
 
 def comoving_voxel_volume(z, dnu, omega):
     """
-        Get comoving voxel volume in Mpc^3
+    Get comoving voxel volume in Mpc^3
 
-        dnu = Channel width in Hz
-        Omega = pixel area in steradian
+    dnu = Channel width in Hz
+    Omega = pixel area in steradian
     """
     if isinstance(z, np.ndarray):
         if isinstance(omega, np.ndarray):
@@ -75,7 +79,7 @@ def comoving_voxel_volume(z, dnu, omega):
             z, dnu = np.meshgrid(z, dnu)
     elif isinstance(dnu, np.ndarray) and isinstance(omega, np.ndarray):
         dnu, omega = np.meshgrid(dnu, omega)
-    nu0 = f21 / (z + 1) - dnu / 2.
+    nu0 = f21 / (z + 1) - dnu / 2.0
     nu1 = nu0 + dnu
     dz = f21 * (1 / nu0 - 1 / nu1)
     vol = cosmo.differential_comoving_volume(z).value * dz * omega
