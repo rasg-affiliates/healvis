@@ -99,9 +99,11 @@ git_hash = version_info['git_hash']
 git_description = version_info['git_description']
 git_branch = version_info['git_branch']
 
-updated = True  # This indicates that the installation of healvis is 
-                # from https://github.com/hughbg/healvis.git, which has
-                # some updates and fixes.
+# This indicates that healvis allows the use of a list
+# of external beams. Could be done by checking version,
+# once that is established.
+allow_external_beams = True
+
 
 def main():
     print('Version = {0}'.format(version))

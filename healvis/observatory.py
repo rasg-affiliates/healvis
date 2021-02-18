@@ -99,7 +99,7 @@ class Observatory(object):
 
     """
 
-    def __init__(self, latitude, longitude, height, array=None, freqs=None, pix_area_sr=None):
+    def __init__(self, latitude, longitude, height=0.0, array=None, freqs=None, pix_area_sr=None):
         """
         array = list of baseline objects
         """
@@ -107,10 +107,6 @@ class Observatory(object):
         self.lon = longitude
         self.height = height
         self.array = array
-        self.antennas = set()	# Accumulate the antenna numbers
-        for baseline in array:
-            self.antennas.add(baseline.ant1)
-            self.antennas.add(baseline.ant2)
         self.freqs = freqs
 
         self.beam = None        # Primary beam. Set by `set_beam`
@@ -206,26 +202,29 @@ class Observatory(object):
         Set the beam of the array.
 
         Args:
-            beam : str, class or list of classes
-                If beam is a string: if it is a viable input to AnalyticBeam, 
-	        then instantiates an AnalyticBeam, otherwise assumes beam is 
-                a filepath to a beamfits and instantiates a PowerBeam.
-                If beam is a class or list of classes: assume these are beam
-                objects with a "beam_val" method, and save them.
+            beam : str, or list of beam objects
+                str: If it is a viable input to AnalyticBeam, 
+	            then instantiates an AnalyticBeam, otherwise assumes beam is 
+                    a filepath to a beamfits and instantiates a PowerBeam.
+                list: Assume these are beam objects with an "interp" method, and save them.
+                    This allows for external beams to be used, and different beams for each
+                    antenna. These are not power beams. Only a simplified interface is 
+                    provided here to interpolate the beam: 
+                    interp(self, az_array, za_array, freq_array)
             freq_interp_kind : str
                 For PowerBeam, frequency interpolation option.
 
             kwargs : keyword arguments
                 kwargs to pass to AnalyticBeam instantiation.
         """
-        if isinstance(beam, str):
-            if beam in ['uniform', 'gaussian', 'airy'] or callable(beam):
+
+        if isinstance(beam, list): self.beam = beam
+        elif beam in ['uniform', 'gaussian', 'airy'] or callable(beam):
                 self.beam = AnalyticBeam(beam, **kwargs)
-            else:
-                self.beam = PowerBeam(beam)
-                self.beam.interp_freq(self.freqs, inplace=True, kind=freq_interp_kind)
-                self.beam.freq_interp_kind = freq_interp_kind
-        else: self.beam = beam
+        else:
+            self.beam = PowerBeam(beam)
+            self.beam.interp_freq(self.freqs, inplace=True, kind=freq_interp_kind)
+            self.beam.freq_interp_kind = freq_interp_kind
 
     def beam_sq_int(self, freqs, Nside, pointing, beam_pol='pI'):
         """
@@ -247,6 +246,13 @@ class Observatory(object):
         beam_sq_int = beam_sq_int * om
 
         return beam_sq_int
+
+    def external_beam_val(self, beam, az_arr, za_arr, freqs, pol="XX"):
+        """
+        Call interp() on a beam
+        """
+        interp_data, interp_basis_vector = beam.interp(az_arr, za_arr, freqs)
+        return interp_data[0, 0, 1].T   # just want Npix, Nfreq
 
     def get_observed_region(self, Nside):
         """
@@ -310,11 +316,23 @@ class Observatory(object):
             za_arr, az_arr, pix = self.calc_azza(self.Nside, c, north, return_inds=True)
  
             if isinstance(self.beam, list):
-                # Adds another dimension to beam_cube: the baselines
+                # Adds another dimension to beam_cube: the baselines.
+                # Multiplies the beams for the 2 antennas in a baseline.
+                # These are not power beams.
+
+                # Accumulate the antenna numbers
+                antennas = set()   
+                for bi, baseline in enumerate(self.array):
+                    assert baseline.ant1 is not None and baseline.ant2 is not None,  \
+                            "Antenna number not set for baseline "+str(bi)
+                    antennas.add(baseline.ant1)
+                    antennas.add(baseline.ant2)
+                assert len(antennas) == len(self.beam), "Number of beams does not match number of antennas"
+
                 beam_cube = [ None for i in range(len(self.array)) ]
-                beam_val = [ None for i in range(len(self.antennas)) ]
-                for i in self.antennas: 
-                    bv = self.beam[i].beam_val(az_arr, za_arr, self.freqs, pol=beam_pol)
+                beam_val = [ None for i in range(len(antennas)) ]
+                for i in antennas: 
+                    bv = self.external_beam_val(self.beam[i], az_arr, za_arr, self.freqs, pol=beam_pol)
                     bv[np.argwhere(za_arr>np.pi/2)[:, 0], :] = 0    # Sources below horizon
                     beam_val[i] = bv
                 for bi, bl in enumerate(self.array):
@@ -322,7 +340,6 @@ class Observatory(object):
                     beam_cube[bi] = beam_val[bl.ant1]*beam_val[bl.ant2]
             else:
                 beam_cube = self.beam.beam_val(az_arr, za_arr, self.freqs, pol=beam_pol) # (Npix, Nfreq)
-                if not isinstance(self.beam, PowerBeam): beam_cube *= beam_cube
                 beam_cube[np.argwhere(za_arr>np.pi/2)[:, 0], :] = 0    # Sources below horizon
             if self.do_horizon_taper:
                 horizon_taper = self._horizon_taper(za_arr).reshape(1, za_arr.size, 1)
