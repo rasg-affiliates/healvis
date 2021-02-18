@@ -7,6 +7,10 @@ jobs:
       ENV_NAME: tests
       PYTHON: ${{ matrix.python-version }}
       OS: ${{ matrix.os }}
+    defaults:
+      run:
+        # Adding -l {0} helps ensure conda can be found properly in windows.
+        shell: bash -l {0}
     name: Testing
     runs-on: ${{ matrix.os }}
     strategy:
@@ -38,12 +42,10 @@ jobs:
 
       - name: Install
         run: |
-          conda activate ${{ matrix.kind }}
           python -m pip install .
 
       - name: Run Tests
         run: |
-          conda activate ${{ matrix.kind }}
           python -m pytest --cov=healvis --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
 
       - uses: codecov/codecov-action@master
