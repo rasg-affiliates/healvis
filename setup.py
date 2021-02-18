@@ -40,7 +40,6 @@ setup_args = {
     'include_package_data': True,
     'package_data': {'healvis': data_files},
     'version': version.version,
-    'include_package_data': True,
     'install_requires': ['numpy>=1.14', 'six>=1.10', 'scipy', 'astropy>=2.0',
                          'numba', 'h5py', 'pyyaml', 'pyuvdata', 'astropy-healpix',
                          'healpy'],
