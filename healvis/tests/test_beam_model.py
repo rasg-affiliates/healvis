@@ -7,6 +7,7 @@ from astropy_healpix import healpy as hp
 import os
 import copy
 from astropy.cosmology import WMAP9
+from pyuvdata import UVBeam
 
 from healvis import beam_model
 from healvis.data import DATA_PATH

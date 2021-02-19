@@ -112,8 +112,8 @@ class PowerBeam(UVBeam):
         Initialize a PowerBeam object
 
         Args:
-            beamfits : str or UVBeam
-                A path to beamfits file or a UVBeam object
+            beamfits : str
+                A path to beamfits file
             interp_mode : str
                 Interpolation method. See pyuvdata.UVBeam
         """
@@ -127,7 +127,6 @@ class PowerBeam(UVBeam):
         # convert to power if efield
         if self.beam_type == "efield":
             self.efield_to_power()
-        self.peak_normalize()
 
         # Put data array in shared memory
         dat = self.data_array
