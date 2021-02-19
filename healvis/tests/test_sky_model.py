@@ -2,11 +2,9 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 3-clause BSD License
 
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 import os
-import healpy as hp
+from astropy_healpix import healpy as hp
 from astropy.cosmology import Planck15
 
 from healvis import sky_model, utils
@@ -26,17 +24,17 @@ def verify_update(sky_obj):
         indices = sky_obj.indices
         Npix = sky_obj.Npix
 
-        if Npix == 12 * Nside**2:
+        if Npix == 12 * Nside ** 2:
             assert all(indices == np.arange(Npix))
         else:
             assert Npix == indices.size
     if sky_obj.freqs is not None:
         freqs = sky_obj.freqs
-        Nfreq = sky_obj.Nfreqs
-        Z = sky_obj.Z_array
-        r_mpc = sky_obj.r_mpc
+        sky_obj.Nfreqs
+        sky_obj.Z_array
+        sky_obj.r_mpc
 
-        Zcheck = 1420. / freqs - 1.
+        Zcheck = 1420.0 / freqs - 1.0
         Rcheck = Planck15.comoving_distance(Zcheck).to("Mpc").value
         assert all(Zcheck == Zcheck)
         assert all(Rcheck == Rcheck)
@@ -67,7 +65,7 @@ def test_flat_spectrum():
 
 def test_write_read():
     dr = tempfile.mkdtemp()
-    testfilename = os.path.join(dr, 'test_out.hdf5')
+    testfilename = os.path.join(dr, "test_out.hdf5")
     Nfreqs = 10
     freq_array = np.linspace(167.0, 177.0, Nfreqs)
     sky = sky_model.SkyModel(Nside=64, Nskies=1, freqs=freq_array, ref_chan=5)
@@ -78,7 +76,11 @@ def test_write_read():
     sky2.read_hdf5(testfilename, shared_memory=True)
     assert isinstance(sky2.data, utils.mparray)
     sky3.read_hdf5(testfilename)
-    sky.history, sky2.history, sky3.history, = '', '', ''
+    sky.history, sky2.history, sky3.history, = (
+        "",
+        "",
+        "",
+    )
     assert sky == sky2
     assert sky2 == sky3
     os.remove(testfilename)
@@ -90,7 +92,11 @@ def test_fewchannel_read():
     sky.read_hdf5(os.path.join(DATA_PATH, "gsm_nside32.hdf5"), freq_chans=chans)
     assert sky.freqs.size == 4
     sky = sky_model.SkyModel()
-    sky.read_hdf5(os.path.join(DATA_PATH, "gsm_nside32.hdf5"), freq_chans=chans, shared_memory=True)
+    sky.read_hdf5(
+        os.path.join(DATA_PATH, "gsm_nside32.hdf5"),
+        freq_chans=chans,
+        shared_memory=True,
+    )
     assert sky.freqs.size == 4
 
 
@@ -101,5 +107,7 @@ def test_freqselect_read():
     subfreqs = sky.freqs[::2]
     sky = sky_model.SkyModel()
     sky.freqs = subfreqs
-    sky.read_hdf5(os.path.join(DATA_PATH, "gsm_nside32.hdf5"), do_not_overwrite_freqs=True)
+    sky.read_hdf5(
+        os.path.join(DATA_PATH, "gsm_nside32.hdf5"), do_not_overwrite_freqs=True
+    )
     assert sky.freqs.size == subfreqs.size

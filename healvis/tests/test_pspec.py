@@ -2,8 +2,6 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 3-clause BSD License
 
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 from astropy.time import Time
 
@@ -33,18 +31,17 @@ def test_pspec_amp():
     nside = 64
 
     obs = observatory.Observatory(latitude, longitude, array=[bl], freqs=freqs)
-    t0 = Time('J2000').jd
-    obs.times_jd = np.linspace(t0, t0 + 0.5, Ntimes)    # Half a day
+    t0 = Time("J2000").jd
+    obs.times_jd = np.linspace(t0, t0 + 0.5, Ntimes)  # Half a day
     obs.set_pointings(obs.times_jd)
 
     obs.set_fov(fov)
-    obs.set_beam('gaussian', gauss_width=7.37)
+    obs.set_beam("gaussian", gauss_width=7.37)
 
     skysig = 0.031
 
     sky = sky_model.SkyModel(Nside=nside, freqs=freqs, ref_chan=Nfreqs // 2)
     sky.make_flat_spectrum_shell(skysig, shared_memory=True)
-    pix_area = sky.pix_area_sr
 
     visibs, times, bls = obs.make_visibilities(sky, Nprocs=3)
 
@@ -55,9 +52,8 @@ def test_pspec_amp():
     Nkpar = Nfreqs // 2
     _vis = _vis[:, :Nkpar]  # Keeping only positive k_par modes
 
-    dspec_instr = np.abs(_vis)**2
+    dspec_instr = np.abs(_vis) ** 2
 
-    za, az = obs.calc_azza(sky.Nside, obs.pointing_centers[0])
     beam_sq_int = np.mean(obs.beam_sq_int(freqs, nside, obs.pointing_centers[0]))
 
     Bandwidth = freqs[-1] - freqs[0]
@@ -68,9 +64,13 @@ def test_pspec_amp():
     # Theoretical pspec amp
     dnu = np.diff(freqs)[0]
     Z_sel = sky.Z_array[sky.ref_chan]
-    amp_theor = skysig**2 * cosmology.comoving_voxel_volume(Z_sel, dnu, sky.pix_area_sr)
+    amp_theor = skysig ** 2 * cosmology.comoving_voxel_volume(
+        Z_sel, dnu, sky.pix_area_sr
+    )
 
-    tolerance = (amp_theor / float(Ntimes))   # assuming independent fields
+    tolerance = amp_theor / float(Ntimes)  # assuming independent fields
     print(amp_theor, np.mean(dspec_I))
     print(tolerance)
-    assert np.isclose(amp_theor, np.mean(dspec_I), atol=2 * tolerance)   # Close to within twice the sample variance
+    assert np.isclose(
+        amp_theor, np.mean(dspec_I), atol=2 * tolerance
+    )  # Close to within twice the sample variance

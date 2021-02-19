@@ -6,3 +6,6 @@ healvis.egg-info/*
 build/*
 healvis/GIT_INFO
 *ipynb_checkpoints
+.pytest_cache
+healvis/data/test*
+test_out.hdf5

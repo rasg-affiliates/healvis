@@ -24,13 +24,13 @@ freqs = np.array([100e6])
 
 dpix_spacing = (nside1 / nside0) * np.degrees(hp.nside2resol(nside1))
 
-ra, dec = hp.pix2ang(nside0, np.arange(12 * nside0**2), lonlat=True)
+ra, dec = hp.pix2ang(nside0, np.arange(12 * nside0 ** 2), lonlat=True)
 udecs = np.unique(dec)
-map0 = np.zeros(12 * nside0**2)
+map0 = np.zeros(12 * nside0 ** 2)
 for di, d in enumerate(udecs):
     map0[dec == d] = di
 
-map1 = np.zeros(12 * nside1**2)
+map1 = np.zeros(12 * nside1 ** 2)
 
 inds0 = hp.ang2pix(nside1, ra, dec, lonlat=True)
 
@@ -39,4 +39,4 @@ map1 = map1[:, np.newaxis]
 
 sky = SkyModel(freqs=freqs, Nside=nside1, data=map1)
 
-sky.write_hdf5('healvis/data/imaging_test_map.hdf5', clobber=True)
+sky.write_hdf5("healvis/data/imaging_test_map.hdf5", clobber=True)

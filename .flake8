@@ -1,0 +1,34 @@
+[flake8]
+ignore =
+    E203
+    E266
+    E501
+    W503
+    F403
+    F401
+    E231
+    C408
+max-line-length = 88
+# Should be 18.
+max-complexity = 35
+exclude =
+    development/*
+# Not ready for this yet.
+select = B,C,E,F,W,T4,B9,D
+rst-roles =
+    class
+    func
+    mod
+    data
+    const
+    meth
+    attr
+    exc
+    obj
+rst-directives =
+    note
+    warning
+    versionadded
+    versionchanged
+    deprecated
+    seealso
