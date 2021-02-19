@@ -17,7 +17,7 @@ from healvis.data import DATA_PATH
 @pytest.fixture(autouse=True, scope="session")
 def setup_and_teardown_package():
     """Make data/test directory to put test output files in."""
-    testdir = os.path.join(DATA_PATH, 'temporary_test_data/')
+    testdir = os.path.join(DATA_PATH, "temporary_test_data/")
     if not os.path.exists(testdir):
         os.mkdir(testdir)
 
@@ -25,7 +25,6 @@ def setup_and_teardown_package():
     # and turn it back on in teardown_package (done by extending auto_max_age)
     if iers.conf.auto_download:
         try:
-            iers.IERS_A.open(iers.IERS_A_URL)
             t1 = Time.now()
             t1.ut1
         except (URLError, HTTPError):
@@ -33,7 +32,7 @@ def setup_and_teardown_package():
                 iers.IERS.iers_table = iers.IERS_A.open(iers.IERS_A_URL_MIRROR)
                 t1 = Time.now()
                 t1.ut1
-            except(URLError, HTTPError):
+            except (URLError, HTTPError):
                 iers.conf.auto_max_age = None
                 iers.conf.auto_download = False
     # yield to allow tests to run

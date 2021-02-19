@@ -1,0 +1,21 @@
+name: tests
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - astropy>=4.0
+  - coverage
+  - h5py
+  - scikit-learn
+  - numpy>=1.15
+  - pip
+  - astropy-healpix
+  - psutil
+  - pytest
+  - pytest-cov
+  - pyuvdata
+  - pyyaml>=5.1
+  - scipy
+  - numba
+  - pip:
+    - git+https://github.com/telegraphic/PyGSM.git

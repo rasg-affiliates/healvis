@@ -1,0 +1,55 @@
+name: Tests
+on: [push, pull_request]
+
+jobs:
+  tests:
+    env:
+      ENV_NAME: tests
+      PYTHON: ${{ matrix.python-version }}
+      OS: ${{ matrix.os }}
+    defaults:
+      run:
+        # Adding -l {0} helps ensure conda can be found properly in windows.
+        shell: bash -l {0}
+    name: Testing
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: [3.6, 3.7, 3.8]
+        kind: [tests, mindeps]
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v2.0.0
+        with:
+          auto-update-conda: true
+          miniconda-version: "latest"
+          python-version: ${{ matrix.python-version }}
+          environment-file: ci/${{ matrix.kind }}.yaml
+          activate-environment: ${{ matrix.kind }}
+
+      - name: Conda Info
+        run: |
+          conda info -a
+          conda list
+          PYVER=`python -c "import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
+          echo $PYVER
+
+      - name: Install
+        run: |
+          python -m pip install .
+
+      - name: Run Tests
+        run: |
+          python -m pytest
+
+      - uses: codecov/codecov-action@master
+        if: matrix.os == 'ubuntu-latest' && success()
+        with:
+          token: ${{secrets.CODECOV_TOKEN}} #required
+          file: ./coverage.xml #optional

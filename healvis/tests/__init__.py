@@ -7,14 +7,14 @@ import pytest
 
 from healvis.data import DATA_PATH
 
-TESTDATA_PATH = os.path.join(DATA_PATH, 'temporary_test_data/')
+TESTDATA_PATH = os.path.join(DATA_PATH, "temporary_test_data/")
 
 
 def assert_raises_message(exception_type, message, func, *args, **kwargs):
     """
     Check that the correct error message is raised.
     """
-    nocatch = kwargs.pop('nocatch', False)
+    nocatch = kwargs.pop("nocatch", False)
     if nocatch:
         func(*args, **kwargs)
 
