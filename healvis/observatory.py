@@ -244,10 +244,9 @@ class Observatory(object):
                 str: If it is a viable input to AnalyticBeam, 
 	            then instantiates an AnalyticBeam, otherwise assumes beam is 
                     a filepath to a beamfits and instantiates a PowerBeam.
-                list: Assume these are beam objects with an "interp" method, and save them.
-                    This allows for external beams to be used, and different beams for each
-                    antenna. They should not be power beams. Only a simplified interface is 
-                    provided here to interpolate the beam: 
+                list: List of beam objects. This allows for external beams to be 
+                    used, and different beams for each antenna. They should not be 
+                    power beams. Each beam mustshould have an interp method: 
                     interp(self, az_array, za_array, freq_array)
             freq_interp_kind : str
                 For PowerBeam, frequency interpolation option.
@@ -278,7 +277,7 @@ class Observatory(object):
         """
 
         if isinstance(self.beam, list):
-            raise RuntimeError("beam_sq_int not implemented for multiple beams")
+            raise RuntimeError("beam_sq_int not implemented for multiple antenna beams")
         za, az = self.calc_azza(pointing)
         beam_sq_int = np.sum(
             self.beam.beam_val(az, za, freqs, pol=beam_pol) ** 2, axis=0
