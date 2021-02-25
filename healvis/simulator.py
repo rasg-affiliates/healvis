@@ -885,9 +885,9 @@ def run_simulation_partial_freq(
     Args:
         freq_chans : integer 1D array
             Frequency channel indices of uvh5_file to simulate
-        uvh5_file : str
+        uvh5_file : str or UVData
             Filepath to a UVH5 file
-        skymod_file : str
+        skymod_file : str or SkyModel
             Filepath to a SkyModel file
         beam : str, UVbeam, PowerBeam or AnalyticBeam
             Filepath to beamfits, a UVBeam object, or PowerBeam or AnalyticBeam object
@@ -908,13 +908,15 @@ def run_simulation_partial_freq(
         Writes simulation result into uvh5_file
     """
     # load UVH5 metadata
-    uvd = UVData()
-    uvd.read_uvh5(uvh5_file, read_data=False)
+    if isinstance(uvh5_file, str):
+        uvd = UVData()
+        uvd.read_uvh5(uvh5_file, read_data=False)
     pols = [uvutils.polnum2str(pol) for pol in uvd.polarization_array]
 
     # load SkyModel
-    sky = sky_model.SkyModel()
-    sky.read_hdf5(skymod_file, freq_chans=freq_chans, shared_memory=False)
+    if isinstance(skymod_file, str):
+        sky = sky_model.SkyModel()
+        sky.read_hdf5(skymod_file, freq_chans=freq_chans, shared_memory=False)
 
     # Check that chosen freqs are a subset of the skymodel frequencies.
     assert np.isclose(
