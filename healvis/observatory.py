@@ -246,7 +246,7 @@ class Observatory(object):
                     a filepath to a beamfits and instantiates a PowerBeam.
                 list: List of beam objects. This allows for external beams to be 
                     used, and different beams for each antenna. They should not be 
-                    power beams. Each beam mustshould have an interp method: 
+                    power beams. Each beam must have an interp method: 
                     interp(self, az_array, za_array, freq_array)
             freq_interp_kind : str
                 For PowerBeam, frequency interpolation option.
