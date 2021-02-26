@@ -291,7 +291,8 @@ class Observatory(object):
         """
         Call interp() on a beam, and provide results in the right format.
         """
-        interp_data, interp_basis_vector = beam.interp(az_arr, za_arr, freqs)
+        interp_data, interp_basis_vector = beam.interp(az_array=az_arr, za_array=za_arr, 
+                                                        freq_array=freqs)
         return interp_data[0, 0, 1].T   # just want Npix, Nfreq
 
     def _horizon_taper(self, za_arr):
