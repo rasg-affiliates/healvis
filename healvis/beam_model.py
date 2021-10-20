@@ -127,6 +127,9 @@ class PowerBeam(UVBeam):
         # convert to power if efield
         if self.beam_type == "efield":
             self.efield_to_power()
+        #ATJ: Why was peak normalization removed in a previous versions of master?
+        print('Peak-normalizing the beam') #ATJ
+        self.peak_normalize() #ATJ
 
         # Put data array in shared memory
         dat = self.data_array

@@ -512,6 +512,8 @@ def setup_uvdata(
 
     if redundancy is not None:
         red_tol = redundancy
+        np.save('enu.npy',enu)
+        np.save('anums.npy', anums)
         reds, vec_bin_centers, lengths = uvutils.get_antenna_redundancies(
             anums, enu, tol=red_tol, include_autos=not bool(no_autos)
         )
@@ -524,7 +526,10 @@ def setup_uvdata(
     if bls is not None:
         if isinstance(bls, str):
             bls = ast.literal_eval(bls)
-        bls = [bl for bl in _bls if bl in bls]
+
+        #bls = [bl for bl in _bls if bl in bls] #original
+        bls = [bl for bl in _bls if np.logical_or(bl in bls, (bl[1], bl[0]) in bls)]# ATJ amendment. so the _bls with a1 > a2 aren't forgotten.
+
     else:
         bls = _bls
     if anchor_ant is not None:
@@ -635,7 +640,6 @@ def setup_observatory_from_uvdata(
 
         elif isinstance(beam, beam_model.AnalyticBeam):
             obs.beam = beam
-
     # smooth the beam
     if isinstance(obs.beam, beam_model.PowerBeam) and smooth_beam:
         obs.beam.smooth_beam(obs.freqs, inplace=True, freq_ls=smooth_scale)
@@ -723,7 +727,6 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=""):
 
     if "make_full" not in uvd_dict:
         uvd_dict["make_full"] = False
-
     uv_obj = setup_uvdata(**uvd_dict)
 
     # ---------------------------
@@ -849,7 +852,7 @@ def run_simulation(param_file, Nprocs=1, sjob_id=None, add_to_history=""):
         # write base directory if it doesn't exist
         dirname = os.path.dirname(outfile_name)
         if dirname != "" and not os.path.exists(dirname):
-            os.mkdir(dirname)
+            os.makedirs(dirname)
 
         print(f"...writing {outfile_name}")
         if "clobber" not in filing_params:
